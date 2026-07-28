@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# ROS2
+build/
+install/
+log/
+
+# Models / engines
+*.pt
+*.pth
+*.onnx
+*.engine
+*.plan
+
+# Data / outputs
+data/sample_videos/
+data/outputs/
+benchmarks/*.csv
+
+# System
+.DS_Store
+*.swp
