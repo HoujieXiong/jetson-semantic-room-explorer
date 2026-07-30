@@ -49,9 +49,12 @@ Current development mode:
 
 - Jetson Orin Nano
 - JetPack 6.2.2
+- Ubuntu 22.04.5 LTS
+- Jetson Linux / L4T R36.5.0
 - SSH / headless workflow
 - Image/video-file inference before live camera is available
 - YOLOv8n image inference running on Jetson GPU
+- ROS2 Humble environment available
 
 ## Software Stack
 
@@ -69,6 +72,19 @@ Planned stack:
 - C++ where performance-critical
 - RViz visualization
 
+Current verified Jetson base stack:
+
+- Ubuntu 22.04.5 LTS rootfs
+- Jetson Linux / L4T R36.5.0
+- CUDA 12.6 runtime present
+- cuDNN 9.3 runtime libraries present
+- TensorRT 10.3 runtime libraries present
+- VPI 3.2 packages present
+- NVIDIA multimedia / GStreamer stack present
+- NVIDIA container runtime / toolkit present
+- Docker present
+- ROS2 Humble environment sourced successfully
+
 Current verified ML environment:
 
 - Python 3.10.12
@@ -78,6 +94,74 @@ Current verified ML environment:
 - NumPy 1.26.4
 - OpenCV 4.10.0 headless
 - Ultralytics 8.4.112
+
+Known environment notes:
+
+- `nvcc` is not currently on `PATH`; CUDA runtime is present and PyTorch CUDA inference works.
+- TensorRT runtime libraries are present, but Python `tensorrt` binding still needs to be added before the TensorRT phase.
+- VPI system packages are present; VPI Python is not visible inside the current project virtual environment.
+- The project uses `opencv-python-headless` in the virtual environment for SSH/headless development.
+
+## Important Paths
+
+Jetson project paths:
+
+```text
+Project root:
+~/projects/jetson-semantic-room-explorer
+
+Python virtual environment:
+~/projects/jetson-semantic-room-explorer/.venv
+
+Sample images:
+~/projects/jetson-semantic-room-explorer/data/sample_images
+
+Sample videos:
+~/projects/jetson-semantic-room-explorer/data/sample_videos
+
+Project outputs:
+~/projects/jetson-semantic-room-explorer/data/outputs
+
+Ultralytics default runs:
+~/projects/jetson-semantic-room-explorer/runs
+
+YOLO smoke test output:
+~/projects/jetson-semantic-room-explorer/runs/detect/data/outputs/yolo_smoke_test
+
+Models:
+~/projects/jetson-semantic-room-explorer/models
+
+Benchmarks:
+~/projects/jetson-semantic-room-explorer/benchmarks
+
+Environment snapshot:
+~/projects/jetson-semantic-room-explorer/docs/jetson_env_snapshot.txt
+
+Jetson stack check:
+~/jetson_stack_check.txt
+```
+
+System paths:
+
+```text
+ROS2 Humble setup:
+/opt/ros/humble/setup.bash
+
+CUDA symlink:
+/usr/local/cuda
+
+CUDA 12.6 root:
+/usr/local/cuda-12.6
+
+NVIDIA multimedia packages:
+/usr/lib/aarch64-linux-gnu/nvidia
+
+NVIDIA container runtime config:
+/etc/nvidia-container-runtime/config.toml
+
+Docker daemon config:
+/etc/docker/daemon.json
+```
 
 ## Project Phases
 
@@ -99,6 +183,7 @@ Deliverables:
 - Project repository
 - Basic Python/OpenCV validation
 - Jetson-compatible PyTorch / TorchVision with CUDA validation
+- ROS2 Humble environment validation
 
 ### Phase 2: YOLO Perception Baseline
 
@@ -302,8 +387,10 @@ jetson-semantic-room-explorer/
 - [X] Python/OpenCV baseline verified
 - [X] Jetson-compatible PyTorch CUDA verified
 - [X] YOLO image inference running
+- [X] ROS2 Humble environment sourced
 - [ ] YOLO inference script added
 - [ ] YOLO baseline benchmark table added
+- [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete
 - [ ] RGB-D camera integrated
 - [ ] RTAB-Map RGB-D SLAM running
