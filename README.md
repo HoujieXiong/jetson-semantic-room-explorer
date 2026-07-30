@@ -51,6 +51,7 @@ Current development mode:
 - JetPack 6.2.2
 - SSH / headless workflow
 - Image/video-file inference before live camera is available
+- YOLOv8n image inference running on Jetson GPU
 
 ## Software Stack
 
@@ -68,11 +69,21 @@ Planned stack:
 - C++ where performance-critical
 - RViz visualization
 
+Current verified ML environment:
+
+- Python 3.10.12
+- PyTorch 2.8.0
+- TorchVision 0.23.0
+- CUDA available on Orin GPU
+- NumPy 1.26.4
+- OpenCV 4.10.0 headless
+- Ultralytics 8.4.112
+
 ## Project Phases
 
 ### Phase 1: Jetson Bring-Up
 
-Status: in progress
+Status: mostly complete
 
 Goals:
 
@@ -87,8 +98,11 @@ Deliverables:
 - Environment snapshot
 - Project repository
 - Basic Python/OpenCV validation
+- Jetson-compatible PyTorch / TorchVision with CUDA validation
 
 ### Phase 2: YOLO Perception Baseline
+
+Status: in progress
 
 Goals:
 
@@ -103,6 +117,19 @@ Deliverables:
 - Video inference script
 - Annotated output images/videos
 - Baseline benchmark table
+
+Current milestone:
+
+```text
+YOLOv8n PyTorch inference runs on Jetson Orin Nano GPU.
+Test input: data/sample_images/test.jpg
+Detected classes: person, cars, trains, traffic light
+Model inference latency: 34.0 ms
+Preprocess latency: 44.0 ms
+Postprocess latency: 35.8 ms
+Input tensor shape: (1, 3, 448, 640)
+Output directory: runs/detect/data/outputs/yolo_smoke_test
+```
 
 ### Phase 3: TensorRT Deployment
 
@@ -270,10 +297,13 @@ jetson-semantic-room-explorer/
 - [X] JetPack 6.2.2 installed
 - [X] SSH access available
 - [X] Headless workflow selected
-- [ ] GitHub repository initialized
-- [ ] Environment snapshot saved
-- [ ] Python/OpenCV baseline verified
-- [ ] YOLO image inference running
+- [X] GitHub repository initialized
+- [X] Environment snapshot saved
+- [X] Python/OpenCV baseline verified
+- [X] Jetson-compatible PyTorch CUDA verified
+- [X] YOLO image inference running
+- [ ] YOLO inference script added
+- [ ] YOLO baseline benchmark table added
 - [ ] TensorRT benchmark complete
 - [ ] RGB-D camera integrated
 - [ ] RTAB-Map RGB-D SLAM running
