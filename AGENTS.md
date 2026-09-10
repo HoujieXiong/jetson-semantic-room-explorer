@@ -1598,6 +1598,11 @@ Verified:
   per-frame diagnostics from the measured 0.25x trial. All frames decode and
   presentation timestamps match within 1 us; the complete serialized RGB hash
   matches the bag reference. No dependency download or new odometry run.
+- Attached-display follow-up: Totem lacked an H.264 decoder. Reused the installed
+  VP8 encoder/decoder to make full/short WebM viewing copies, 1411/105 frames and
+  47.40/6.53 MB. Both pass complete PyAV and system GStreamer decoding, with
+  maximum timestamp quantization errors 0.500/0.498 ms. The user confirmed the
+  short clip plays on the Jetson display. No decoder installation was needed.
 
 Evidence:
 
@@ -1616,6 +1621,11 @@ Evidence:
   `video_review/` directory. In the half-speed clip, player time 6.163 s displays
   source time 21.104 s. The frame reports 7 inliers from 130 matches; this viewing
   aid does not establish a cause or complete the controlled diagnosis task.
+- `video_review/convert_webm.py`, both `.verification.json` reports and `.gst.log`
+  files retain the desktop-compatible export checks. An initial conversion's
+  incorrect time base was rejected; that output remains separately named
+  `loss_18_to_25s_half_speed_rejected_timing.webm`. Only the corrected standard
+  filenames passed verification and are linked for viewing.
 
 Limitations and decisions:
 

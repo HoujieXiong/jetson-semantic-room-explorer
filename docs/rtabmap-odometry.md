@@ -99,6 +99,19 @@ Copies of these two source files are saved with the preflight evidence.
 Local review videos are exported under
 `data/outputs/rtabmap_odom/trials_20260910/video_review/`:
 
+On the Jetson's attached display, use the **WebM** viewing copies. The installed
+Totem player reported a missing H.264 decoder for MP4, although the original
+PyAV decode checks passed. Its existing GStreamer VP8 decoder plays the WebM
+version; the user confirmed the short clip works. No decoder was installed.
+
+```bash
+gio open data/outputs/rtabmap_odom/trials_20260910/video_review/loss_18_to_25s_half_speed.webm
+```
+
+The complete recording is `room_walk_02_review.webm` in the same directory
+(1411 frames, 47.40 MB); the WebM short clip contains 105 frames, 6.53 MB.
+The MP4 copies remain useful for players that already support H.264:
+
 - `room_walk_02_review.mp4`: the complete RGB recording at normal speed;
   1411 frames, 94.533 seconds, 26.14 MB.
 - `loss_18_to_25s_half_speed.mp4`: source seconds 18–25 at half speed, covering
@@ -143,6 +156,20 @@ time to within one microsecond. `export_report.json` and `export.log` retain
 this verification. `loss_at_21_104s.png` is a decoded preview of the first long
 loss, showing the measured 7 inliers from 130 matches. The video and preview do
 not establish which factor caused the matching failure.
+
+`convert_webm.py` transcodes the viewing copies with the installed PyAV/libvpx
+encoder. WebM presentation timestamps are quantized to milliseconds; verification
+requires the same decoded frame count and at most 0.501 ms timing error relative
+to MP4. Each conversion also decodes to completion with the system's actual
+`gst-launch-1.0 ... matroskademux ! vp8dec ! fakesink` pipeline, saving the log
+and a `.verification.json` report beside the output. The source bag and odometry
+measurements remain unchanged.
+
+Both WebM copies passed complete PyAV and system GStreamer decoding on this
+Jetson; maximum presentation-time errors were 0.500/0.498 ms for full/short
+copies. An initial short transcode failed the timing check because the muxer
+changed the stream time base; its rejected output is retained separately.
+The corrected conversion sets each frame's time base explicitly and passed.
 
 ## Reproduce On This Jetson
 
