@@ -94,6 +94,56 @@ commit `c25a091c2a682f0e0f4e8d19d807953e7f1a8161`:
 [odometry publication and replay policy](https://github.com/introlab/rtabmap_ros/blob/c25a091c2a682f0e0f4e8d19d807953e7f1a8161/rtabmap_odom/src/OdometryROS.cpp).
 Copies of these two source files are saved with the preflight evidence.
 
+## Watch The Recording
+
+Local review videos are exported under
+`data/outputs/rtabmap_odom/trials_20260910/video_review/`:
+
+- `room_walk_02_review.mp4`: the complete RGB recording at normal speed;
+  1411 frames, 94.533 seconds, 26.14 MB.
+- `loss_18_to_25s_half_speed.mp4`: source seconds 18–25 at half speed, covering
+  the first sustained loss in the quarter-speed odometry experiment;
+  105 frames, 14.068 seconds, 2.50 MB.
+
+The original 1280x720 RGB view is retained above a separate caption strip. The
+`SOURCE` counter uses the same source-time origin as the measurement report.
+Look near `SOURCE 21.104 s`; the short clip's player timeline starts at zero
+and runs at half speed, so its player time is different from the source counter.
+Pause the short clip at player time **6.163 seconds** to see that source frame.
+`TRACKED`, `LOST`, inliers and matches are the saved 0.25x trial's diagnostics,
+not a new odometry run or an independently verified pose.
+
+These H.264 MP4 files are local, lossy viewing copies without audio or metric
+depth. The original bag is unchanged. On a computer connected over SSH, download
+the short clip and open it with an existing video player. Run this command on
+that computer, replacing `JETSON_IP` with the address used for SSH:
+
+```bash
+scp jeffx@JETSON_IP:~/projects/jetson-semantic-room-explorer/data/outputs/rtabmap_odom/trials_20260910/video_review/loss_18_to_25s_half_speed.mp4 .
+```
+
+The export procedure is saved beside the videos as `export_video.py`. It reuses
+the installed PyAV/libx264 encoder and ROS compression reader, joins odometry by
+exact source stamp, and verifies every decoded output frame and presentation
+timestamp against the source. It also compares the complete serialized RGB hash
+with the passing bag reference. Reproduction from the repository root uses:
+
+```bash
+source /opt/ros/humble/setup.bash
+.venv/bin/python data/outputs/rtabmap_odom/trials_20260910/video_review/export_video.py
+```
+
+The exporter refuses to overwrite either existing video. Preserve existing
+exports when repeating it in a new local output directory.
+
+On 2026-09-10, both outputs decoded completely as H.264, 1280x816 including the
+caption strip. RGB input count and serialized hash matched the passing bag
+report; every decoded presentation timestamp matched its intended source-based
+time to within one microsecond. `export_report.json` and `export.log` retain
+this verification. `loss_at_21_104s.png` is a decoded preview of the first long
+loss, showing the measured 7 inliers from 130 matches. The video and preview do
+not establish which factor caused the matching failure.
+
 ## Reproduce On This Jetson
 
 Keep the camera driver stopped. From the repository root, source the environment

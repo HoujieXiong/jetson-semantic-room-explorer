@@ -1592,6 +1592,12 @@ Verified:
   compilation, shell syntax and `git diff --check`. A real ROS no-input run exited
   1 after its bounded wait and saved an `INCOMPLETE` report with zero observations.
   Complete diff reviewed; generated evidence stays ignored and local.
+- User-requested viewing follow-up: exported the complete RGB recording as
+  H.264 MP4 (1411 frames, 94.533 s, 26.14 MB) and an 18–25 s source-time clip at
+  half speed (105 frames, 14.068 s, 2.50 MB). Captions retain source time and exact
+  per-frame diagnostics from the measured 0.25x trial. All frames decode and
+  presentation timestamps match within 1 us; the complete serialized RGB hash
+  matches the bag reference. No dependency download or new odometry run.
 
 Evidence:
 
@@ -1605,6 +1611,11 @@ Evidence:
   `run_trial.py`, `unit_tests_final.log`, `cli_checks.json` and the checker used.
 - Reproduction commands, source commit, package versions and limits are in
   `docs/rtabmap-odometry.md`. No room images, bags or trajectories are committed.
+- Viewing exports, `export_video.py`, `export_report.json`, `export.log` and the
+  decoded `loss_at_21_104s.png` preview are in the trials root's ignored
+  `video_review/` directory. In the half-speed clip, player time 6.163 s displays
+  source time 21.104 s. The frame reports 7 inliers from 130 matches; this viewing
+  aid does not establish a cause or complete the controlled diagnosis task.
 
 Limitations and decisions:
 
