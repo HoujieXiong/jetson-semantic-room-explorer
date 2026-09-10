@@ -331,6 +331,22 @@ Deliverables:
 
 ### Phase 4: RTAB-Map RGB-D SLAM
 
+Offline odometry now runs on the existing second room recording using isolated
+RTAB-Map 0.23.7 Humble binaries. Both complete replays passed output timestamp/TF
+checks and exited normally, but sustained tracking failed:
+
+| Trial | Results / input pairs | Tracked / lost results | Longest loss |
+| --- | --- | --- | --- |
+| 1x, default latest-frame policy | 466 / 1411 | 100 / 366 | 75.37 s |
+| 0.25x, offline input policy | 1410 / 1411 | 420 / 990 | 60.77 s |
+
+Slow replay processed almost every input but still lost tracking from about
+21.1 to 81.9 seconds. Twelve odometry checker tests pass. Continuous tracking,
+pose accuracy and room mapping remain unverified; no new recording is required
+to investigate the first failure. Both playback rate and input policy changed,
+so these runs do not isolate the effect of rate alone.
+See [odometry setup and evidence](docs/rtabmap-odometry.md).
+
 Goals:
 
 - Run RTAB-Map first on recorded RGB-D data
@@ -503,6 +519,7 @@ jetson-semantic-room-explorer/
 - [X] Stationary RGB-D ROS2 topics and rosbag replay verified
 - [X] Moving RGB-D sensor contract and exact rosbag replay verified
 - [ ] Controlled room-loop capture quality verified
+- [X] RTAB-Map offline odometry trial measured, including sustained tracking failure
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete
 - [ ] RTAB-Map RGB-D SLAM running

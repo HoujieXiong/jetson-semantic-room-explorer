@@ -351,6 +351,7 @@ ROS 2 camera topics: VERIFIED (rectified RGB-D at 15 FPS)
 Rosbag recording/replay: VERIFIED (59.39 s stationary bag, exact simulated-time replay)
 Moving RGB-D recording/replay: VERIFIED (93.88/94.49 s, 1402/1411 pairs)
 Controlled room-loop capture quality: NOT VERIFIED (end motion/blur remains)
+RTAB-Map offline odometry measurement: VERIFIED (sustained tracking loss recorded)
 RTAB-Map RGB-D SLAM: NOT VERIFIED
 ```
 
@@ -369,55 +370,52 @@ and `docs/camera-femto-mega.md` for evidence and limitations.
 
 ## 5. Current Next Task
 
-Milestone: **M3 supervised room-walk recording**, after the user returns.
+Milestone: **M4 offline odometry failure diagnosis on the existing second bag**.
 
-The stationary ROS contract and exact simulated-time replay are verified. Keep
-`config/femto_rgbd.yaml` at the measured 15 FPS setting: 30 FPS recording showed
-a reception stall. Native capture remains a separate working path.
+Session authorization, 2026-09-10: after questioning further recording, the user
+asked to try existing data and explicitly approved downloading the missing
+RTAB-Map odometry components. This advances the authorized scope beyond M3
+recording. The 36-package plan was downloaded/reused, hash-verified and extracted
+under `~/projects/rtabmap_odom_ws` without system package installation. Safe
+continued work and GitHub progress updates are already authorized; do not repeat
+these approval questions. Ask before downloading newly required components.
 
-Session authorization, 2026-09-10: the user approved the six reviewed build
-dependencies, safe continued M3 work and GitHub progress updates. The dependencies
-were extracted locally without changing system packages. Do not repeat that
-approval request. Keep room images and bags local and ignored.
+The second bag preserves all 1411 RGB-D pairs and exact replay, but initial
+odometry trials report sustained tracking loss. Recover the latest measured
+results from `docs/rtabmap-odometry.md` and the ledger before any new trial.
+Keep camera data and derived trajectories local and ignored. Use the separate
+RTAB-Map environment; do not mix the camera OpenCV 4.8 overlay with this binary
+runtime's system OpenCV 4.5d.
 
-Follow-up evidence, 2026-09-10: the user returned and confirmed movable equipment.
-Two supervised moving bags passed the sensor contract and exact driver-stopped
-replay. The first did not complete a loop. The user reported completing the second
-loop and later confirmed adjusting/putting down the camera afterward, explaining
-the end motion/ceiling view. Stationary endpoints remain unverified. The user
-questioned further recording; a third take was not started. Do not automatically
-request or start another capture merely to improve the endpoints. Existing bags
-are available for an initial offline odometry experiment, with image-quality
-limitations retained. This task and `prompt.md` are preserved because its full
-capture-quality conditions were not verified; do not claim otherwise. The
-proposed next action is evaluating existing data before deciding to recapture.
+The user reported returning to the start, then adjusting/putting down the camera.
+Stationary endpoints remain unverified. A third take was never started. Do not
+automatically request or start another recording to improve the endpoints. The
+earlier M3 task text in `prompt.md` remains unchanged because its full capture
+quality was not verified; that is not an instruction to restart recording.
+Follow this explicitly authorized offline continuation and retain M3 limitations.
 
 Required sequence:
 
-1. Recover git state and read `docs/camera-ros2.md` and the stationary M3 ledger.
-   Confirm the user is present and establish a safe way to move the camera/Jetson
-   with secured power and cabling; do not assume the fixed setup is portable.
-   The user performs any physical camera motion. Do not actuate a robot.
-2. Preserve the verified stationary check. Adapt only the verification needed
-   for a moving scene: the current fixed center-wall 2–3 m check must not be
-   applied to every frame of a room walk. Retain units, calibration, timestamp,
-   pairing, TF, rate and explicit failure checks.
-3. With the user's participation, record one bounded 60–120 s slow room loop,
-   with useful visual overlap and short stationary periods at the ends. Record
-   the same four camera topics and static TF, plus the source timestamp CSV.
-4. Stop the driver and verify the moving bag and exact simulated-time replay.
-   Measure gaps, skew and invalid depth; preserve failures and privacy. Do not
-   start SLAM or perception as part of this recording task.
-5. Save reproduction commands and evidence, review the complete diff and update
-   the ledger only with measured results.
+1. Recover git state and both preserved trials. Locate the earliest sustained
+   slow-replay loss using source timestamps and inspect nearby RGB-D frames,
+   matching statistics and arrival gaps. Preserve the original bag and reports.
+2. Identify one evidence-supported hypothesis and test one controlled change
+   using the same input. Do not attribute all failures to operator motion or
+   Jetson throughput without separating those effects.
+3. Retain millimeter depth, camera calibration, 5 ms RGB-D synchronization,
+   simulated time and timestamped pose/TF checks. Keep automatic reset disabled
+   while diagnosing continuity. The accepted native/camera paths stay separate.
+4. Save tracking loss and input omissions explicitly. A successful process exit
+   or a `MEASURED` checker report does not establish accurate odometry. Validate
+   any promising adjustment over the full bag before enabling full mapping.
+5. Review the complete diff and record measured results and one next action.
+   Do not introduce perception, robot motion or a fresh capture in this step.
 
-Acceptance: a real moving-room bag preserves the established ROS sensor contract
-and replays with the driver stopped. Stationary data alone does not verify this
-step, visual odometry or room mapping.
+Acceptance: a reproducible diagnosis of the first sustained tracking failure,
+with a controlled comparison and honest limits on any claimed improvement.
 
-Learning checkpoint: explain why motion and overlapping views are required for
-visual odometry, while the stationary test established only the sensor and replay
-interface. The later RTAB-Map milestone must verify pose/TF and map quality.
+Learning checkpoint: distinguish intact RGB-D delivery, timestamp-correct TF,
+the algorithm's tracking state, and independently established pose accuracy.
 
 ## 6. Target System Architecture
 
@@ -649,7 +647,8 @@ Learning goal: ROS topics, QoS, synchronization, calibration, TF, and rosbag.
 
 ### M4: RTAB-Map RGB-D SLAM
 
-Status: `PLANNED`
+Status: `IMPLEMENTED` for the offline odometry experiment; measurement `VERIFIED`
+with sustained tracking loss. Continuous tracking and mapping remain `PLANNED`.
 
 Steps:
 
@@ -1546,6 +1545,86 @@ Next action:
 - Evaluate RGB-D odometry on the existing second recording when continuing to
   that scope; use measured tracking performance to decide whether recapture is
   needed. Do not automatically repeat recording for stationary endpoints alone.
+
+### 2026-09-10: M4 Offline Odometry Trial, Sustained Tracking Failure
+
+Status: `VERIFIED` for the offline runtime and measurement contract. Continuous
+odometry and room mapping are not verified; this is a recorded negative result.
+
+Changed:
+
+- Continued after the user's explicit approval to try existing data and download
+  the missing RTAB-Map components. Downloaded 35 packages (21,665,814 bytes), reused
+  one cached archive, verified all 36 SHA-256 values and extracted locally.
+  No system packages or maintainer scripts changed/ran. Core/ROS version 0.23.7.
+- Added the isolated environment helper, minimal RGB-D odometry config, bounded
+  result checker and focused tests. Reused the upstream odometry executable and
+  existing statistics helper; no mapping node, camera activation or new capture.
+- Added `docs/rtabmap-odometry.md` and README measurements. Advanced this file's
+  next task under the user's newer odometry authorization, retaining unresolved
+  M3 capture-quality conditions and the earlier `prompt.md` task text.
+
+Verified:
+
+- Runtime libraries use system Humble cv_bridge and only OpenCV 4.5d, separate
+  from the camera's 4.8 overlay. Startup, OdomInfo serialization and clean close
+  passed. Exact versions, hashes, library mappings and parameters are saved.
+- Two full replays of the 94.487476504-second second bag, with no camera driver
+  present. Both reproduce all 1411 CameraInfo messages per stream and exact
+  reference hashes. Image contents were verified by the prior full M3 replay;
+  this lightweight benchmark checker does not hash image payloads again.
+- 1x with the default latest-frame policy: 466 results, 100 tracked and 366 lost;
+  945 inputs without results. Processing median/P95/max:
+  168.291/239.881/326.865 ms. Long loss: source offsets 18.559–93.931 s (75.373 s).
+- 0.25x with `always_process_most_recent_frame=false`: 1410 results, 420 tracked
+  and 990 lost; one final input pair without a result. Processing median/P95/max:
+  183.904/239.055/349.257 ms. Long loss: 21.104–81.870 s (60.766 s), plus
+  19.430–19.564 s and 89.040–94.467 s. Automatic reset stayed disabled.
+- Output Odometry/OdomInfo stamps exactly match synchronized source image pairs.
+  All 100/420 tracked poses match their dynamic TF and connect to the recorded
+  color optical frame at that timestamp. Simulated clock checks pass, with
+  2900/11373 clock messages. Null lost poses remain explicit and CSV cells empty.
+- Odometry descriptors remained 19; threads 31–36. RSS ranges: 154780–277096 KiB
+  and 152928–324896 KiB. Player/checker/odometry all exited 0 with no forced stop;
+  complete harness times were 131.499/417.781 s. Final process inspection found
+  no camera, odometry, replay, checker or harness running. No long-run leak claim.
+- Twelve focused tests passed (0.068 s), plus three CLI rejection checks, Python
+  compilation, shell syntax and `git diff --check`. A real ROS no-input run exited
+  1 after its bounded wait and saved an `INCOMPLETE` report with zero observations.
+  Complete diff reviewed; generated evidence stays ignored and local.
+
+Evidence:
+
+- `data/outputs/rtabmap_odom/preflight_20260910T230308Z/`: approved dependency
+  plan, download/extraction log and verified manifest, startup checks, library
+  mappings and matching official source copies. The original blocked preflight
+  plan is historical; `dependencies_prepared.json` records its successful completion.
+- `data/outputs/rtabmap_odom/trials_20260910/`: both trial directories with exact
+  commands/configs/parameters, scalar diagnostics, JSON/CSV trajectories and
+  process/resource logs; `summary.json`, `analyze.py`, source-time PNG/PDF plot,
+  `run_trial.py`, `unit_tests_final.log`, `cli_checks.json` and the checker used.
+- Reproduction commands, source commit, package versions and limits are in
+  `docs/rtabmap-odometry.md`. No room images, bags or trajectories are committed.
+
+Limitations and decisions:
+
+- Initial 1x warnings explicitly recommend disabling the latest-frame policy
+  for bursty offline replay. The slow diagnostic changes both rate and that
+  policy; it does not isolate the effect of rate alone. Original timestamps,
+  receipt bursts, calibration, depth units and images are preserved.
+- Almost complete processing still produced prolonged loss well before the
+  final camera handling. Insufficient inliers and later projected points outside
+  the camera are observed, but a unique root cause is not established. Do not
+  blame operator motion alone or claim that another full recording is necessary.
+- A tracked flag is not ground-truth pose accuracy; recovery is not loop closure.
+  No continuous trajectory, room map or real-time 15 FPS odometry was verified.
+  Learning: sensor delivery, pose/TF consistency and usable tracking are separate
+  acceptance conditions, and failed tracking must remain visible in evidence.
+
+Next action:
+
+- Diagnose the first sustained slow-replay loss around 21.1 s using nearby frames
+  and match statistics from this same bag, then test one controlled adjustment.
 
 ## 16. End-Of-Session Handoff Template
 

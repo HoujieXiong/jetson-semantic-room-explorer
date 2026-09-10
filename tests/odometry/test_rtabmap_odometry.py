@@ -1,0 +1,98 @@
+"""Run using the isolated RTAB-Map environment."""
+from pathlib import Path
+import sys
+import unittest
+
+from rclpy.serialization import serialize_message
+from sensor_msgs.msg import CameraInfo
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from check_rtabmap_odometry import OdomCheck, check_pose, lost_intervals
+
+
+class OdometryEvidenceTests(unittest.TestCase):
+    def test_lost_span_includes_time_until_recovery(self):
+        rows = [{'stamp_ns': index*1_000_000_000, 'lost': lost}
+                for index, lost in enumerate([False, True, True, False])]
+        self.assertEqual(lost_intervals(rows, 4_000_000_000),
+                         [{'start_ns': 1_000_000_000, 'end_ns': 3_000_000_000, 'duration_s': 2.0}])
+
+    def test_unrecovered_span_ends_at_input_end(self):
+        rows = [{'stamp_ns': 1_000_000_000, 'lost': True}]
+        self.assertEqual(lost_intervals(rows, 5_000_000_000)[0]['duration_s'], 4.0)
+
+    def test_success_does_not_create_loss(self):
+        self.assertEqual(lost_intervals([{'stamp_ns': 1, 'lost': False}], 2), [])
+
+    def test_null_pose_is_allowed_only_when_lost(self):
+        row = {'position_m': [0, 0, 0], 'quaternion_xyzw': [0, 0, 0, 0], 'covariance_diagonal': [9999]*6}
+        check_pose(row, True)
+        with self.assertRaisesRegex(ValueError, 'not normalized'):
+            check_pose(row, False)
+
+    def test_valid_pose_is_not_a_null_lost_pose(self):
+        row = {'position_m': [1, 2, 3], 'quaternion_xyzw': [0, 0, 0, 1], 'covariance_diagonal': [0.01]*6}
+        check_pose(row, False)
+        with self.assertRaisesRegex(ValueError, 'null quaternion'):
+            check_pose(row, True)
+
+    def test_nonfinite_pose_is_rejected_even_when_lost(self):
+        row = {'position_m': [float('nan'), 0, 0], 'quaternion_xyzw': [0]*4, 'covariance_diagonal': [9999]*6}
+        with self.assertRaisesRegex(ValueError, 'Non-finite'):
+            check_pose(row, True)
+
+
+class OdometryContractTests(unittest.TestCase):
+    def setUp(self):
+        self.check = OdomCheck()
+        self.reference = {'topics': {}}
+        for stream, ns in (('color', 2_000_000), ('depth', 0)):
+            message = CameraInfo()
+            message.header.stamp.sec = 2
+            message.header.stamp.nanosec = ns
+            self.check.camera_info(stream, serialize_message(message))
+            self.reference['topics'][f'/camera/{stream}/camera_info'] = {
+                'count': 1, 'serialized_sha256': self.check.camera_hashes[stream].hexdigest()}
+        self.check.info = [{'stamp_ns': 2_002_000_000, 'lost': True,
+                            'processing_s': 0.1, 'inliers': 0}]
+        self.check.poses = [{'stamp_ns': 2_002_000_000, 'position_m': [0]*3,
+                             'quaternion_xyzw': [0]*4, 'covariance_diagonal': [9999]*6}]
+        self.check.clock_stamps = [2_000_000_000, 2_002_000_000]
+
+    def test_complete_tracking_loss_remains_explicit(self):
+        result = self.check.finish(self.reference)
+        self.assertEqual(result['status'], 'MEASURED')
+        self.assertEqual(result['tracked_frames'], 0)
+        self.assertEqual(result['lost_fraction_of_processed'], 1)
+        self.assertIsNone(result['last_tracked_offset_s'])
+
+    def test_output_must_use_later_input_stamp(self):
+        self.check.info[0]['stamp_ns'] = 2_000_000_000
+        self.check.poses[0]['stamp_ns'] = 2_000_000_000
+        with self.assertRaisesRegex(ValueError, 'source image stamp'):
+            self.check.finish(self.reference)
+
+    def test_altered_replay_is_rejected(self):
+        self.check.camera_hashes['color'].update(b'altered')
+        with self.assertRaisesRegex(ValueError, 'differs from the verified bag'):
+            self.check.finish(self.reference)
+
+    def test_clock_must_advance(self):
+        self.check.clock_stamps = [2_000_000_000]*2
+        with self.assertRaisesRegex(ValueError, 'advancing simulated clock'):
+            self.check.finish(self.reference)
+
+    def test_missing_output_is_rejected(self):
+        self.check.poses = []
+        with self.assertRaisesRegex(ValueError, 'unmatched'):
+            self.check.finish(self.reference)
+
+    def test_tracked_pose_requires_timestamped_tf(self):
+        self.check.info[0]['lost'] = False
+        self.check.poses[0]['quaternion_xyzw'] = [0, 0, 0, 1]
+        with self.assertRaisesRegex(ValueError, 'Missing TF'):
+            self.check.finish(self.reference)
+
+
+if __name__ == '__main__':
+    unittest.main()
