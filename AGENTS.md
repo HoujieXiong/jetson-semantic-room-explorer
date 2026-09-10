@@ -350,10 +350,10 @@ Rosbag recording/replay: NOT VERIFIED
 RTAB-Map RGB-D SLAM: NOT VERIFIED
 ```
 
-A local draft named `femto_mega_capture_once.py` existed in an earlier workspace,
-but it is not present on the current GitHub `main`. It must be reviewed rather
-than blindly copied because pixel format, depth scale, synchronization, and
-alignment behavior need hardware validation.
+The preliminary draft `scripts/femto_mega_capture_once.py` is now versioned.
+It has passed a Python syntax check only; pixel format, depth scale,
+synchronization, alignment, and save-error handling still need review and
+hardware validation. M2 acceptance remains pending.
 
 ## 5. Current Next Task
 

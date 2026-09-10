@@ -9,6 +9,9 @@ build/
 install/
 log/
 
+# Orbbec SDK runtime logs
+/Log/
+
 # Models / engines
 *.pt
 *.pth

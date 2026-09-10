@@ -224,6 +224,37 @@ Input tensor shape: (1, 3, 448, 640)
 Output directory: runs/detect/data/outputs/yolo_smoke_test
 ```
 
+PyTorch baseline benchmark:
+
+```text
+Model: YOLOv8n
+Backend: PyTorch
+Device: Jetson Orin Nano GPU
+Input: data/sample_images/test.jpg
+Image size: 640
+Confidence threshold: 0.25
+Warmup runs: 10
+Benchmark runs: 50
+Detections per run: 7
+
+Mean inference latency: 30.76 ms
+Median inference latency: 32.93 ms
+P95 inference latency: 33.09 ms
+
+Mean total wall time: 59.79 ms
+Median total wall time: 62.51 ms
+P95 total wall time: 63.59 ms
+
+Estimated FPS from mean total wall time: 16.72 FPS
+CSV: benchmarks/yolo_pytorch_baseline.csv
+```
+
+Benchmark table:
+
+| Model   | Backend | Device   | Image Size | Mean Inference | Mean Total | FPS   | Notes               |
+| ------- | ------- | -------- | ---------- | -------------- | ---------- | ----- | ------------------- |
+| YOLOv8n | PyTorch | Orin GPU | 640        | 30.76 ms       | 59.79 ms   | 16.72 | image-file baseline |
+
 ### Phase 3: Femto Mega RGB-D Bring-Up
 
 Goals:
@@ -408,6 +439,7 @@ jetson-semantic-room-explorer/
 - [X] YOLO inference script added
 - [X] YOLO PyTorch benchmark script added
 - [X] YOLO baseline measured: 30.76 ms inference, 59.79 ms total mean
+- [X] YOLO baseline benchmark table added
 - [ ] Femto Mega native RGB-D capture verified
 - [ ] RGB-D ROS2 topics and rosbag replay verified
 - [ ] TensorRT Python binding added
