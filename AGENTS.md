@@ -1308,6 +1308,56 @@ Next action:
 - Verify the M3 ROS 2 camera contract and a short stationary rosbag replay using
   an inspected compatible Orbbec driver; room-walk mapping remains a later check.
 
+### 2026-09-10: M3 Driver Source And Initial Build
+
+Status: source checkout and message-package build `VERIFIED`; camera-driver build
+`BLOCKED` by missing dependencies. M3 camera topics and rosbag acceptance remain
+`PLANNED`.
+
+Changed:
+
+- With explicit user approval, cloned official Orbbec ROS 2 `v2-main` source into
+  `/home/jeffx/projects/femto_ros2_ws/src/OrbbecSDK_ROS2` at commit
+  `8e7cad2bfa2c4a6ac4e779be99c64e72166043af`. Checkout is unmodified.
+- Driver and bundled ARM64 SDK are 2.9.3; native Python SDK 2.8.6 remains separate.
+  Inspected source licenses, build requirements and Femto Mega launch defaults.
+- Added `docs/camera-ros2.md` and README build status on `feat/ros2-camera`.
+  No system packages or native capture code changed.
+
+Verified:
+
+- System ROS imports and sqlite3 bag reader/writer registration passed. Local
+  search found no preinstalled Orbbec ROS driver; camera USB enumeration is 5000
+  Mbit/s. No camera streaming was started in this build step.
+- Ran the documented Release colcon build with two compiler jobs and upstream
+  lint disabled. `orbbec_camera_msgs` completed in 1 min 37 s; Python message
+  imports and a ROS serialization round trip passed.
+- Camera CMake exited 1 at missing `backward_ros`. The first colcon process did
+  not terminate after that error and was interrupted. Retrying with
+  `--event-handlers console_direct+ desktop_notification-` exited 1 in 2.79 s,
+  reporting the same missing dependency cleanly.
+- CMake/header inspection and APT simulation identified six missing packages:
+  `ros-humble-backward-ros`, `ros-humble-camera-info-manager`,
+  `ros-humble-camera-calibration-parsers`, `ros-humble-image-publisher`,
+  `ros-humble-diagnostic-updater`, `nlohmann-json3-dev`. Simulation: six new,
+  zero upgraded, zero removed. No installation has been performed.
+
+Evidence:
+
+- `data/outputs/femto_ros2/bringup_20260910/`: `local_environment.json`,
+  `source_and_build.json`, `build_initial.log`, `build_headless.log`,
+  `dependency_plan.txt`; build details and exact commands in `docs/camera-ros2.md`.
+- Upstream source and generated build/install/log files remain in the isolated
+  workspace, outside the project repository.
+
+Decision and next action:
+
+- An explicit approval question for these six packages is pending, following
+  the user's request to ask when components are missing locally. Once approved,
+  install the reviewed dependencies and resume the pinned driver build. Do not
+  ask again if the user has already approved them in the continued conversation.
+- Preserve the Current Next Task and `prompt.md`; M3 acceptance is not complete.
+
 ## 16. End-Of-Session Handoff Template
 
 Before ending a substantial Codex session, append or update the latest ledger

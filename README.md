@@ -287,6 +287,11 @@ Absolute distance accuracy, sustained alignment throughput and ROS integration
 remain unverified. The next task is the M3 ROS 2 camera contract and rosbag replay.
 See [capture commands and measured evidence](docs/camera-femto-mega.md).
 
+M3 bring-up has started: official ROS driver 2.9.3 is pinned in an isolated
+workspace, and its message package builds. Camera-driver compilation is blocked
+by six missing dependencies, pending installation approval. See the
+[ROS build record](docs/camera-ros2.md).
+
 Goals:
 
 - Capture synchronized color and metric depth headlessly
