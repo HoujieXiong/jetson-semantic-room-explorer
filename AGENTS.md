@@ -349,6 +349,8 @@ Physical depth-unit range check: VERIFIED (user reference 2-3 m; center 2.332-2.
 Absolute distance accuracy: PLANNED (precise reference not yet measured)
 ROS 2 camera topics: VERIFIED (rectified RGB-D at 15 FPS)
 Rosbag recording/replay: VERIFIED (59.39 s stationary bag, exact simulated-time replay)
+Moving RGB-D recording/replay: VERIFIED (93.88/94.49 s, 1402/1411 pairs)
+Controlled room-loop capture quality: NOT VERIFIED (end motion/blur remains)
 RTAB-Map RGB-D SLAM: NOT VERIFIED
 ```
 
@@ -377,6 +379,18 @@ Session authorization, 2026-09-10: the user approved the six reviewed build
 dependencies, safe continued M3 work and GitHub progress updates. The dependencies
 were extracted locally without changing system packages. Do not repeat that
 approval request. Keep room images and bags local and ignored.
+
+Follow-up evidence, 2026-09-10: the user returned and confirmed movable equipment.
+Two supervised moving bags passed the sensor contract and exact driver-stopped
+replay. The first did not complete a loop. The user reported completing the second
+loop and later confirmed adjusting/putting down the camera afterward, explaining
+the end motion/ceiling view. Stationary endpoints remain unverified. The user
+questioned further recording; a third take was not started. Do not automatically
+request or start another capture merely to improve the endpoints. Existing bags
+are available for an initial offline odometry experiment, with image-quality
+limitations retained. This task and `prompt.md` are preserved because its full
+capture-quality conditions were not verified; do not claim otherwise. The
+proposed next action is evaluating existing data before deciding to recapture.
 
 Required sequence:
 
@@ -615,8 +629,8 @@ Deliverables:
 
 ### M3: ROS 2 Camera Contract And Rosbag
 
-Status: `IMPLEMENTED`; stationary contract and replay `VERIFIED`, room-walk
-recording remains `PLANNED`.
+Status: `IMPLEMENTED`; stationary and moving sensor contracts/replay `VERIFIED`.
+Controlled room-loop capture quality remains unverified.
 
 Steps:
 
@@ -1444,6 +1458,94 @@ Failures, decisions and limitations:
 Next action:
 
 - Prepare and capture one supervised room-walk bag after the user returns.
+
+### 2026-09-10: Moving RGB-D Contract And Replay, Capture Quality Pending
+
+Status: `VERIFIED` for the moving sensor contract and exact replay. The complete
+supervised room-walk task remains `IMPLEMENTED`, with capture quality unresolved.
+
+Changed:
+
+- Added `--scene room-walk` to the existing checker, preserving the default
+  fixed-wall 2–3 m check. Moving checks count empty center regions and entirely
+  empty depth frames, reject recordings with no valid depth, and retain the
+  millimeter conversion, calibration, timestamps, pairing and static-TF checks.
+- Replay inherits its reference scene; empty/non-passing references and explicit
+  scene conflicts fail before ROS starts. Added four focused ROS tests and
+  updated README and `docs/camera-ros2.md`. No driver/config/dependency changes.
+- User confirmed presence, portable equipment and readiness before each
+  coordinated 95-second recording. Each attempt has its own preserved output.
+
+Verified:
+
+- Eighteen ROS tests passed (final run 12.694 s). Two CLI rejection checks passed. The
+  original 887-pair stationary bag passed again with identical topic statistics
+  and hashes; its wall-unit check remains enabled. New moving replays exercised
+  automatic scene inheritance without an explicit `--scene` argument.
+- Attempt 1: 93.883938807 s, 1402 messages on each image/CameraInfo topic, one
+  static-TF message, 2.018 GB. Attempt 2: 94.487476504 s, 1411 on each camera
+  topic, one static-TF message, 1.854 GB. Both retain the measured 15 FPS config.
+- Attempt 2 header rates: color/depth 14.9260/14.9264 Hz; maximum header periods
+  67.661/67.429 ms. Both attempts have zero unmatched RGB-D or Image/CameraInfo
+  stamps, including boundaries; zero source-index gaps; and zero device intervals
+  exceeding 1.5 nominal periods. All CameraInfo headers equal SDK-global CSV
+  stamps; K/D/R/P and config exactly match the accepted stationary baseline.
+- Attempt 1/2 maximum device skew: 0.829/0.827 ms; maximum published global skew:
+  4.924/4.149 ms. Registered uint16 millimeter depth and color optical frames/TF
+  pass. Unknown moving-scene distances are not a new physical accuracy check.
+- Attempt 1/2 depth coverage: 53.349–77.559% / 48.812–78.962%; empty center
+  frames: 5/20; entirely empty depth frames: 0/0. These gaps remain explicit.
+- Complete 1x replays passed with driver absent and only rosbag2_player publishers.
+  Per-topic counts and serialized hashes matched exactly, including all images,
+  calibration and TF. Advancing active simulated time received 2872/2891 clock
+  messages. Both players/checkers exited 0 (98.992/99.592 s harness duration).
+- Both recorders/drivers exited 0 after SIGINT without forced termination. Attempt
+  2 descriptors stayed at 40/20; driver/recorder RSS was 92248–99940 /
+  81680–109400 KiB. This is a short sample, not a long-run leak measurement.
+- Complete diff review, Python compilation and `git diff --check` passed. Final
+  process inspection found no camera, recorder, checker, harness or player running.
+
+Evidence:
+
+- `data/outputs/femto_ros2/room_walk_20260910T223548Z/` (ignored), with
+  `acceptance_summary.json`, `preparation.json`, `cli_checks.json`, stationary
+  regression/preflight reports and `ros_unit_tests_final.log`. The summary explicitly leaves the current
+  task incomplete while verifying the sensor/replay subset.
+- `room_walk_01/` and `room_walk_02/`, matching config/CSV/live/bag/source-timing/
+  transport/replay reports, exact-command run manifests and full process logs.
+- `operator_context.json`, `image_review.json`, one-second RGB samples and local
+  contact sheets retain user reports and observable image evidence separately.
+- Existing experiment harness reused locally; analysis scripts and reproduction
+  commands are documented in `docs/camera-ros2.md`. No room imagery/bag is committed.
+
+Limitations and decisions:
+
+- User reports attempt 1 did not complete a loop. Attempt 2 reportedly returned
+  near the start and held still, but sampled images show continuing motion/blur,
+  a ceiling view at about 90 s and a different final orientation at about 94 s.
+  Stationary endpoints and controlled capture quality are not verified. The
+  user subsequently confirmed adjusting/putting down the camera after returning.
+  After the user questioned whether more recording was necessary, the assistant
+  stopped preparing another take. The third take was never started. Endpoint
+  handling does not invalidate the preceding moving data; an initial offline
+  odometry experiment can evaluate its actual usefulness before recapture.
+  No geometric return pose/loop closure was measured.
+- Source continuity does not prove smooth real-time reception: maximum SDK
+  callback intervals were 395.543/311.478 ms. Maximum image receipt intervals
+  were 402.080/311.312 ms; color CameraInfo reached 681.903/693.036 ms. All recorded
+  source frames arrived, but the transient buffering cause remains unresolved.
+- Startup subscriber handoff logged 24/15 skipped publications before recording;
+  no SDK drop was logged. Do not claim zero losses throughout startup.
+- Keep current task and prompt unchanged in scope. No SLAM, perception or robot
+  actuation was started; absolute accuracy and long-duration stability remain
+  unverified. Learning: intact synchronized data and replay do not establish
+  stable camera motion, useful visual odometry or a correct map.
+
+Next action:
+
+- Evaluate RGB-D odometry on the existing second recording when continuing to
+  that scope; use measured tracking performance to decide whether recapture is
+  needed. Do not automatically repeat recording for stationary endpoints alone.
 
 ## 16. End-Of-Session Handoff Template
 

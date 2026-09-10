@@ -85,6 +85,16 @@ class DepthContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'no valid depth'):
             self.add()
 
+    def test_room_walk_retains_empty_center_without_fabricating_distance(self):
+        self.check = contract.ContractCheck('room-walk')
+        pixels = np.full((720, 1280), 1500, dtype='<u2')
+        pixels[350:370, 630:650] = 0
+        self.message.data = pixels.tobytes()
+        self.add()
+        self.assertEqual(self.check.depth_centers, [])
+        self.assertEqual(self.check.depth_empty_centers, 1)
+        self.assertAlmostEqual(self.check.depth_coverage[0], 1 - 400 / (720 * 1280))
+
 
 class CompleteContractTests(unittest.TestCase):
     def test_non_unit_tf_is_rejected(self):
@@ -95,8 +105,8 @@ class CompleteContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not normalized'):
             contract.ContractCheck().add('/tf_static', serialize_message(TFMessage(transforms=[transform])), 1)
 
-    def sample(self, depth_mm=2350, depth_fx=1000.0, color_count=10):
-        check = contract.ContractCheck()
+    def sample(self, depth_mm=2350, depth_fx=1000.0, color_count=10, scene='fixed-wall'):
+        check = contract.ContractCheck(scene)
         transform = TransformStamped()
         transform.header.frame_id = 'camera_link'
         transform.child_frame_id = contract.OPTICAL_FRAME
@@ -140,6 +150,21 @@ class CompleteContractTests(unittest.TestCase):
     def test_stream_stall_is_not_excused_as_a_recording_boundary(self):
         with self.assertRaisesRegex(ValueError, 'Too many unmatched RGB-D'):
             self.sample(color_count=20).finish()
+
+    def test_room_walk_accepts_distance_outside_original_wall_range(self):
+        report = self.sample(depth_mm=4500, scene='room-walk').finish()
+        self.assertEqual(report['depth_center_m']['median'], 4.5)
+        self.assertFalse(report['fixed_wall_unit_check'])
+        with self.assertRaisesRegex(ValueError, 'Millimeter depth interpretation'):
+            self.sample(depth_mm=4500).finish()
+
+    def test_room_walk_rejects_recording_with_no_valid_depth(self):
+        with self.assertRaisesRegex(ValueError, 'no valid depth'):
+            self.sample(depth_mm=0, scene='room-walk').finish()
+
+    def test_room_walk_still_rejects_calibration_mismatch(self):
+        with self.assertRaisesRegex(ValueError, 'CameraInfo disagree'):
+            self.sample(depth_fx=900.0, scene='room-walk').finish()
 
 
 if __name__ == '__main__':

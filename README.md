@@ -302,8 +302,18 @@ System packages and the native capture implementation remain unchanged.
   still passes after recording. Room images and bags remain ignored and local.
 
 The earlier 30 FPS recording had a 2.18 s reception stall; the selected 15 FPS
-recording passed. Room-walk recording, long-duration stability and SLAM remain
-unverified. See [ROS setup, commands and measured evidence](docs/camera-ros2.md).
+recording passed. Two subsequent moving recordings (93.88/94.49 seconds,
+1402/1411 RGB-D pairs) also pass the sensor contract and exact simulated-time
+replay, with unchanged calibration and no source-index gaps inside either bag.
+The moving-scene checker reports empty center depth without applying the old
+wall-distance constraint; 18 ROS tests and the original stationary regression pass.
+
+Controlled room-loop capture quality remains unverified: the second recording
+contains blur/tilt and end handling despite a reported return to the start.
+Transient receipt intervals reached about 402 ms for images and 693 ms for color
+CameraInfo across these runs, without missing recorded source frames. Preserve
+these limitations before proceeding to mapping. Long-duration stability and
+SLAM remain unverified. See [ROS commands and measured evidence](docs/camera-ros2.md).
 
 Goals:
 
@@ -491,6 +501,8 @@ jetson-semantic-room-explorer/
 - [X] Femto Mega M2 native capture acceptance (including coarse physical unit check)
 - [X] SDK depth-to-color registration verified with preserved raw pair and edge diagnostics
 - [X] Stationary RGB-D ROS2 topics and rosbag replay verified
+- [X] Moving RGB-D sensor contract and exact rosbag replay verified
+- [ ] Controlled room-loop capture quality verified
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete
 - [ ] RTAB-Map RGB-D SLAM running

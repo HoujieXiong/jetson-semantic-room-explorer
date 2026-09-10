@@ -2,8 +2,10 @@
 
 Current status: driver build and the live RGB-D ROS contract are `VERIFIED` on
 this Jetson. A 59.39-second stationary recording and exact driver-stopped replay
-with simulated time are also `VERIFIED`. Room-walk recording and SLAM remain
-unverified.
+with simulated time are also `VERIFIED`. Two moving recordings now pass the same
+sensor/replay contract. Controlled room-loop capture quality remains unverified:
+the second recording includes motion/handling at the end instead of a confirmed
+stationary finish. SLAM remains unverified.
 
 ## Inspected source and environment
 
@@ -168,7 +170,12 @@ uint16 millimeter depth with zero invalid, a valid center within the supplied
 It reports rates and timing distributions, QoS, invalid-depth coverage and
 recording-boundary mismatches, allowing at most two edge frames per comparison.
 A stream that stops early fails rather than being excused as a boundary.
-This fixed-scene acceptance tool must be revised before use on a moving recording with a different physical reference.
+The default `--scene fixed-wall` preserves this physical reference check. Use
+`--scene room-walk` for a moving scene: it retains the sensor contract but reports
+center distances without requiring the old wall interval. Empty center regions
+and completely empty depth frames are counted; a recording with no valid depth
+anywhere fails. Millimeter conversion is inherited from the verified driver and
+stationary measurement, not independently remeasured from an unknown scene.
 
 Record about 60 seconds (Ctrl-C stops recording and flushes metadata):
 
@@ -190,6 +197,32 @@ SHA-256 digest with the bag, including image bytes, headers, calibration and TF.
 The subscriber sets `use_sim_time=true` and checks an advancing `/clock`.
 Reports and first-frame NumPy arrays are saved under the ignored output tree;
 existing reports are never overwritten. Any contract violation exits nonzero.
+
+## Supervised room-walk procedure
+
+The user must be present and move the secured camera/Jetson with continuous power
+and connected cabling. Keep the measured 15 FPS configuration. Use a new directory
+under `data/outputs/femto_ros2/` for every attempt, including a copy of
+`config/femto_rgbd.yaml`, a unique driver `frame_timestamp_csv_file`, and logs.
+Do not reuse the example stationary paths above.
+
+Start the driver and run the bounded live check with `--scene room-walk`. Record
+the same five topics and compression/cache settings shown above. Once the recorder
+is receiving, remain still for about five seconds, move slowly around a small
+room loop with overlapping views, then remain still near the start for the final
+five seconds. Record 60–120 seconds in total. Stop the recorder with Ctrl-C and
+wait for it to flush and exit; then stop the driver. Do not disconnect power to
+stop a recording. Preserve failed attempts as diagnostic evidence.
+
+Inspect the saved bag with `--scene room-walk`. The replay checker automatically
+inherits the scene from its `--reference` report and rejects conflicting explicit
+scene selections. Use a replay-check duration at least 30 seconds longer than the
+bag, start the checker before the player, and verify that the driver is stopped.
+The existing source timestamp correlation script measures index gaps and device
+intervals against the selected 15 FPS; inspect these alongside header rates/skew
+and invalid-depth coverage. Review sampled images for actual motion and useful
+overlap. Passing the sensor contract alone does not establish a usable trajectory,
+loop closure, depth accuracy, or SLAM performance.
 
 Focused offline verification:
 
@@ -281,5 +314,85 @@ Final evidence under `data/outputs/femto_ros2/bringup_20260910/`:
 
 These files, room images and bags remain local and ignored. The committed
 configuration, patch, checker, tests and this record reproduce the verified setup.
-A moving room recording is the next input needed before room-mapping acceptance;
-this stationary bag proves the sensor/replay interface, not visual odometry.
+The stationary bag proves the sensor/replay interface, not visual odometry.
+
+## Measured moving recordings, 2026-09-10
+
+The user confirmed being present with movable camera/Jetson equipment. Both
+attempts used the unchanged 15 FPS configuration and a 95-second bounded recorder,
+following a 10-second live check. Each recorder and driver exited 0 after SIGINT,
+with no forced termination. No new dependencies or driver changes were needed.
+
+| Measurement | First attempt | Second attempt |
+| --- | --- | --- |
+| Recorded duration | 93.883939 s | 94.487477 s |
+| RGB-D pairs; messages on each image/info topic | 1402 | 1411 |
+| Color/depth header rate | 14.9249 / 14.9254 Hz | 14.9260 / 14.9264 Hz |
+| Max color/depth header interval | 67.472 / 67.345 ms | 67.661 / 67.429 ms |
+| Max device / global RGB-D skew | 0.829 / 4.924 ms | 0.827 / 4.149 ms |
+| Whole-frame valid depth, min–max | 53.349–77.559% | 48.812–78.962% |
+| Frames with empty center / entirely empty depth | 5 / 0 | 20 / 0 |
+| Bag size, decimal GB | 2.018 | 1.854 |
+| Replay clock messages | 2872 | 2891 |
+
+Both bags have zero unmatched RGB-D or Image/CameraInfo messages, including
+recording boundaries; zero source-index gaps; and no device intervals above
+1.5 nominal frame periods. Every recorded CameraInfo stamp matches its exact
+SDK-global CSV timestamp. Configuration and K/D/R/P exactly match the verified
+stationary baseline; optical frames, encodings and static TF pass. Nonempty
+center medians span 0.757–7.327 m and 0.602–7.2555 m respectively. These unknown
+scene distances do not independently establish depth accuracy or a new physical
+unit reference. Missing center depth remains explicit rather than fabricated.
+
+For each complete 1x replay, the camera driver was absent, only rosbag2_player
+publishers were observed, and per-topic counts and serialized SHA-256 values
+matched the bag exactly. Simulated time advanced and TF resolved at source
+timestamps. Player and checker exited 0. Default fixed-wall regression preserved
+the original 887-pair bag's statistics and hashes. Eighteen ROS tests passed;
+two CLI checks rejected an empty replay reference and a conflicting scene before
+creating an output or starting ROS.
+
+Source continuity does not imply smooth arrival timing. First/second maximum
+SDK callback intervals were 395.543/311.478 ms. Maximum bag receipt intervals
+were 402.080/311.312 ms across the image topics and 681.903/693.036 ms on color
+CameraInfo. All messages eventually arrived, but transient buffering remains
+unexplained. The two startup `ROS_PUBLISH` warnings per run describe subscriber
+handoff before the first recorded pair (24/15 frames); no SDK drop was logged.
+Do not claim zero drops throughout startup or uninterrupted real-time delivery.
+
+In the second run, driver/recorder descriptor counts stayed at 40/20. RSS ranges
+were 92248–99940 / 81680–109400 KiB. This bounded sample does not establish
+long-duration memory stability.
+
+The user reported that the first attempt did not complete a loop. For the second,
+the user reported returning to the starting position/orientation and holding
+still. Sampled images show overlapping views and revisits, but also blur/tilt,
+a ceiling view around 90 seconds and a different final view around 94 seconds.
+A stationary finish is therefore not verified. The user subsequently confirmed
+adjusting/putting down the camera after returning, explaining the end motion.
+The user questioned the need for further recording; a third take was not started.
+The existing moving data remains available for an initial offline odometry
+experiment. Evaluate actual tracking before deciding whether recapture is needed.
+No pose, geometric loop closure, or mapping quality was measured. The original
+task/prompt is retained without claiming its capture-quality conditions passed.
+
+Evidence root: `data/outputs/femto_ros2/room_walk_20260910T223548Z/` (ignored).
+`acceptance_summary.json` explicitly scopes verification to the moving sensor
+contract and leaves the current task incomplete. Each `room_walk_01` / `02` bag
+has matching `_config.yaml`, `_sensor_timestamps.csv`, `_live.json`, `_bag.json`,
+`_source_timing.json`, `_transport.json`, `_replay.json`, run manifests and logs.
+`operator_context.json`, `image_review.json`, sampled images/contact sheets,
+`stationary_regression.json`, `preparation.json` and `cli_checks.json` preserve
+the supporting evidence. The local bounded harness and analysis scripts retain
+exact commands; images/bags remain local and must not be committed.
+
+Recheck a saved moving bag in a sourced system-Python terminal, using fresh output
+paths; run the replay checker and player in separate terminals after stopping
+the driver:
+
+```bash
+export FEMTO_WALK_EVIDENCE="$PWD/data/outputs/femto_ros2/room_walk_20260910T223548Z"
+python3 tests/check_femto_rosbag.py --scene room-walk --bag "$FEMTO_WALK_EVIDENCE/room_walk_02" --output "$FEMTO_WALK_EVIDENCE/recheck_bag.json"
+python3 tests/check_femto_rosbag.py --reference "$FEMTO_WALK_EVIDENCE/room_walk_02_bag.json" --duration 125 --output "$FEMTO_WALK_EVIDENCE/recheck_replay.json"
+ros2 bag play "$FEMTO_WALK_EVIDENCE/room_walk_02" --clock 30 --delay 2 --read-ahead-queue-size 40 --wait-for-all-acked 5000 --disable-keyboard-controls
+```

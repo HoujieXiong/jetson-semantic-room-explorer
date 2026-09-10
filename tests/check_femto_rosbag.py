@@ -67,13 +67,17 @@ def paired_timestamps(color, depth, tolerance_ns=5_000_000):
 
 
 class ContractCheck:
-    def __init__(self):
+    def __init__(self, scene='fixed-wall'):
+        if scene not in ('fixed-wall', 'room-walk'):
+            raise ValueError(f'Unknown scene: {scene}')
+        self.scene = scene
         self.counts = defaultdict(int)
         self.hashes = {topic: hashlib.sha256() for topic in TOPICS}
         self.stamps = defaultdict(list)
         self.arrivals = defaultdict(list)
         self.calibration = {}
         self.depth_centers, self.depth_coverage = [], []
+        self.depth_empty_centers = 0
         self.first_images = {}
         self.transforms = {}
         self.tf_quaternion_norms = {}
@@ -123,12 +127,15 @@ class ContractCheck:
         if topic not in self.first_images:
             self.first_images[topic] = pixels.copy()
         if is_depth:
+            self.depth_coverage.append(float(np.count_nonzero(pixels)) / pixels.size)
             roi = pixels[350:370, 630:650]
             valid = roi[roi != 0]
             if not valid.size:
-                raise ValueError('Aligned center has no valid depth for the fixed-wall unit check')
-            self.depth_centers.append(float(np.median(valid)) / 1000)
-            self.depth_coverage.append(float(np.count_nonzero(pixels)) / pixels.size)
+                self.depth_empty_centers += 1
+                if self.scene == 'fixed-wall':
+                    raise ValueError('Aligned center has no valid depth for the fixed-wall unit check')
+            else:
+                self.depth_centers.append(float(np.median(valid)) / 1000)
 
     def finish(self):
         for topic in TOPICS:
@@ -155,7 +162,9 @@ class ContractCheck:
             raise ValueError(f'Unmatched RGB-D frames inside the recording: {pairs}')
         if max(pairs['unmatched_color_boundaries'], pairs['unmatched_depth_boundaries']) > MAX_BOUNDARY_FRAMES:
             raise ValueError(f'Too many unmatched RGB-D frames at recording boundaries: {pairs}')
-        if not (2 <= min(self.depth_centers) <= max(self.depth_centers) <= 3):
+        if not any(self.depth_coverage):
+            raise ValueError('Recording contains no valid depth')
+        if self.scene == 'fixed-wall' and not (2 <= min(self.depth_centers) <= max(self.depth_centers) <= 3):
             raise ValueError('Millimeter depth interpretation disagrees with the user-provided 2-3 m wall range')
         for topic in self.stamps:
             for stamp in (self.stamps[topic][0], self.stamps[topic][-1]):
@@ -171,9 +180,12 @@ class ContractCheck:
                 'header_period_ms': distribution(np.diff(stamps)/1e6),
                 'first_stamp_ns': stamps[0] if stamps else None, 'last_stamp_ns': stamps[-1] if stamps else None,
             }
-        return {'status': 'PASSED', 'topics': topics, 'camera_info': self.calibration,
+        return {'status': 'PASSED', 'scene': self.scene, 'topics': topics, 'camera_info': self.calibration,
                 'image_info_matching': info_matching, 'synchronization': pairs,
                 'depth_center_m': distribution(self.depth_centers), 'depth_valid_ratio': distribution(self.depth_coverage),
+                'depth_empty_center_frames': self.depth_empty_centers,
+                'depth_empty_frames': self.depth_coverage.count(0),
+                'fixed_wall_unit_check': self.scene == 'fixed-wall',
                 'depth_encoding': '16UC1 millimeters; zero invalid', 'static_tf_parents': self.transforms,
                 'static_tf_quaternion_norms': self.tf_quaternion_norms,
                 'tf_check': 'Static camera_link-to-color-optical chain resolves at first and last image/info timestamps'}
@@ -242,17 +254,25 @@ def main():
     parser.add_argument('--bag', type=Path, help='Inspect a saved bag instead of subscribing.')
     parser.add_argument('--duration', type=float, default=15, help='Maximum subscription time in seconds.')
     parser.add_argument('--reference', type=Path, help='Expected bag report for replay count/content verification.')
+    parser.add_argument('--scene', choices=('fixed-wall', 'room-walk'),
+                        help='Defaults to fixed-wall, or inherits the replay reference scene. Room-walk uses the previously verified mm conversion without a new physical distance check.')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not np.isfinite(args.duration) or args.duration <= 0 or (args.bag and args.reference):
         parser.error('Use a finite positive duration and only one of --bag / --reference')
     if args.output.exists():
         parser.error('Output report already exists; choose a new evidence path')
+    reference = json.loads(args.reference.read_text()) if args.reference else None
+    if reference is not None and reference.get('status') != 'PASSED':
+        parser.error('Replay reference must be a PASSED bag report')
+    reference_scene = reference.get('scene', 'fixed-wall') if reference is not None else None
+    if reference is not None and args.scene and args.scene != reference_scene:
+        parser.error('Replay scene must match the reference report')
+    scene = args.scene or reference_scene or 'fixed-wall'
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    check = ContractCheck()
-    result = {'status': 'INCOMPLETE'}
+    check = ContractCheck(scene)
+    result = {'status': 'INCOMPLETE', 'scene': scene}
     try:
-        reference = json.loads(args.reference.read_text()) if args.reference else None
         details = inspect_bag(args.bag, check) if args.bag else observe(check, args.duration, reference)
         for topic, pixels in check.first_images.items():
             stream = topic.split('/')[2]
@@ -263,6 +283,8 @@ def main():
             result['received_counts'] = dict(check.counts)
             result['observed_camera_info'] = check.calibration
             result['observed_depth_center_m'] = distribution(check.depth_centers)
+            result['observed_depth_valid_ratio'] = distribution(check.depth_coverage)
+            result['depth_empty_center_frames'] = check.depth_empty_centers
         args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + '\n')
     print(f"ROS contract {result['status']}: {args.output}", flush=True)
 
