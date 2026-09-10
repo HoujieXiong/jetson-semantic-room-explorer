@@ -347,8 +347,8 @@ Femto Mega synchronized frame-pair capture and intrinsics export: VERIFIED
 SDK depth-to-color registration: VERIFIED (single frames; edge limitations recorded)
 Physical depth-unit range check: VERIFIED (user reference 2-3 m; center 2.332-2.333 m)
 Absolute distance accuracy: PLANNED (precise reference not yet measured)
-ROS 2 camera topics: NOT VERIFIED
-Rosbag recording/replay: NOT VERIFIED
+ROS 2 camera topics: VERIFIED (rectified RGB-D at 15 FPS)
+Rosbag recording/replay: VERIFIED (59.39 s stationary bag, exact simulated-time replay)
 RTAB-Map RGB-D SLAM: NOT VERIFIED
 ```
 
@@ -367,57 +367,43 @@ and `docs/camera-femto-mega.md` for evidence and limitations.
 
 ## 5. Current Next Task
 
-Milestone: **M3 ROS 2 camera contract and stationary rosbag smoke test**.
+Milestone: **M3 supervised room-walk recording**, after the user returns.
 
-Native capture, coarse metric units and SDK registration have passed. Preserve
-those scripts and artifacts while establishing a replayable ROS sensor contract.
-The camera is fixed; room-walk recording and SLAM are separate later checks.
+The stationary ROS contract and exact simulated-time replay are verified. Keep
+`config/femto_rgbd.yaml` at the measured 15 FPS setting: 30 FPS recording showed
+a reception stall. Native capture remains a separate working path.
+
+Session authorization, 2026-09-10: the user approved the six reviewed build
+dependencies, safe continued M3 work and GitHub progress updates. The dependencies
+were extracted locally without changing system packages. Do not repeat that
+approval request. Keep room images and bags local and ignored.
 
 Required sequence:
 
-1. Recover git state and inspect local ROS 2 Humble, Orbbec wrapper/source, its
-   SDK requirements, existing launch patterns and available profile settings.
-   If a needed component cannot be found locally, ask the user before downloading
-   or installing it, as requested. Do not replace the working native SDK casually.
-2. Use a compatible maintained ROS driver to publish 1280x720 color, registered
-   depth and matching CameraInfo. Verify actual support; native depth resolution
-   remains independent. Avoid a new camera node when the existing driver suffices.
-3. Measure encodings, depth units, calibration/distortion, timestamp domains/skew,
-   monotonicity, frame IDs, TF, QoS and delivered rates over a bounded interval.
-4. Record about 60 seconds of the stationary scene, including required camera
-   topics and transforms; keep the bag ignored and local.
-5. Stop the camera driver and replay with simulated time. Verify matching frame
-   counts, timestamps, metadata and TF availability without reopening hardware.
-6. Save exact launch/record/replay commands and measured results. Run affected
-   checks and update the ledger; do not start SLAM, perception or robot motion.
+1. Recover git state and read `docs/camera-ros2.md` and the stationary M3 ledger.
+   Confirm the user is present and establish a safe way to move the camera/Jetson
+   with secured power and cabling; do not assume the fixed setup is portable.
+   The user performs any physical camera motion. Do not actuate a robot.
+2. Preserve the verified stationary check. Adapt only the verification needed
+   for a moving scene: the current fixed center-wall 2–3 m check must not be
+   applied to every frame of a room walk. Retain units, calibration, timestamp,
+   pairing, TF, rate and explicit failure checks.
+3. With the user's participation, record one bounded 60–120 s slow room loop,
+   with useful visual overlap and short stationary periods at the ends. Record
+   the same four camera topics and static TF, plus the source timestamp CSV.
+4. Stop the driver and verify the moving bag and exact simulated-time replay.
+   Measure gaps, skew and invalid depth; preserve failures and privacy. Do not
+   start SLAM or perception as part of this recording task.
+5. Save reproduction commands and evidence, review the complete diff and update
+   the ledger only with measured results.
 
-Acceptance evidence:
+Acceptance: a real moving-room bag preserves the established ROS sensor contract
+and replays with the driver stopped. Stationary data alone does not verify this
+step, visual odometry or room mapping.
 
-```text
-Driver/version and launch configuration
-Live topic, timestamp, CameraInfo and TF measurements
-Ignored short rosbag, rosbag metadata and driver-stopped replay report
-```
-
-Commit small launch/configuration and verification code as needed, plus compact
-measured results. Raw room images and rosbags should remain ignored.
-
-Acceptance conditions:
-
-- Color/aligned depth/CameraInfo agree on pixel grid and calibration; units,
-  invalid depth, timestamp domain and optical frames are documented and checked.
-- No unexplained timestamp regression, frame-ID mismatch or missing required TF;
-  topic rates, synchronization skew and dropped/unmatched frames are measured.
-- The bag replays the recorded sensor contract with the driver stopped.
-- Native capture remains usable; no room-walk, SLAM or sustained mapping claim
-  follows from this stationary smoke test alone.
-
-Learning checkpoint:
-
-```text
-Explain Image/CameraInfo, QoS, optical TF, hardware versus ROS timestamps, and
-why rosbag replay with a consistent clock enables repeatable downstream tests.
-```
+Learning checkpoint: explain why motion and overlapping views are required for
+visual odometry, while the stationary test established only the sensor and replay
+interface. The later RTAB-Map milestone must verify pose/TF and map quality.
 
 ## 6. Target System Architecture
 
@@ -629,7 +615,8 @@ Deliverables:
 
 ### M3: ROS 2 Camera Contract And Rosbag
 
-Status: `PLANNED`
+Status: `IMPLEMENTED`; stationary contract and replay `VERIFIED`, room-walk
+recording remains `PLANNED`.
 
 Steps:
 
@@ -1357,6 +1344,106 @@ Decision and next action:
   install the reviewed dependencies and resume the pinned driver build. Do not
   ask again if the user has already approved them in the continued conversation.
 - Preserve the Current Next Task and `prompt.md`; M3 acceptance is not complete.
+
+### 2026-09-10: M3 Stationary ROS Contract And Replay Acceptance
+
+Status: `VERIFIED` for the stationary ROS camera/record/replay step. M3 room-walk
+recording, long-duration stability and M4 SLAM remain unverified.
+
+Changed:
+
+- Continued after explicit user approval and pushed the prior source-build
+  checkpoint to `feat/ros2-camera`. Downloaded/extracted the six reviewed Debian
+  packages under the isolated workspace because passwordless sudo was unavailable;
+  no system packages or maintainer scripts were installed/run.
+- Built pinned Orbbec ROS driver/SDK 2.9.3, with local Humble cv_bridge 3.2.1 from
+  vision_opencv commit `9800f67cea477c44cfb64e349854bcb6a09dc9ce` against NVIDIA
+  OpenCV 4.8. Initial complete build: three packages in 10 min 10 s. Runtime
+  library mappings confirm only OpenCV 4.8, local cv_bridge and SDK 2.9.3.
+- Preserved `patches/orbbec_ros2_rgbd_contract.patch`: six lines skip explicitly
+  disabled IMU construction, which otherwise failed on missing USB/HID permission;
+  one line normalizes an SDK-derived TF quaternion (initial norm 0.999275748).
+  Patched builds passed; enabled IMU behavior/permissions remain unverified.
+- Added `config/femto_rgbd.yaml`, `scripts/femto_ros2_env.bash`, the shared live/
+  bag/replay contract checker and focused ROS tests. Reused the upstream node,
+  hardware alignment, RGB undistortion, frame synchronization and timestamp CSV.
+- Hardware D2C depth has zero distortion; original RGB did not. Enabled the
+  existing RGB undistortion option so delivered K/D/R/P and grids match. Final
+  source profiles are RGB 1280x720 MJPG and depth 640x576 Y16 at 15 FPS.
+- Updated README and `docs/camera-ros2.md` with measured results and exact setup,
+  launch, recording and replay commands. Native capture code remains unchanged.
+
+Verified:
+
+- Actual 15 FPS live check passed, followed by a 59.390958627 s SQLite/message-zstd
+  bag (1.055 GB): 887 messages on each image and CameraInfo topic, plus one static
+  TF message. Recorded color/depth rates were 14.9230/14.9231 Hz.
+- No unmatched pairs, Image/CameraInfo mismatches, source-index gaps, timestamp
+  regressions or device intervals above 1.5 nominal periods inside the bag.
+  Maximum color/depth header periods were 67.571/67.354 ms. The subscriber handoff
+  before recording accounts for the separate `ROS_PUBLISH dropped=15` log entries;
+  the final run had no SDK drop logs.
+- All recorded CameraInfo stamps exactly matched corresponding SDK-global CSV
+  stamps. RGB-D device skew median/P95/max: 531/654.7/955 us; ROS-global skew:
+  3628/3972.1/4197 us. Preserve this distinction for downstream synchronization.
+- Both delivered images are 1280x720 in `camera_color_optical_frame`; RGB is
+  `rgb8`, aligned depth `16UC1` millimeters with zero invalid. Center medians
+  ranged 2.359–2.363 m within the user's 2–3 m reference; coverage 73.188–73.669%.
+  Matching calibration and normalized static TF passed at observation timestamps.
+- Bag receipt minus global image-header median/P95: color 205.502/213.604 ms,
+  depth 209.756/217.464 ms. These include clock mapping and transport/processing;
+  they are not independently calibrated exposure latency.
+- Driver descriptors stayed 40, RSS 97632–99640 KiB, threads 31–34. Recorder
+  descriptors stayed 20, RSS 88672–129964 KiB, threads 22. Driver/recorder exited
+  0 after SIGINT without forced termination. No long-run leak claim is made.
+- With no camera driver running, a complete 1x replay reproduced exact per-topic
+  counts and serialized SHA-256 values, including all image bytes, headers,
+  CameraInfo and TF. Only rosbag2_player publishers were observed. The checker
+  received 1836 clock messages, verified active advancing simulated time and TF;
+  player and checker both exited 0.
+- Fourteen ROS tests and 21 existing native tests passed. After ROS recording,
+  a fresh native raw/aligned capture and existing artifact checker passed:
+  1 mm/count, 239 us skew, raw/aligned centers 2.380/2.364 m. This confirms the
+  camera was released and the separate SDK 2.8.6 path remains usable.
+- Complete diff reviewed. Final boundary-loss guards and a stalled-stream test
+  passed; `stationary_15fps_final_bag.json` revalidated identical replay counts/
+  hashes. Patch forward/reverse application checks, Python compilation, shell
+  syntax and `git diff --check` passed. Generated room data is ignored, and no
+  camera, checker, harness or build process remains running.
+
+Evidence:
+
+- Root: `data/outputs/femto_ros2/bringup_20260910/` (ignored).
+- Current `acceptance_summary.json`; `local_dependencies.json`; build logs;
+  `driver_linked_libraries.txt`; `ros_unit_tests.log`, `native_unit_tests.log`.
+- `stationary_15fps_config.yaml`, live/bag/replay reports, source timestamp CSV,
+  `stationary_15fps_source_timing.json`, record/replay run manifests and logs.
+  The bag and its metadata are in `stationary_15fps/`.
+- Saved experiment harness `run_check.py`, correlation script `analyze_timing.py`,
+  local RGB/overlay inspections and `native_after_recording.json` / capture files.
+  Reproduction commands and source hashes are in `docs/camera-ros2.md`.
+
+Failures, decisions and limitations:
+
+- Initial profile enumeration reached the required RGB/depth profiles then
+  aborted on IMU access. Unpatched startup published zero frames; the bounded
+  checker rejected it and closed the driver. Preserve these failures.
+- Initial TF and distortion checks rejected non-unit TF and incompatible RGB/
+  depth distortion. The fixes above were verified on actual messages.
+- The 30 FPS bag held 1714 matched pairs over 59.294 s but had a 1.843 s maximum
+  header interval and 2.182 s reception stall. Cause not fully isolated; retain
+  it as diagnostic evidence. The stable 15 FPS recording is the accepted profile.
+- First replay delivered sensor data but failed the clock check due to the
+  checker's reliable subscription versus the player's best-effort clock. Fixed
+  the subscription and repeated the complete replay successfully.
+- Missing returns/occlusion holes remain. No new absolute calibration accuracy,
+  moving-scene, visual-odometry, room-mapping or sustained 30 FPS claim is made.
+- Stationary acceptance is now recorded; advance the Current Next Task and
+  `prompt.md` to supervised room-walk recording only after this entry.
+
+Next action:
+
+- Prepare and capture one supervised room-walk bag after the user returns.
 
 ## 16. End-Of-Session Handoff Template
 

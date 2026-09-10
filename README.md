@@ -283,14 +283,27 @@ passed. Aligned center depth was 2.347–2.349 m with 60.85–61.08% whole-image
 coverage in this scene. Object-edge diagnostics retain and quantify invalid
 regions, including up to 18 px P95 distance to RGB edges near the basket.
 
-Absolute distance accuracy, sustained alignment throughput and ROS integration
-remain unverified. The next task is the M3 ROS 2 camera contract and rosbag replay.
-See [capture commands and measured evidence](docs/camera-femto-mega.md).
+Absolute distance accuracy and sustained 30 FPS recording remain unverified.
+See [native capture commands and evidence](docs/camera-femto-mega.md).
 
-M3 bring-up has started: official ROS driver 2.9.3 is pinned in an isolated
-workspace, and its message package builds. Camera-driver compilation is blocked
-by six missing dependencies, pending installation approval. See the
-[ROS build record](docs/camera-ros2.md).
+M3's stationary ROS camera/rosbag step is verified on the Jetson. Driver/SDK 2.9.3
+builds in an isolated workspace with OpenCV 4.8 and two small upstream fixes.
+System packages and the native capture implementation remain unchanged.
+
+- Final source profiles: 1280x720 RGB and 640x576 depth at 15 FPS; published RGB
+  and hardware-registered depth share the undistorted 1280x720 grid and CameraInfo.
+- A 59.39-second bag contains 887 synchronized pairs and matching CameraInfo,
+  with no source-index gaps or unmatched frames inside the recording.
+- Center depth: 2.359–2.363 m; maximum device/global timestamp skew:
+  0.955/4.197 ms. Optical frames, static TF, encodings and millimeter units pass.
+- With the driver stopped, 1x replay reproduced exact per-topic message counts
+  and serialized contents, with an advancing simulated clock.
+- Fourteen ROS contract tests and 21 native tests pass; native hardware capture
+  still passes after recording. Room images and bags remain ignored and local.
+
+The earlier 30 FPS recording had a 2.18 s reception stall; the selected 15 FPS
+recording passed. Room-walk recording, long-duration stability and SLAM remain
+unverified. See [ROS setup, commands and measured evidence](docs/camera-ros2.md).
 
 Goals:
 
@@ -477,7 +490,7 @@ jetson-semantic-room-explorer/
 - [X] YOLO baseline benchmark table added
 - [X] Femto Mega M2 native capture acceptance (including coarse physical unit check)
 - [X] SDK depth-to-color registration verified with preserved raw pair and edge diagnostics
-- [ ] RGB-D ROS2 topics and rosbag replay verified
+- [X] Stationary RGB-D ROS2 topics and rosbag replay verified
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete
 - [ ] RTAB-Map RGB-D SLAM running

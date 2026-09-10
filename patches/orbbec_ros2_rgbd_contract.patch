@@ -1,0 +1,27 @@
+diff --git a/orbbec_camera/src/ob_camera_node.cpp b/orbbec_camera/src/ob_camera_node.cpp
+index 734d42b..2b3019b 100644
+--- a/orbbec_camera/src/ob_camera_node.cpp
++++ b/orbbec_camera/src/ob_camera_node.cpp
+@@ -982,5 +982,11 @@ void OBCameraNode::setupDevices() {
+   auto sensor_list = device_->getSensorList();
+   for (size_t i = 0; i < sensor_list->getCount(); i++) {
++    // Opening a disabled IMU can require USB/HID permissions unrelated to RGB-D.
++    const auto sensor_type = sensor_list->getSensorType(i);
++    if ((sensor_type == OB_SENSOR_ACCEL && !enable_stream_.at(ACCEL)) ||
++        (sensor_type == OB_SENSOR_GYRO && !enable_stream_.at(GYRO))) {
++      continue;
++    }
+     auto sensor = sensor_list->getSensor(i);
+     auto profiles = sensor->getStreamProfileList();
+     for (size_t j = 0; j < profiles->getCount(); j++) {
+diff --git a/orbbec_camera/src/utils.cpp b/orbbec_camera/src/utils.cpp
+index 4f4aef4..0a48b25 100644
+--- a/orbbec_camera/src/utils.cpp
++++ b/orbbec_camera/src/utils.cpp
+@@ -270,5 +270,6 @@ tf2::Quaternion rotationMatrixToQuaternion(const float rotation[9]) {
+   m << rotation[0], rotation[1], rotation[2], rotation[3], rotation[4], rotation[5], rotation[6],
+       rotation[7], rotation[8];
+   Eigen::Quaternionf q(m);
++  q.normalize();
+   return {q.x(), q.y(), q.z(), q.w()};
+ }

@@ -10,47 +10,42 @@ git pull origin main
 codex
 ```
 
-## Current Task: ROS 2 Camera Contract And Stationary Rosbag
+## Current Task: Supervised Room-Walk RGB-D Recording
 
 ```text
 Read AGENTS.md and follow it strictly.
 
-Work on the M3 ROS 2 camera contract and stationary rosbag smoke test, the Current
-Next Task in AGENTS.md. Native RGB-D capture, coarse units and SDK registration
-are verified in the Progress Ledger. Preserve that working capture path.
+Work on the M3 supervised room-walk recording task. The stationary ROS contract
+and exact simulated-time replay are verified in the Progress Ledger. Preserve
+the accepted 15 FPS profile, source resolutions, rectified RGB-D calibration,
+clock/TF contract and separate native SDK capture path.
 
-First inspect local ROS 2 Humble, the Orbbec ROS wrapper/source and its SDK
-requirements, launch patterns and supported profiles. If a required component
-cannot be found locally, ask me before downloading or installing it. Do not
-assume the Python SDK's version or alignment settings apply to the ROS driver.
+First inspect the repository, existing ROS workspace and final stationary
+recording evidence. Confirm I am present and determine how the fixed camera and
+Jetson can be moved with secure power and cabling. I will perform physical camera
+motion; do not assume the setup is portable or actuate a robot.
 
 The required observable result is:
-- publish supported 1280x720 color, registered depth and matching CameraInfo;
-- measure image encodings, depth units, calibration/distortion, optical frames,
-  TF, QoS, topic rates, timestamp domains/skew and dropped or unmatched frames;
-- record about 60 seconds with the camera fixed, saving required topics and TF;
-- stop the driver and replay the bag with simulated time, verifying recorded
-  frame counts, timestamps, calibration and TF without reopening the camera;
-- keep exact reproducible commands and measured evidence, preserve native capture,
-  and leave room images and bags ignored and local.
+- record a bounded 60–120 second slow room loop with useful overlapping views;
+- retain image/CameraInfo, static TF, source timestamp CSV and exact configuration;
+- verify units, calibration, frames, TF, rates, synchronization and gaps;
+- preserve the stationary wall-unit test, but do not require every moving frame's
+  center to remain in the old 2–3 m wall interval;
+- stop the driver and verify exact recorded content through simulated-time replay;
+- keep room images/bags ignored and local and update progress on GitHub.
 
-Do not start SLAM, perception, room-walk recording or robot motion in this step.
-Prefer a compatible maintained Orbbec driver over a new custom camera node.
+Do not start SLAM, perception or robot motion in this step. Ask before downloading
+any newly required component that is absent locally; do not repeat approvals
+already granted for the existing driver and its six dependencies.
 
-Make the smallest coherent change, reuse existing SDK code and project
-patterns, and avoid speculative abstractions or unused scaffolding. Run focused
-verification on the Jetson, review the complete diff, and update the Progress
+Make the smallest coherent change, reuse existing SDK and project patterns, run
+focused Jetson verification, review the complete diff and update the Progress
 Ledger only with measured evidence.
 
-Before editing, briefly explain in Chinese:
-1. what already exists;
-2. the smallest implementation plan;
-3. which files will change;
-4. how the result will be verified.
-
-After completing the task, explain what changed, measured results, remaining
-limitations, what I should learn from this step, and exactly one recommended
-next action.
+Before editing, briefly explain in Chinese what exists, the smallest plan, the
+files that will change and how the result will be verified. After completing the
+task, explain changes, measured results, limitations, what I should learn and
+exactly one recommended next action.
 ```
 
 Replace the current-task section only after its observable result has been
