@@ -2,6 +2,9 @@
 
 Autonomous semantic room exploration and object memory on Jetson Orin Nano.
 
+> The living architecture, milestone plan, Codex CLI workflow, verification
+> criteria, and recovery protocol are maintained in [AGENTS.md](AGENTS.md).
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
@@ -19,13 +22,12 @@ Where did I last see my backpack?
 This project is not just a YOLO demo. The goal is to connect perception, mapping, and memory:
 
 ```text
-RGB-D camera
--> RTAB-Map RGB-D SLAM
--> YOLO object detection
--> depth-based 3D localization
--> map-frame object fusion
--> persistent semantic memory
--> query / visualization
+Femto Mega RGB-D camera
+-> RTAB-Map RGB-D SLAM and timestamped camera pose
+-> YOLO-plus-depth baseline or CuTR keyframe 3D cuboids
+-> map-frame temporal fusion
+-> persistent open-vocabulary scene memory
+-> query, goal proposal, and later autonomous exploration
 ```
 
 The key transformation is:
@@ -34,14 +36,18 @@ The key transformation is:
 map_T_object = map_T_camera * camera_T_object
 ```
 
-RTAB-Map provides the camera pose in the map frame. YOLO and depth provide the object position in the camera frame. Together, the system stores object locations in a persistent room-level memory.
+RTAB-Map provides the camera pose in the map frame. The stable baseline uses
+YOLO and depth for camera-frame object positions. The advanced path evaluates
+Cubify Transformer (CuTR) for class-agnostic 3D cuboids on selected keyframes,
+with semantic labels or text embeddings supplied separately. Together, the
+system stores fused object observations in persistent room-level memory.
 
 ## Hardware
 
 Target hardware:
 
 - Jetson Orin Nano
-- RGB-D camera, planned
+- Orbbec Femto Mega RGB-D camera, selected; live capture not yet verified
 - Optional mobile robot base
 - Optional DisplayPort dummy plug for headless remote desktop
 
@@ -65,6 +71,8 @@ Planned stack:
 - ROS2 Humble
 - RTAB-Map RGB-D SLAM
 - YOLO object detection
+- Cubify Transformer RGB-D 3D detection, experimental
+- Lightweight text-aligned semantic embeddings, planned
 - ONNX
 - TensorRT FP16
 - OpenCV
@@ -187,7 +195,7 @@ Deliverables:
 
 ### Phase 2: YOLO Perception Baseline
 
-Status: in progress
+Status: image inference and repeated-image benchmark verified
 
 Goals:
 
@@ -216,30 +224,46 @@ Input tensor shape: (1, 3, 448, 640)
 Output directory: runs/detect/data/outputs/yolo_smoke_test
 ```
 
-### Phase 3: TensorRT Deployment
+### Phase 3: Femto Mega RGB-D Bring-Up
 
 Goals:
 
-- Export YOLO model to ONNX
-- Build TensorRT FP16 engine
-- Compare PyTorch vs TensorRT inference
-- Measure latency, FPS, memory, and power mode
+- Capture synchronized color and metric depth headlessly
+- Record stream profiles, camera intrinsics, distortion, and depth scale
+- Validate depth units and RGB-depth alignment
+- Publish a stable ROS2 camera contract and record a replayable rosbag
 
 Deliverables:
 
-- ONNX export script
-- TensorRT engine build script
-- Benchmark script
-- Benchmark results
+- Camera diagnostic and capture scripts
+- RGB, raw depth, depth visualization, and metadata output
+- ROS2 topic/rate/TF validation
+- Short RGB-D rosbag for deterministic downstream development
 
-### Phase 4: RGB-D 3D Object Localization
+### Phase 4: RTAB-Map RGB-D SLAM
 
 Goals:
 
-- Use aligned RGB and depth frames
-- Estimate object depth from detection bounding boxes
-- Back-project detections into 3D camera coordinates
-- Publish or log 3D object detections
+- Run RTAB-Map first on recorded RGB-D data
+- Validate odometry, timestamps, and the TF tree
+- Build a room map and verify loop closure
+- Save the database, map, trajectory, and launch configuration
+
+Deliverables:
+
+- RTAB-Map launch/config files
+- Map and camera trajectory
+- TF and loop-closure validation evidence
+
+### Phase 5: YOLO Plus Depth 3D Baseline
+
+Goals:
+
+- Use synchronized aligned RGB, depth, and camera intrinsics
+- Estimate robust object depth from detection regions
+- Back-project detections into camera-frame 3D positions
+- Transform timestamped observations into the map frame
+- Publish or log structured 3D object observations
 
 Core math:
 
@@ -264,70 +288,61 @@ Deliverables:
 - Object coordinate logs
 - Error/stability analysis
 
-### Phase 5: RTAB-Map RGB-D SLAM
+### Phase 6: Persistent Semantic Object Memory
 
 Goals:
 
-- Run RTAB-Map with RGB-D input
-- Estimate camera pose
-- Build room map
-- Publish TF/map frame information
-- Visualize map in RViz
+- Merge repeated map-frame observations across time
+- Preserve geometry and semantic confidence separately
+- Store durable object state in SQLite
+- Support object queries after the runtime restarts
 
 Deliverables:
 
-- RTAB-Map launch/config files
-- Map output
-- Camera trajectory
-- RViz visualization
-
-### Phase 6: Semantic Object Memory
-
-Goals:
-
-- Transform object detections from camera frame to map frame
-- Merge repeated detections across time
-- Store persistent object memory
-- Support object queries
+- Object association and fusion tests
+- Persistent scene database
+- Query command/service
+- Semantic map visualization
 
 Object memory fields:
 
 ```text
 object_id
-class_name
-confidence
-map_position_xyz
-observation_count
-first_seen
-last_seen
-source_frames
+canonical_label and label candidates
+geometry and semantic confidence
+map-frame pose and dimensions
+observation count
+first-seen and last-seen timestamps
+source observations and backend
 ```
 
-Example query:
-
-```text
-find bottle
-```
-
-Example output:
-
-```text
-bottle_01 at map position [x, y, z], seen 5 times
-```
-
-Deliverables:
-
-- Object memory database
-- Query script/service
-- Semantic map visualization
-
-### Phase 7: Exploration Behavior
+### Phase 7: CuTR And Open-Vocabulary Upgrade
 
 Goals:
 
-- Use map coverage or frontier-style logic to guide exploration
+- Benchmark Cubify Transformer on calibrated Femto Mega RGB-D frames
+- Compare its full 3D cuboids against the YOLO-plus-depth baseline
+- Run CuTR on keyframes if Jetson memory and latency permit
+- Attach separately measured text-aligned semantics to object proposals
+- Fuse multi-view geometry and semantic embeddings in persistent memory
+
+Deliverables:
+
+- CuTR Jetson/Femto feasibility report
+- Baseline-versus-CuTR benchmark
+- Keyframe perception backend or documented negative result
+- Open-vocabulary query evaluation
+
+### Phase 8: Exploration, Navigation, And Edge Optimization
+
+Goals:
+
+- Use occupancy-grid frontiers to guide unknown-room exploration
+- Query memory before initiating a new search
+- Produce a collision-checked stand-off goal for a selected object
+- Integrate Nav2 when a mobile base is available
+- Profile the complete concurrent system before applying TensorRT/FP16 work
 - Support manual, semi-autonomous, or robot-base exploration modes
-- Update semantic memory during exploration
 
 Mobility backends:
 
@@ -338,7 +353,9 @@ Mobility backends:
 
 Deliverables:
 
-- Exploration policy prototype
+- Frontier and goal-proposal prototype
+- Concurrent Jetson latency, memory, power, and thermal results
+- Evidence-driven ONNX/TensorRT optimization where useful
 - Semantic room exploration demo
 - Final demo video
 
@@ -349,10 +366,10 @@ The project prioritizes robotics system usefulness over single-frame ML metrics.
 Priority order:
 
 1. System stability and real-time operation
-2. Camera pose and map-frame consistency
-3. Stable 3D object localization
-4. YOLO detection accuracy
-5. Visual quality and high resolution
+2. Timestamp, camera pose, and map-frame consistency
+3. Stable multi-view object geometry and data association
+4. Useful semantic retrieval accuracy
+5. Model throughput, memory, power, and thermal headroom
 
 Design principle:
 
@@ -388,20 +405,27 @@ jetson-semantic-room-explorer/
 - [X] Jetson-compatible PyTorch CUDA verified
 - [X] YOLO image inference running
 - [X] ROS2 Humble environment sourced
-- [ ] YOLO inference script added
-- [ ] YOLO baseline benchmark table added
+- [X] YOLO inference script added
+- [X] YOLO PyTorch benchmark script added
+- [X] YOLO baseline measured: 30.76 ms inference, 59.79 ms total mean
+- [ ] Femto Mega native RGB-D capture verified
+- [ ] RGB-D ROS2 topics and rosbag replay verified
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete
-- [ ] RGB-D camera integrated
 - [ ] RTAB-Map RGB-D SLAM running
 - [ ] Semantic object memory implemented
+- [ ] CuTR Jetson/Femto feasibility benchmark complete
+- [ ] Open-vocabulary semantic query implemented
 
 ## Resume-Oriented Summary
 
 Planned final description:
 
 ```text
-Built a Jetson Orin Nano-based semantic room exploration system that combines RTAB-Map RGB-D SLAM, TensorRT-optimized YOLO object detection, depth-based 3D localization, and persistent object memory to support robot-facing queries about objects in indoor environments.
+Built a Jetson Orin Nano-based persistent 3D scene mapping system that fuses
+RTAB-Map RGB-D poses with resource-aware object perception and multi-view
+semantic memory to support language-grounded object queries and search in
+previously unseen indoor environments.
 ```
 
 ## Notes
