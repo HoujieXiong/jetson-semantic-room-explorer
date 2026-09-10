@@ -47,7 +47,7 @@ system stores fused object observations in persistent room-level memory.
 Target hardware:
 
 - Jetson Orin Nano
-- Orbbec Femto Mega RGB-D camera, selected; live capture not yet verified
+- Orbbec Femto Mega RGB-D camera; native synchronized capture and coarse depth-unit check verified
 - Optional mobile robot base
 - Optional DisplayPort dummy plug for headless remote desktop
 
@@ -58,7 +58,7 @@ Current development mode:
 - Ubuntu 22.04.5 LTS
 - Jetson Linux / L4T R36.5.0
 - SSH / headless workflow
-- Image/video-file inference before live camera is available
+- Image/video-file inference baseline; native RGB-D capture now available
 - YOLOv8n image inference running on Jetson GPU
 - ROS2 Humble environment available
 
@@ -257,6 +257,14 @@ Benchmark table:
 
 ### Phase 3: Femto Mega RGB-D Bring-Up
 
+Native capture saves synchronized 1280x720 color and 640x576 raw depth, with
+intrinsics, distortion, timestamps, scale, and profiles. Ten independent runs
+and ten same-process cycles passed. After repositioning, three captures had
+about 74.9% valid depth and center medians of 2.332-2.333 m, within the user's
+2-3 m wall-distance reference. This verifies coarse metric units; absolute
+distance accuracy and spatial registration remain unverified.
+See [capture commands and measured evidence](docs/camera-femto-mega.md).
+
 Goals:
 
 - Capture synchronized color and metric depth headlessly
@@ -440,7 +448,7 @@ jetson-semantic-room-explorer/
 - [X] YOLO PyTorch benchmark script added
 - [X] YOLO baseline measured: 30.76 ms inference, 59.79 ms total mean
 - [X] YOLO baseline benchmark table added
-- [ ] Femto Mega native RGB-D capture verified
+- [X] Femto Mega M2 native capture acceptance (including coarse physical unit check)
 - [ ] RGB-D ROS2 topics and rosbag replay verified
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete

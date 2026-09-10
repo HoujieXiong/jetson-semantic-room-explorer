@@ -342,46 +342,53 @@ concurrent SLAM benchmark.
 ### 4.5 Camera And Mapping State
 
 ```text
-pyorbbecsdk2 appears in the saved Python environment snapshot: VERIFIED
-Femto Mega one-frame capture from this repository: NOT VERIFIED
-RGB/depth alignment and intrinsics export: NOT VERIFIED
+pyorbbecsdk2 2.1.1 import / native SDK 2.8.6 on this Jetson: VERIFIED
+Femto Mega synchronized frame-pair capture and intrinsics export: VERIFIED
+RGB/depth spatial alignment: PLANNED
+Physical depth-unit range check: VERIFIED (user reference 2-3 m; center 2.332-2.333 m)
+Absolute distance accuracy: PLANNED (precise reference not yet measured)
 ROS 2 camera topics: NOT VERIFIED
 Rosbag recording/replay: NOT VERIFIED
 RTAB-Map RGB-D SLAM: NOT VERIFIED
 ```
 
-The preliminary draft `scripts/femto_mega_capture_once.py` is now versioned.
-It has passed a Python syntax check only; pixel format, depth scale,
-synchronization, alignment, and save-error handling still need review and
-hardware validation. M2 acceptance remains pending.
+`scripts/femto_mega_capture_once.py` captures 1280x720 MJPG color and 640x576
+Y16 depth at 30 FPS using SDK synchronization and exports raw counts, calibration,
+timestamps, and scale. PNG round trips, failure recovery and ten-run lifecycle
+checks pass. After repositioning, three captures have about 74.9% valid depth
+and fully valid center ROIs at 2.332-2.333 m, consistent with the user-reported
+2-3 m wall distance. M2 native capture and coarse unit acceptance are verified;
+absolute accuracy and spatial alignment are not. See the latest M2 ledger entry
+and `docs/camera-femto-mega.md` for evidence and limitations.
 
 ## 5. Current Next Task
 
-Milestone: **Femto Mega reproducible RGB-D capture**
+Milestone: **Femto Mega depth-to-color registration**, preparing for M3.
 
-Do not start RTAB-Map, CuTR integration, or TensorRT optimization until this
-milestone produces trustworthy RGB-D data and metadata.
+M2 native capture passed, including the coarse physical unit check recorded in
+the Progress Ledger. Keep the verified raw capture path reproducible. Establish
+pixel correspondence before using color pixels for 3D localization or ROS/SLAM.
 
 Required sequence:
 
-1. Pull the latest repository and confirm a clean starting state.
-2. Confirm the camera is visible over USB and record device/firmware information.
-3. Confirm the Python SDK import and enumerate supported color/depth profiles.
-4. Implement a headless one-frame capture utility with explicit stream formats.
-5. Save synchronized color, raw metric depth, depth visualization, and metadata.
-6. Record camera intrinsics, distortion, depth scale, timestamps, and profiles.
-7. Add optional depth-to-color alignment only after raw capture is understood.
-8. Run repeated capture tests and validate output dimensions and valid-depth ratio.
-9. Add a focused smoke test that can run without a camera where practical.
-10. Update the Progress Ledger, README status, and troubleshooting notes.
+1. Recover git state and preserve any uncommitted work and the verified M2 baseline.
+2. Inspect installed SDK alignment examples and supported profile combinations;
+   do not assume hardware alignment support or equal native resolutions.
+3. Extend the existing utility minimally to save SDK-registered depth alongside
+   the original synchronized 1280x720 color and 640x576 raw depth.
+4. Export the actual aligned depth scale, intrinsics, camera frame and timestamps.
+5. Save an edge/overlay diagnostic and inspect several visible object boundaries,
+   recording occlusions, invalid pixels and any registration mismatch.
+6. Run focused artifact/geometry checks and affected hardware lifecycle tests;
+   update the ledger only with measured evidence. Do not start ROS/SLAM here.
 
 Acceptance evidence:
 
 ```text
-data/outputs/femto_mega_capture/<timestamp>/color.png
-data/outputs/femto_mega_capture/<timestamp>/depth_raw.png
-data/outputs/femto_mega_capture/<timestamp>/depth_vis.png
-data/outputs/femto_mega_capture/<timestamp>/metadata.json
+Existing raw RGB-D artifacts, plus:
+data/outputs/femto_mega_capture/<timestamp>/depth_aligned.png
+data/outputs/femto_mega_capture/<timestamp>/alignment_overlay.png
+data/outputs/femto_mega_capture/<timestamp>/metadata.json (raw and aligned contracts)
 ```
 
 These generated files should normally remain ignored. Commit a deliberately
@@ -389,18 +396,21 @@ small sample only if licensing, privacy, and repository-size checks pass.
 
 Acceptance conditions:
 
-- The camera opens and shuts down cleanly for at least 10 consecutive executions.
-- Color and depth timestamps are recorded and synchronization is characterized.
-- Depth units are proven using SDK metadata and a simple physical distance check.
-- Invalid depth is represented explicitly and never treated as zero-distance.
-- The metadata is sufficient to back-project a pixel without guessing intrinsics.
-- Failure messages identify USB, stream-profile, timeout, format, or save errors.
+- Original raw images and metadata remain available without resampling.
+- Aligned depth uses the color pixel grid and SDK-provided calibration; resizing
+  raw depth is not accepted as registration.
+- Units, timestamps, invalid pixels and optical frames are explicit for both
+  original and aligned depth; a checked central surface stays metrically plausible.
+- Recorded overlays and boundary measurements characterize alignment, including
+  occlusions; unsupported operations and save failures remain explicit.
+- Existing capture checks and any affected lifecycle checks still pass.
 
 Learning checkpoint:
 
 ```text
-Explain camera intrinsics, metric depth scale, RGB-depth registration, timestamps,
-and why an attractive depth visualization is not proof that raw depth is correct.
+Explain temporal synchronization versus pixel registration, raw versus aligned
+intrinsics, and why occluded pixels must remain invalid rather than being filled
+with invented depth.
 ```
 
 ## 6. Target System Architecture
@@ -599,7 +609,8 @@ Learning goal: distinguish an environment snapshot from a reproducible install.
 
 ### M2: Femto Mega Native Capture
 
-Status: `PLANNED`; this is the Current Next Task
+Status: `VERIFIED` for native capture, lifecycle checks and coarse metric units.
+Absolute distance accuracy is not measured; registration is the Current Next Task.
 
 Deliverables:
 
@@ -1072,6 +1083,135 @@ Decision:
 Next action:
 
 - Complete M2, Femto Mega reproducible RGB-D capture.
+
+### 2026-09-10: M2 Native Capture And Lifecycle Checks
+
+Status: `IMPLEMENTED`; automated capture checks are `VERIFIED`, physical-distance
+validation is `BLOCKED`. M2 acceptance and the current task remain open.
+
+Changed:
+
+- Reused `scripts/femto_mega_capture_once.py` for profile enumeration and explicit
+  1280x720 MJPG color + 640x576 Y16 depth at 30 FPS, STANDALONE/SDK synchronization,
+  complete framesets, a 5000 us skew bound, and 15-pair sensor warmup.
+- Preserved uint16 raw counts, exported separate calibration, timestamps, scale,
+  profiles and depth-to-color extrinsics; added checked PNG writes/readbacks,
+  bounded acquisition, explicit invalid depth and cleanup on failure.
+- Added offline tests and a Jetson lifecycle/resource check under `tests/`, plus
+  `docs/camera-femto-mega.md`; updated README with the measured partial status.
+- No dependencies or device settings changed; work is on `feat/femto-capture`.
+
+Verified:
+
+```bash
+.venv/bin/python scripts/femto_mega_capture_once.py --list-profiles --output-dir data/outputs/femto_mega_capture/verification_20260910
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tests/check_femto_hardware.py --output-dir data/outputs/femto_mega_capture/verification_20260910/final
+.venv/bin/python -m compileall -q scripts tests
+git diff --check
+```
+
+- Femto Mega firmware 1.3.1, USB 5000 Mbit/s, pyorbbecsdk2 2.1.1 / native SDK
+  2.8.6; 126 color profiles and 14 depth profiles enumerated locally.
+- 14 offline tests passed. Final hardware runner exited 0: ten separate CLI
+  executions and ten same-process cycles passed, with PNG dimensions/content,
+  calibration dimensions, raw depth and timestamps checked.
+- Across those 20 captures: absolute device timestamp skew 72–670 us;
+  depth scale 1.0 mm/count; valid ratio 0.2764–0.2930%; center ROI 0% valid.
+  Raw nonzero range 46–12465 is recorded, not accepted as physical ground truth.
+- After each close: 4 file descriptors, 12 threads, zero camera handles.
+  Untrimmed RSS grew from 81072 to a peak 131744 KiB, but live glibc allocations
+  grew only 54640 bytes. One test-only idle-page trim after error recovery left
+  RSS at 87648 KiB. Short-run resource checks passed; long-run behavior is unproven.
+- Actual 1 ms frame timeout and output-path failure raised errors, followed by
+  successful capture and unchanged descriptor/thread counts.
+- CLI mean/median/P95 4.538/4.534/4.564 s; same-process cycle durations
+  4.186/4.184/4.197 s. Conditions: Orin Nano, 25 W, L4T R36.5.0, Python 3.10.12,
+  NumPy 1.26.4, actual OpenCV import 4.11.0; no project ML/SLAM workload launched.
+
+Evidence:
+
+- `data/outputs/femto_mega_capture/verification_20260910/final/summary.json`
+- Complete RGB/depth/visualization/metadata under that directory's `cli_01/`
+  through `cli_10/`, `in_process/`, and `recovery/`.
+- Same evidence root: `profiles.json`, `offline_tests.log`, `final.log`, `sdk.log`,
+  `depth_diagnostic/summary.json`, and `memory_diagnostic/summary.json`.
+- Compact results, reproduction commands and troubleshooting:
+  `docs/camera-femto-mega.md`. Large artifacts remain ignored.
+
+Problems and decisions:
+
+- Physical distance/reference is not available locally; user was asked before
+  implementation. A 150-pair follow-up still had only 0.2827–0.2951% valid depth
+  and an invalid center. Cause is undetermined; do not claim metric accuracy.
+- Retain the initial probe (~21% valid depth) and the failed RSS-only test as
+  diagnostic history. The final resource check distinguishes live allocations
+  from allocator retention; production capture does not force allocator cleanup.
+- The sandbox blocks SDK initialization (`getifaddrs: Operation not permitted`);
+  authorized hardware runs outside it succeeded. No SDK reinstall was needed.
+- Existing overlapping OpenCV distributions remain; actual import is 4.11.0.
+- Temporal synchronization is verified; spatial registration and independent
+  calibration accuracy are not. Do not advance to ROS/SLAM or replace `prompt.md`.
+
+Next action:
+
+- Complete one fixed-plane physical-distance check with an unobstructed camera
+  and user-supplied tape-measure reference, recording valid center depth and error.
+
+### 2026-09-10: M2 Physical Range Check And Acceptance
+
+Status: `VERIFIED` for native synchronized RGB-D capture and coarse metric units.
+Absolute distance accuracy and RGB/depth spatial registration remain unmeasured.
+
+Changed:
+
+- No capture-code or camera-setting changes. The user fixed the camera, reported
+  its front was unobstructed, and supplied a front-panel-to-wall distance interval
+  of 200–300 cm. Recorded the interval as supplied, without inventing a point
+  distance or signed error.
+- Updated current status, README and capture documentation with the new evidence;
+  advanced `prompt.md` to registration only after recording this acceptance.
+
+Verified:
+
+- Three new independent executions of
+  `.venv/bin/python scripts/femto_mega_capture_once.py --output-dir <evidence-root>/capture_0N`
+  exited 0 and saved complete 1280x720 color / 640x576 raw-depth artifacts.
+- Independent PNG decoding and the existing hardware artifact checker passed.
+  The central depth ROI `[310, 278, 20, 20]` had 400/400 valid samples each time.
+- Center medians: 2333, 2332, 2332 raw counts. SDK scale: 1.0 mm/count, giving
+  2.333, 2.332, 2.332 m, all within the user's independently supplied 2–3 m range.
+  This supports the required simple unit check, not centimeter-level accuracy.
+- Whole-image valid ratios: 74.8714%, 74.9156%, 74.9064%; absolute color/depth
+  timestamp differences: 316, 267, 410 us. The three medians span 1 mm; this is
+  short-run repeatability, not accuracy against a measured point distance.
+- Reused the earlier final lifecycle evidence: ten CLI runs, ten same-process
+  cycles, failure recovery and resource checks passed; 14 offline tests passed.
+  Capture code is unchanged, so these checks were not unnecessarily rerun.
+
+Evidence:
+
+- Root: `data/outputs/femto_mega_capture/physical_check_20260910T181935Z/`.
+- `physical_reference.json`, `summary.json`, and `capture_01.log` through
+  `capture_03.log`; complete PNGs and metadata in `capture_01/` through `capture_03/`.
+- Prior lifecycle evidence:
+  `data/outputs/femto_mega_capture/verification_20260910/final/summary.json`.
+
+Decisions and limitations:
+
+- M2's native capture acceptance is met by the existing lifecycle/metadata tests
+  plus this coarse physical range check. A narrower reference is optional for a
+  later accuracy experiment, not a new prerequisite for the unit check.
+- Coverage recovered after the user repositioned the camera. This is consistent
+  with a placement/scene issue; the exact cause of the earlier dropout was not
+  isolated. Preserve the earlier failed/low-coverage evidence as history.
+- Raw depth is still unaligned. The next task is calibrated depth-to-color
+  registration before using color pixels for 3D localization or ROS integration.
+
+Next action:
+
+- Verify SDK depth-to-color registration on this working setup, preserving the
+  raw pair and checking transformed depth units, intrinsics and object edges.
 
 ## 16. End-Of-Session Handoff Template
 

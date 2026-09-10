@@ -10,25 +10,30 @@ git pull origin main
 codex
 ```
 
-## Current Task: Femto Mega RGB-D Capture
+## Current Task: Femto Mega Depth-to-Color Registration
 
 ```text
 Read AGENTS.md and follow it strictly.
 
-Work on the Femto Mega RGB-D capture milestone.
+Work on calibrated Femto Mega depth-to-color registration, the Current Next Task
+in AGENTS.md. M2 native capture and its coarse physical unit check are verified
+in the Progress Ledger. Preserve existing work and the verified raw capture
+contract.
 
-First inspect the repository, installed Orbbec SDK, connected camera, and
-supported RGB/depth stream profiles. Do not assume both streams use the same
-resolution.
+First inspect the existing capture code, installed SDK alignment examples, and
+supported profile combinations. Do not assume hardware alignment support or
+equal native RGB/depth resolutions.
 
 The required observable result is:
-- capture one hardware-supported synchronized RGB-D frame pair;
-- use 1280x720 RGB if the camera supports it in the synchronized profile;
-- save the RGB image, raw depth image, camera intrinsics, timestamps, depth
-  scale, and selected stream profiles;
-- verify depth values and units;
-- complete ten open/capture/close cycles without crashes, resource leaks, or
-  silent failures.
+- preserve a synchronized 1280x720 color / 640x576 raw-depth pair and its metadata;
+- use supported SDK calibration to save depth registered to the color pixel grid;
+- export actual aligned intrinsics, depth scale, timestamps and camera frame;
+- save an alignment overlay, inspect multiple visible object boundaries, and
+  record occlusions, invalid pixels and measured registration mismatch;
+- verify metric depth remains plausible and affected capture/lifecycle checks
+  pass without silent fallback; resizing raw depth is not registration.
+
+Do not start ROS integration, SLAM, or perception work in this step.
 
 Make the smallest coherent change, reuse existing SDK code and project
 patterns, and avoid speculative abstractions or unused scaffolding. Run focused
