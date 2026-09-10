@@ -25,6 +25,50 @@ before changing code. Preserve existing work, verify the result on this Jetson,
 update the Progress Ledger, and leave one clear next action before stopping.
 ```
 
+### 1.1 Reusable High-Quality Task Prompt
+
+Replace `[TASK]` and `[ACCEPTANCE RESULT]`, then send this when starting a new
+implementation step:
+
+```text
+Work on [TASK] in this repository. The required observable result is
+[ACCEPTANCE RESULT].
+
+Before editing, read AGENTS.md, inspect git status and relevant existing code,
+and explain in Chinese: the current behavior, the smallest coherent change, the
+files you expect to touch, and how you will verify it. Search for existing
+helpers and established patterns before adding anything.
+
+Implementation constraints:
+- Make the smallest change that fully satisfies the acceptance result.
+- Reuse existing code and dependencies when they fit.
+- Do not add speculative abstractions, placeholder modules, compatibility layers,
+  duplicate configuration, or future-facing options without a current caller.
+- Do not add a dependency unless the standard library and current dependencies
+  are insufficient; explain the cost before adding one.
+- Do not hide failures with broad exception handling, silent fallback, fabricated
+  defaults, or fake success output. Preserve units, timestamps, coordinate frames,
+  and resource cleanup explicitly.
+- Do not refactor unrelated files or rewrite working code for style alone.
+- Add focused tests for behavior and failure cases. Do not write tests that only
+  duplicate the implementation or mock away the behavior being verified.
+- Do not claim hardware behavior that was not run on the Jetson.
+
+After implementation, run the narrowest relevant tests, then any affected smoke
+or integration test. Review the complete diff for duplicated logic, dead code,
+unused imports, unnecessary comments, accidental generated files, weak error
+handling, and documentation that overstates reality. Simplify before stopping.
+
+Report: what changed, why this design is sufficient, exact verification performed,
+remaining limitations, what I should learn from this step, and one next action.
+Update the Progress Ledger only when evidence supports a status change.
+```
+
+The prompt intentionally asks for an observable result. A vague request such as
+"build the camera system" encourages unnecessary scaffolding. A stronger request
+is "save one synchronized RGB-D frame plus intrinsics and prove depth units with
+ten clean open/capture/close runs."
+
 The human-facing conversation may be in Chinese. Public documentation, code,
 identifiers, commit messages, and logs committed to this repository should be in
 clear English unless there is a specific reason to do otherwise.
@@ -126,7 +170,85 @@ milestone with a short "what we learned" summary tied to actual results.
   raw rosbags, generated engines, or large generated outputs.
 - Treat model, dataset, and code licenses as part of the design.
 
-### 3.5 Change And Commit Discipline
+### 3.5 Minimal-Change Gate
+
+Every new file, class, helper, configuration key, dependency, process, or ROS node
+must answer both questions:
+
+1. Which current acceptance condition requires it?
+2. Why is the existing code or a smaller local change insufficient?
+
+If neither answer is concrete, do not add it.
+
+Additional rules:
+
+- Add an abstraction when it removes current meaningful duplication, isolates a
+  real hardware/external boundary, or has at least two current callers.
+- Do not introduce interfaces for imagined future backends. A measured second
+  backend is a valid reason; a possible future backend is not.
+- Keep one source of truth for each setting. ROS parameters, YAML, CLI defaults,
+  environment variables, and constants must not silently disagree.
+- Prefer explicit unsupported-operation errors over a fallback that produces
+  plausible but incorrect output.
+- Avoid wrappers that only rename another API without enforcing a useful contract.
+- Avoid large manager/controller classes that own camera, inference, mapping,
+  persistence, and UI behavior simultaneously.
+- Avoid comments that restate the code. Document units, coordinate frames,
+  ownership, invariants, and non-obvious hardware behavior instead.
+- Do not preserve obsolete code "just in case." Remove it after replacement is
+  verified, or mark a short, explicit migration period with a real consumer.
+- Do not create empty package trees, unused configuration files, or TODO-only
+  modules to make the repository look complete.
+
+### 3.6 Common AI Coding Failure Modes
+
+| Failure mode | What it looks like | Required correction |
+| --- | --- | --- |
+| Scope drift | Camera task also rewrites logging, packaging, and README style | Revert unrelated scope and keep the acceptance result central |
+| Scaffold explosion | Many empty packages and interfaces before one frame works | Build one tested vertical slice first |
+| Premature abstraction | Factory/registry/plugin layer with one implementation | Use the concrete implementation until a second measured backend exists |
+| Duplicate logic | New helper repeats an existing parser, transform, or config | Search first and consolidate around one owner |
+| Dependency creep | Adds a package for a small standard-library operation | Remove it or justify a capability the project actually needs |
+| Silent fallback | Wrong camera format quietly becomes a blank/default image | Fail with actionable context and preserve evidence |
+| Broad exception handling | `except Exception` converts real errors into success/empty data | Catch expected exceptions narrowly; re-raise unexpected failures |
+| Happy-path-only code | Works once but leaks the camera or fails on missing depth | Test cleanup, timeout, empty, invalid, and repeated-run behavior |
+| Fake robustness | Retries forever or ignores stale TF/data | Bound queues/retries and expose drop/failure metrics |
+| Unit/frame confusion | Millimeters treated as meters or optical axes as `base_link` | Encode units/frames in contracts and test known examples |
+| Benchmark theater | Reports one warm frame or model-only latency as system FPS | Record conditions and distributions with synchronized timing |
+| Test mirroring | Test reproduces the same formula and always agrees | Use independent known cases, boundaries, and failure behavior |
+| Documentation drift | README says integrated while code is unrun | Use evidence-based status and update docs after verification |
+| Compatibility clutter | Aliases and legacy paths with no known consumer | Remove them until a real compatibility requirement exists |
+
+### 3.7 Pre-Final Self-Review
+
+Before reporting a coding task complete, Codex must inspect the entire diff and
+answer internally:
+
+1. Does every changed file directly support the requested result?
+2. Is there a smaller implementation with the same correctness and clarity?
+3. Did I duplicate an existing helper, setting, schema, or error path?
+4. Did I add code for a future possibility instead of a current requirement?
+5. Are failures explicit, bounded, and diagnosable?
+6. Are time, units, frames, array shapes, and ownership unambiguous?
+7. Do tests cover externally visible behavior and at least one realistic failure?
+8. Did I leave dead code, unused imports, debug output, TODO placeholders, or
+   generated artifacts?
+9. Do documentation and status claims match what was actually executed?
+10. Can the next session understand and reproduce the result from the repository?
+
+Useful final checks include:
+
+```bash
+git diff --check
+git diff --stat
+git diff
+python -m compileall scripts
+```
+
+Run project-specific tests and linters when they exist. `compileall` is only a
+syntax smoke test and must not be presented as behavioral verification.
+
+### 3.8 Change And Commit Discipline
 
 - Keep `main` runnable and use focused branches such as `feat/femto-capture`.
 - Make small commits around verified behavior.
