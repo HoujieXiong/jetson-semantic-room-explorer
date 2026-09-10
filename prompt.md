@@ -10,30 +10,32 @@ git pull origin main
 codex
 ```
 
-## Current Task: Femto Mega Depth-to-Color Registration
+## Current Task: ROS 2 Camera Contract And Stationary Rosbag
 
 ```text
 Read AGENTS.md and follow it strictly.
 
-Work on calibrated Femto Mega depth-to-color registration, the Current Next Task
-in AGENTS.md. M2 native capture and its coarse physical unit check are verified
-in the Progress Ledger. Preserve existing work and the verified raw capture
-contract.
+Work on the M3 ROS 2 camera contract and stationary rosbag smoke test, the Current
+Next Task in AGENTS.md. Native RGB-D capture, coarse units and SDK registration
+are verified in the Progress Ledger. Preserve that working capture path.
 
-First inspect the existing capture code, installed SDK alignment examples, and
-supported profile combinations. Do not assume hardware alignment support or
-equal native RGB/depth resolutions.
+First inspect local ROS 2 Humble, the Orbbec ROS wrapper/source and its SDK
+requirements, launch patterns and supported profiles. If a required component
+cannot be found locally, ask me before downloading or installing it. Do not
+assume the Python SDK's version or alignment settings apply to the ROS driver.
 
 The required observable result is:
-- preserve a synchronized 1280x720 color / 640x576 raw-depth pair and its metadata;
-- use supported SDK calibration to save depth registered to the color pixel grid;
-- export actual aligned intrinsics, depth scale, timestamps and camera frame;
-- save an alignment overlay, inspect multiple visible object boundaries, and
-  record occlusions, invalid pixels and measured registration mismatch;
-- verify metric depth remains plausible and affected capture/lifecycle checks
-  pass without silent fallback; resizing raw depth is not registration.
+- publish supported 1280x720 color, registered depth and matching CameraInfo;
+- measure image encodings, depth units, calibration/distortion, optical frames,
+  TF, QoS, topic rates, timestamp domains/skew and dropped or unmatched frames;
+- record about 60 seconds with the camera fixed, saving required topics and TF;
+- stop the driver and replay the bag with simulated time, verifying recorded
+  frame counts, timestamps, calibration and TF without reopening the camera;
+- keep exact reproducible commands and measured evidence, preserve native capture,
+  and leave room images and bags ignored and local.
 
-Do not start ROS integration, SLAM, or perception work in this step.
+Do not start SLAM, perception, room-walk recording or robot motion in this step.
+Prefer a compatible maintained Orbbec driver over a new custom camera node.
 
 Make the smallest coherent change, reuse existing SDK code and project
 patterns, and avoid speculative abstractions or unused scaffolding. Run focused

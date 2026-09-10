@@ -257,12 +257,34 @@ Benchmark table:
 
 ### Phase 3: Femto Mega RGB-D Bring-Up
 
-Native capture saves synchronized 1280x720 color and 640x576 raw depth, with
-intrinsics, distortion, timestamps, scale, and profiles. Ten independent runs
-and ten same-process cycles passed. After repositioning, three captures had
-about 74.9% valid depth and center medians of 2.332-2.333 m, within the user's
-2-3 m wall-distance reference. This verifies coarse metric units; absolute
-distance accuracy and spatial registration remain unverified.
+Native capture is verified on the Jetson as of 2026-09-10:
+
+| Check | Measured result |
+| --- | --- |
+| Synchronized streams | 1280x720 MJPG color + 640x576 Y16 depth, 30 FPS |
+| Saved contract | Raw images, intrinsics, distortion, extrinsics, timestamps, depth scale and profiles |
+| Lifecycle | 10 independent runs + 10 same-process cycles; failure recovery passed |
+| Physical unit check | Center depth 2.332-2.333 m within the user-reported 2-3 m wall range |
+| Depth coverage after repositioning | About 74.9% overall; 400/400 valid center pixels |
+| Offline checks | 14 tests passed |
+
+Capture a new pair from the repository root:
+
+```bash
+.venv/bin/python scripts/femto_mega_capture_once.py
+```
+
+SDK depth-to-color registration is also verified. Add `--align-depth` to save
+1280x720 registered depth and an overlay alongside the original raw pair.
+Aligned calibration matches the original color image, with explicit optical
+frames, depth units and preserved source timestamps. Twenty capture cycles
+passed (10 separate CLI processes and 10 in one process); all 21 offline tests
+passed. Aligned center depth was 2.347–2.349 m with 60.85–61.08% whole-image
+coverage in this scene. Object-edge diagnostics retain and quantify invalid
+regions, including up to 18 px P95 distance to RGB edges near the basket.
+
+Absolute distance accuracy, sustained alignment throughput and ROS integration
+remain unverified. The next task is the M3 ROS 2 camera contract and rosbag replay.
 See [capture commands and measured evidence](docs/camera-femto-mega.md).
 
 Goals:
@@ -449,6 +471,7 @@ jetson-semantic-room-explorer/
 - [X] YOLO baseline measured: 30.76 ms inference, 59.79 ms total mean
 - [X] YOLO baseline benchmark table added
 - [X] Femto Mega M2 native capture acceptance (including coarse physical unit check)
+- [X] SDK depth-to-color registration verified with preserved raw pair and edge diagnostics
 - [ ] RGB-D ROS2 topics and rosbag replay verified
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete

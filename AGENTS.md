@@ -344,7 +344,7 @@ concurrent SLAM benchmark.
 ```text
 pyorbbecsdk2 2.1.1 import / native SDK 2.8.6 on this Jetson: VERIFIED
 Femto Mega synchronized frame-pair capture and intrinsics export: VERIFIED
-RGB/depth spatial alignment: PLANNED
+SDK depth-to-color registration: VERIFIED (single frames; edge limitations recorded)
 Physical depth-unit range check: VERIFIED (user reference 2-3 m; center 2.332-2.333 m)
 Absolute distance accuracy: PLANNED (precise reference not yet measured)
 ROS 2 camera topics: NOT VERIFIED
@@ -358,59 +358,65 @@ timestamps, and scale. PNG round trips, failure recovery and ten-run lifecycle
 checks pass. After repositioning, three captures have about 74.9% valid depth
 and fully valid center ROIs at 2.332-2.333 m, consistent with the user-reported
 2-3 m wall distance. M2 native capture and coarse unit acceptance are verified;
-absolute accuracy and spatial alignment are not. See the latest M2 ledger entry
+absolute accuracy remains unmeasured. Optional `--align-depth` additionally saves
+1280x720 depth on the original color grid, with the actual calibration, scale,
+source depth timestamps and color optical frame. Twenty aligned capture cycles
+and 21 offline tests pass. Center aligned depth is 2.347–2.349 m; boundary checks
+record occlusion gaps and mismatches. See the M2 and registration ledger entries
 and `docs/camera-femto-mega.md` for evidence and limitations.
 
 ## 5. Current Next Task
 
-Milestone: **Femto Mega depth-to-color registration**, preparing for M3.
+Milestone: **M3 ROS 2 camera contract and stationary rosbag smoke test**.
 
-M2 native capture passed, including the coarse physical unit check recorded in
-the Progress Ledger. Keep the verified raw capture path reproducible. Establish
-pixel correspondence before using color pixels for 3D localization or ROS/SLAM.
+Native capture, coarse metric units and SDK registration have passed. Preserve
+those scripts and artifacts while establishing a replayable ROS sensor contract.
+The camera is fixed; room-walk recording and SLAM are separate later checks.
 
 Required sequence:
 
-1. Recover git state and preserve any uncommitted work and the verified M2 baseline.
-2. Inspect installed SDK alignment examples and supported profile combinations;
-   do not assume hardware alignment support or equal native resolutions.
-3. Extend the existing utility minimally to save SDK-registered depth alongside
-   the original synchronized 1280x720 color and 640x576 raw depth.
-4. Export the actual aligned depth scale, intrinsics, camera frame and timestamps.
-5. Save an edge/overlay diagnostic and inspect several visible object boundaries,
-   recording occlusions, invalid pixels and any registration mismatch.
-6. Run focused artifact/geometry checks and affected hardware lifecycle tests;
-   update the ledger only with measured evidence. Do not start ROS/SLAM here.
+1. Recover git state and inspect local ROS 2 Humble, Orbbec wrapper/source, its
+   SDK requirements, existing launch patterns and available profile settings.
+   If a needed component cannot be found locally, ask the user before downloading
+   or installing it, as requested. Do not replace the working native SDK casually.
+2. Use a compatible maintained ROS driver to publish 1280x720 color, registered
+   depth and matching CameraInfo. Verify actual support; native depth resolution
+   remains independent. Avoid a new camera node when the existing driver suffices.
+3. Measure encodings, depth units, calibration/distortion, timestamp domains/skew,
+   monotonicity, frame IDs, TF, QoS and delivered rates over a bounded interval.
+4. Record about 60 seconds of the stationary scene, including required camera
+   topics and transforms; keep the bag ignored and local.
+5. Stop the camera driver and replay with simulated time. Verify matching frame
+   counts, timestamps, metadata and TF availability without reopening hardware.
+6. Save exact launch/record/replay commands and measured results. Run affected
+   checks and update the ledger; do not start SLAM, perception or robot motion.
 
 Acceptance evidence:
 
 ```text
-Existing raw RGB-D artifacts, plus:
-data/outputs/femto_mega_capture/<timestamp>/depth_aligned.png
-data/outputs/femto_mega_capture/<timestamp>/alignment_overlay.png
-data/outputs/femto_mega_capture/<timestamp>/metadata.json (raw and aligned contracts)
+Driver/version and launch configuration
+Live topic, timestamp, CameraInfo and TF measurements
+Ignored short rosbag, rosbag metadata and driver-stopped replay report
 ```
 
-These generated files should normally remain ignored. Commit a deliberately
-small sample only if licensing, privacy, and repository-size checks pass.
+Commit small launch/configuration and verification code as needed, plus compact
+measured results. Raw room images and rosbags should remain ignored.
 
 Acceptance conditions:
 
-- Original raw images and metadata remain available without resampling.
-- Aligned depth uses the color pixel grid and SDK-provided calibration; resizing
-  raw depth is not accepted as registration.
-- Units, timestamps, invalid pixels and optical frames are explicit for both
-  original and aligned depth; a checked central surface stays metrically plausible.
-- Recorded overlays and boundary measurements characterize alignment, including
-  occlusions; unsupported operations and save failures remain explicit.
-- Existing capture checks and any affected lifecycle checks still pass.
+- Color/aligned depth/CameraInfo agree on pixel grid and calibration; units,
+  invalid depth, timestamp domain and optical frames are documented and checked.
+- No unexplained timestamp regression, frame-ID mismatch or missing required TF;
+  topic rates, synchronization skew and dropped/unmatched frames are measured.
+- The bag replays the recorded sensor contract with the driver stopped.
+- Native capture remains usable; no room-walk, SLAM or sustained mapping claim
+  follows from this stationary smoke test alone.
 
 Learning checkpoint:
 
 ```text
-Explain temporal synchronization versus pixel registration, raw versus aligned
-intrinsics, and why occluded pixels must remain invalid rather than being filled
-with invented depth.
+Explain Image/CameraInfo, QoS, optical TF, hardware versus ROS timestamps, and
+why rosbag replay with a consistent clock enables repeatable downstream tests.
 ```
 
 ## 6. Target System Architecture
@@ -610,7 +616,8 @@ Learning goal: distinguish an environment snapshot from a reproducible install.
 ### M2: Femto Mega Native Capture
 
 Status: `VERIFIED` for native capture, lifecycle checks and coarse metric units.
-Absolute distance accuracy is not measured; registration is the Current Next Task.
+Absolute distance accuracy is not measured. Optional SDK registration is also
+`VERIFIED`; see its separate ledger entry for coverage and edge limitations.
 
 Deliverables:
 
@@ -1212,6 +1219,94 @@ Next action:
 
 - Verify SDK depth-to-color registration on this working setup, preserving the
   raw pair and checking transformed depth units, intrinsics and object edges.
+
+### 2026-09-10: SDK Depth-to-Color Registration Acceptance
+
+Status: `VERIFIED` for optional single-frame SDK registration and affected
+capture/lifecycle checks. Absolute calibration accuracy, sustained throughput
+and ROS integration remain unverified.
+
+Changed:
+
+- Updated README's measured M2 progress first, as requested, then extended the
+  existing capture utility with `--align-depth`. Raw images remain unchanged;
+  optional aligned depth and an overlay use the original color pixel grid.
+- Used installed SDK `AlignFilter` with explicit `TargetDistortion=1`,
+  `MatchTargetRes=1`, `GapFillCopy=0`. Default target distortion was zero and did
+  not match the saved color. Hardware D2C profiles are advertised but hardware
+  alignment was not executed; software registration satisfies this task.
+- Exported actual aligned calibration, scale, source timestamps/index and
+  `color_optical` axial Z. Added explicit raw optical-frame/Z labels. Checked
+  source buffers, output calibration and filter settings; failures remain errors.
+- Extended the existing tests with saved-artifact checks, independent projection
+  and boundary diagnostics. No dependencies, device settings or ROS nodes added.
+  Branch: `feat/femto-alignment`, based on verified M2 commit `b42334a`.
+
+Verified:
+
+```bash
+.venv/bin/python scripts/femto_mega_capture_once.py --align-depth --output-dir data/outputs/femto_mega_capture/alignment_initial
+.venv/bin/python tests/check_femto_hardware.py --align-depth --output-dir data/outputs/femto_mega_capture/alignment_verification_20260910/stability
+.venv/bin/python data/outputs/femto_mega_capture/alignment_verification_20260910/analyze.py
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m compileall -q scripts tests
+```
+
+- 21 offline tests passed, including synthetic shifted edges, target-frame Z with
+  fractional raw scale, invalid pixels and missing/misconfigured SDK output.
+- Final hardware runner: ten separate CLI and ten same-process cycles passed,
+  plus warmup, actual timeout/save failure and successful recovery. Color/aligned
+  images 1280x720, raw depth 640x576; both scales 1.0 mm/count. Aligned calibration
+  exactly matched color; source depth timestamps/index and raw buffers survived.
+- Across 20 pairs: absolute time skew 200–413 us; raw coverage 69.40–69.59%,
+  aligned coverage 60.85–61.08%. All center ROIs were 400/400 valid. Raw medians
+  2.353–2.355 m; aligned medians 2.347–2.349 m, within the user's 2–3 m reference.
+  The raw/aligned centers are different rays, not an accuracy comparison.
+- Cold filter mean/median/P95: 139.46/141.88/143.38 ms. Whole CLI cycle:
+  4.553/4.543/4.620 s; same-process cycle: 4.264/4.262/4.283 s. Orin Nano, 25 W,
+  existing SDK 2.8.6, Python 3.10.12, OpenCV 4.11.0; no ML/SLAM workload launched.
+- After close: 4 descriptors, 12 threads, no camera handles. Untrimmed RSS
+  baseline/peak 85112/157764 KiB; live allocations grew 70256 bytes. One test-only
+  idle-page trim after recovery left 96800 KiB RSS. Existing guards passed.
+- After final metadata-label additions, one raw-only and one aligned capture
+  passed again, including explicit frame/quantity fields (`final_contract.json`).
+- Three saved overlays inspected at five predefined ROIs. Drawer depth-jump
+  median distances to RGB edges: 1–2 px, P95 up to 4.02 px. Sparse air-conditioner
+  jumps were about 4 px away; basket valid/invalid boundary P95 reached 18 px.
+  Invalid pixels and occlusion gaps remain visible and unfilled.
+- Independent OpenCV projection: 2685–2692 valid target samples per frame;
+  color-Z residual median 0.936–0.950 mm, P95 3.870–3.976 mm, max 20.52–41.64 mm.
+  Retaining source-frame Z incorrectly gives 47–48 mm median residual. This is
+  device-calibration consistency, not external distance accuracy.
+- Complete diff reviewed; `git diff --check` and script/test compilation passed.
+  Generated evidence and SDK logs were confirmed ignored.
+
+Evidence:
+
+- Root: `data/outputs/femto_mega_capture/alignment_verification_20260910/`.
+- `stability/summary.json` (`PASSED`), all raw/aligned PNGs and metadata, CLI logs,
+  `stability.log`, `geometry.json`, reproducible `analyze.py`, `offline_tests.log`,
+  and `final_contract.json` / log / captures. Generated artifacts remain ignored.
+- Local SDK/profile/default-distortion probe:
+  `data/outputs/femto_mega_capture/alignment_probe_20260910T182532Z/probe.json`.
+- Reproduction commands, all five boundary ROIs, metrics and caveats are in
+  `docs/camera-femto-mega.md`; README reflects the measured state.
+
+Limitations and decisions:
+
+- Registration acceptance is met; it does not establish universal pixel accuracy.
+  Missing returns, occlusions and texture edges affect boundary diagnostics.
+- New filter instances include cold setup; no 30 FPS streaming claim is made.
+  Short-run allocator/resource checks do not prove long-duration leak freedom.
+- Preserve prior M2 low-coverage evidence. No precise distance reference or causal
+  explanation for scene-dependent depth dropout was invented.
+- ROS/SLAM was not started in this bounded task. Advance the current-task prompt
+  only after this acceptance entry is recorded.
+
+Next action:
+
+- Verify the M3 ROS 2 camera contract and a short stationary rosbag replay using
+  an inspected compatible Orbbec driver; room-walk mapping remains a later check.
 
 ## 16. End-Of-Session Handoff Template
 

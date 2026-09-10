@@ -11,6 +11,7 @@ import numpy as np
 import pyorbbecsdk as ob
 
 from scripts import femto_mega_capture_once as capture
+from check_femto_hardware import registration_edge_metrics, registration_projection_metrics
 
 
 def frame(data: bytes, width: int, height: int, fmt: ob.OBFormat) -> SimpleNamespace:
@@ -107,12 +108,84 @@ class CaptureDataTests(unittest.TestCase):
             self.assertTrue(np.all(vis[0, 0] == 0))
             self.assertTrue(np.any(vis[1, 1] != 0))
 
+    def test_overlay_keeps_invalid_pixels_as_original_color(self):
+        raw = np.array([[0, 1000], [2000, 0]], np.uint16)
+        color = np.full((2, 2, 3), (40, 100, 180), np.uint8)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "overlay.png"
+            capture.save_depth_visualization(raw, path, color)
+            overlay = cv2.imread(str(path))
+            np.testing.assert_array_equal(overlay[raw == 0], color[raw == 0])
+            self.assertTrue(np.any(overlay[raw != 0] != color[raw != 0]))
+
+    def test_overlay_rejects_different_pixel_grids(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, "pixel grid"):
+                capture.save_depth_visualization(
+                    np.ones((2, 2), np.uint16), Path(folder) / "overlay.png", np.zeros((4, 4, 3), np.uint8)
+                )
+
+    def test_missing_sdk_alignment_result_is_an_error(self):
+        sdk_filter = Mock()
+        sdk_filter.get_config_value.side_effect = {"TargetDistortion": 1, "GapFillCopy": 0, "MatchTargetRes": 1}.__getitem__
+        sdk_filter.process.return_value = None
+        with patch.object(capture.ob, "AlignFilter", return_value=sdk_filter):
+            with self.assertRaisesRegex(RuntimeError, "no frameset"):
+                capture.align_depth_to_color(Mock(), np.ones((2, 2), np.uint16), np.zeros((4, 4, 3), np.uint8), {})
+
+    def test_sdk_alignment_configuration_cannot_silently_fail(self):
+        sdk_filter = Mock()
+        sdk_filter.get_config_value.return_value = 0
+        with patch.object(capture.ob, "AlignFilter", return_value=sdk_filter):
+            with self.assertRaisesRegex(RuntimeError, "TargetDistortion"):
+                capture.align_depth_to_color(Mock(), np.ones((2, 2), np.uint16), np.zeros((4, 4, 3), np.uint8), {})
+        sdk_filter.process.assert_not_called()
+
+    def test_edge_diagnostic_detects_known_spatial_shift(self):
+        color = np.zeros((80, 80, 3), np.uint8)
+        color[20:60, 20:60] = 255
+        depth = np.full((80, 80), 2000, np.uint16)
+        depth[20:60, 20:60] = 1000
+        good = registration_edge_metrics(color, depth, 1, (0, 0, 80, 80))
+        shifted = np.full((80, 80), 2000, np.uint16)
+        shifted[20:60, 28:68] = 1000
+        bad = registration_edge_metrics(color, shifted, 1, (0, 0, 80, 80))
+        self.assertLessEqual(good["depth_jumps"]["p95_px"], 1)
+        self.assertGreaterEqual(bad["depth_jumps"]["p95_px"], 7)
+
+    def test_edge_diagnostic_separates_missing_depth_from_metric_jump(self):
+        color = np.zeros((80, 80, 3), np.uint8)
+        color[20:60, 20:60] = 255
+        depth = np.full((80, 80), 2000, np.uint16)
+        depth[20:60, 20:60] = 0
+        stats = registration_edge_metrics(color, depth, 1, (0, 0, 80, 80))
+        self.assertEqual(stats["depth_jumps"]["count"], 0)
+        self.assertGreater(stats["validity_boundaries"]["count"], 0)
+
+    def test_projection_uses_target_axial_depth_in_metric_units(self):
+        calibration = {
+            "intrinsic": {"fx": 100, "fy": 100, "cx": 48, "cy": 40},
+            "distortion": dict.fromkeys(("k1", "k2", "p1", "p2", "k3", "k4", "k5", "k6"), 0),
+        }
+        metadata = {
+            "color": calibration, "depth": calibration,
+            "depth_encoding": {"scale_mm_per_count": 0.5},
+            "aligned_depth": {"encoding": {"scale_mm_per_count": 1.0}},
+            "depth_to_color": {"rotation_row_major": np.eye(3).tolist(), "translation_mm": [0, 0, 100]},
+        }
+        raw = np.full((80, 96), 4000, np.uint16)  # 2 m in depth coordinates.
+        correct = registration_projection_metrics(raw, np.full((80, 96), 2100, np.uint16), metadata)
+        wrong = registration_projection_metrics(raw, np.full((80, 96), 2000, np.uint16), metadata)
+        self.assertEqual(correct["color_z_error_p95_mm"], 0)
+        self.assertEqual(wrong["color_z_error_median_mm"], 100)
+
     @patch.object(capture, "WARMUP_PAIRS", 0)
     def test_wait_rejects_missing_and_unsynchronized_frames(self):
         pipeline = Mock()
         accepted = frameset(100000, 100500)
         pipeline.wait_for_frames.side_effect = [None, frameset(100000, None), frameset(100000, 133333), accepted]
-        color, depth, stats = capture.wait_for_pair(pipeline, 20, 4)
+        pair, stats = capture.wait_for_pair(pipeline, 20, 4)
+        color, depth = pair.get_color_frame(), pair.get_depth_frame()
         self.assertEqual(color.get_timestamp_us(), 100000)
         self.assertEqual(depth.get_timestamp_us(), 100500)
         self.assertEqual(stats, {"attempts": 4, "warmup_pairs_discarded": 0,
@@ -132,7 +205,8 @@ class CaptureDataTests(unittest.TestCase):
     def test_startup_pairs_are_discarded(self):
         pipeline = Mock()
         pipeline.wait_for_frames.side_effect = [frameset(10000, 10000)] * 15 + [frameset(20000, 20001)]
-        color, depth, stats = capture.wait_for_pair(pipeline, 1, 16)
+        pair, stats = capture.wait_for_pair(pipeline, 1, 16)
+        color, depth = pair.get_color_frame(), pair.get_depth_frame()
         self.assertEqual(color.get_timestamp_us(), 20000)
         self.assertEqual(depth.get_timestamp_us(), 20001)
         self.assertEqual(stats["warmup_pairs_discarded"], 15)

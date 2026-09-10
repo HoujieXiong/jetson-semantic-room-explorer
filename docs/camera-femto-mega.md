@@ -1,10 +1,11 @@
-# Femto Mega native RGB-D capture
+# Femto Mega RGB-D capture and registration
 
 Run from the repository root on the Jetson, with the existing `.venv`:
 
 ```bash
 .venv/bin/python scripts/femto_mega_capture_once.py --list-profiles
 .venv/bin/python scripts/femto_mega_capture_once.py
+.venv/bin/python scripts/femto_mega_capture_once.py --align-depth
 .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python tests/check_femto_hardware.py --output-dir data/outputs/femto_mega_capture/stability_new
 ```
@@ -87,7 +88,7 @@ statistics; the raw PNG is never converted through uint16 millimeters. A center
 is represented by JSON `null` rather than a fabricated distance.
 
 Each image retains its own optical camera frame (x right, y down, z forward).
-Depth and color are synchronized in time but **not registered pixel-for-pixel**.
+The raw depth and color are synchronized in time but **not registered pixel-for-pixel**.
 Use the depth intrinsics for depth pixels and the color intrinsics for color
 pixels; do not resize depth to color and assume correspondence. The saved
 extrinsic maps depth-camera points to color-camera points, with translation in
@@ -102,6 +103,48 @@ invalid samples, raw buffer ownership, codec round trips, and rejection paths.
 A physical distance check complements the SDK unit contract. The range check
 below passed against a user-supplied 2-3 m reference; it does not measure absolute
 distance accuracy.
+
+## Optional depth-to-color registration
+
+`--align-depth` preserves the raw artifacts above and adds:
+
+- `depth_aligned.png`: 1280 x 720 uint16 SDK-registered counts, on the original
+  color image's distorted pixel grid. Zero remains invalid.
+- `alignment_overlay.png`: 65% original color plus 35% TURBO depth visualization,
+  normalized by valid-depth P95. Invalid depth leaves the original color visible;
+  the overlay is a diagnostic, not a metric image or a filled depth map.
+- `metadata.aligned_depth`: actual delivered profile, intrinsics, distortion,
+  scale, source depth timestamps/index, optical frame, depth statistics, filter
+  settings and processing duration. The top-level `alignment` still describes
+  the preserved raw pair.
+
+The installed SDK example `beginner/03_color_and_depth_aligned.py` uses
+`AlignFilter`. Local profile queries advertise the selected raw pair for both
+software and hardware D2C, but only **software AlignFilter** was executed here.
+It processes the retained synchronized frameset after the pipeline stops. This
+keeps the single-capture lifecycle and original buffers intact.
+
+The filter's default `TargetDistortion=0` produces zero target distortion and
+would not match the saved original color image. The utility explicitly sets and
+reads back `TargetDistortion=1`, `MatchTargetRes=1`, and `GapFillCopy=0`. It checks
+that aligned calibration equals color calibration, timestamps/index equal source
+depth, and raw depth and decoded color remain unchanged. Unsupported settings,
+empty filter output, calibration mismatch and save failures raise errors. No
+host resizing or hole filling is applied.
+
+Raw depth measures axial Z in `depth_optical`; aligned depth measures axial Z in
+`color_optical`. Both use x right, y down, z forward. The aligned scale must be
+read from `metadata.aligned_depth.encoding`, even though both measured scales
+here are 1.0 mm/count. SDK registration transforms 3D geometry: counts can change
+when the optical frame changes. The two images' center ROIs are different rays,
+so their median difference is not a registration-error measurement. Color pixels
+still require the saved distortion model for accurate back-projection.
+
+Run the affected lifecycle checks with:
+
+```bash
+.venv/bin/python tests/check_femto_hardware.py --align-depth --output-dir data/outputs/femto_mega_capture/alignment_stability_new
+```
 
 ## Physical distance check
 
@@ -198,8 +241,106 @@ capture code is unchanged.
 
 Depth coverage recovered after repositioning. Placement or scene conditions are
 a plausible explanation for the earlier dropout, but its exact cause was not
-isolated. Depth and color still use separate optical frames; the next task is
-SDK depth-to-color registration with preserved raw artifacts and checked edges.
+isolated. At this checkpoint depth and color still used separate optical frames;
+the subsequent registration verification is recorded below.
+
+### SDK registration verification
+
+Status: optional SDK depth-to-color registration `VERIFIED` on the same Jetson,
+SDK and native stream profiles, without dependency or device-setting changes.
+Evidence root: `data/outputs/femto_mega_capture/alignment_verification_20260910/`.
+`stability/summary.json` reports `PASSED`; captures ran at 18:30–18:32 UTC in 25 W
+mode with no project ML/SLAM workload launched.
+
+| Check | Measured result |
+| --- | --- |
+| Offline tests | 21 passed, including known projection/edge cases and explicit filter failures |
+| Separate CLI / same-process cycles | 10/10 and 10/10, plus warmup and timeout/save-error recovery |
+| Saved image sizes | Color and aligned depth 1280 x 720; original depth 640 x 576 |
+| Raw / aligned scale | Both 1.0 mm/count in all 20 captures |
+| Absolute RGB/depth timestamp skew | 200–413 us; aligned timestamps/index exactly preserved |
+| Raw / aligned valid coverage | 69.40–69.59% / 60.85–61.08% |
+| Raw / aligned center medians | 2.353–2.355 m / 2.347–2.349 m; all center ROIs 400/400 valid |
+| Cold filter process time, mean / median / P95 | 139.46 / 141.88 / 143.38 ms |
+| CLI total time, mean / median / P95 | 4.553 / 4.543 / 4.620 s |
+| Same-process total time, mean / median / P95 | 4.264 / 4.262 / 4.283 s |
+| Descriptors / threads after close | 4 / 12, matching warmed baseline; no camera handles |
+| Untrimmed RSS, baseline / peak | 85112 / 157764 KiB |
+| Live allocation growth over ten cycles | 70256 bytes |
+| RSS after recovery and test-only idle-page trim | 96800 KiB (11688 KiB above baseline) |
+
+These are single captures with a newly constructed filter, not a sustained
+30 FPS alignment benchmark. The allocator retained idle pages; unchanged bounded
+resource guards passed, without proving long-duration absence of SDK leaks.
+Coverage is scene-dependent; the lower percentages than the earlier physical
+check are recorded rather than treated as a universal camera characteristic.
+Different optical fields of view and occlusions also prevent direct equality
+between raw and aligned coverage.
+
+After adding explicit raw/target optical-frame and axial-Z metadata labels, one
+raw-only and one aligned capture passed artifact/contract checks again; see
+`final_contract.json`, its log, and `final_raw_only/` / `final_aligned/`. Those
+serialization-only additions do not change the earlier lifecycle path.
+
+#### Geometry and visible boundaries
+
+The first three CLI artifacts were checked offline and their overlays inspected.
+`geometry.json` records every count, ROI and statistic; `analyze.py` alongside it
+reproduces the report from the repository root. Test helpers in
+`tests/check_femto_hardware.py` also work on new saved frames:
+
+```python
+import json, sys
+from pathlib import Path
+import cv2
+sys.path.insert(0, "tests")
+from check_femto_hardware import registration_edge_metrics, registration_projection_metrics
+path = Path("data/outputs/femto_mega_capture/<timestamp>")
+metadata = json.loads((path / "metadata.json").read_text())
+color = cv2.imread(str(path / "color.png"))
+raw = cv2.imread(str(path / "depth_raw.png"), cv2.IMREAD_UNCHANGED)
+aligned = cv2.imread(str(path / "depth_aligned.png"), cv2.IMREAD_UNCHANGED)
+print(registration_projection_metrics(raw, aligned, metadata))
+# Choose an actual object boundary ROI [x, y, width, height] for the current scene.
+print(registration_edge_metrics(color, aligned,
+    metadata["aligned_depth"]["encoding"]["scale_mm_per_count"], (835, 335, 160, 35)))
+```
+
+The projection check independently undistorts raw rays with OpenCV, transforms
+metric 3D points using saved depth-to-color extrinsics, then projects onto the
+distorted color grid. It samples every eighth row/column, excluding an eight-pixel
+border and requiring a valid 3 x 3 source patch with at most 20 mm depth spread.
+Across three frames, 2685–2692 target samples per frame were valid. Absolute
+color-frame Z residual medians were 0.936–0.950 mm, P95 3.870–3.976 mm, and maxima
+20.52–41.64 mm. Incorrectly retaining source-frame Z instead gave median residuals
+47–48 mm. This checks consistency with the device calibration, not independent
+distance accuracy; occlusions and rasterization can still produce outliers.
+
+Five ROIs were selected on the initial overlay before analyzing these three
+captures. Distances below are to the nearest RGB Canny edge (thresholds 60/120
+after a 3 x 3 blur). Valid-to-valid depth jumps of at least 50 mm are separated
+from valid/invalid mask boundaries. Each range spans the three frame statistics.
+
+| Boundary, ROI xywh | Depth-jump count; median / P95 distance (px) | Invalid-mask boundary P95 (px) |
+| --- | --- | --- |
+| Upper drawer bottom, 835 335 160 35 | 12–16; 1 / 1–2 | 3–4 |
+| Middle drawer bottom, 835 465 160 35 | 18–25; 1–2 / 3.61–4.02 | 3.61–4 |
+| Shelf right, 977 270 45 220 | 0–3; 2 / 2 when present | 5 |
+| Basket right, 430 535 50 80 | 0; no valid depth-jump samples | 15.77–18 |
+| Air conditioner left, 1118 365 45 120 | 0–5; 4 / 4–4.10 when present | 6.08–8.10 |
+
+The drawer boundaries agree closely in this diagnostic. Basket and air-conditioner
+regions show wider missing-depth gaps; mesh/near-chair regions also retain many
+invalid pixels. The few valid jump samples at the air conditioner are about
+four pixels from RGB edges. Texture edges, occlusions and missing returns bias
+nearest-edge distances, so these values do not certify calibration accuracy or
+uniform pixel correspondence across the image. Holes remain invalid.
+
+The earlier `alignment_probe_20260910T182532Z/probe.json` records advertised D2C
+profiles and the default-filter distortion mismatch; `alignment_initial/` holds
+the first successful explicitly configured capture. These diagnostic artifacts
+and the final images remain ignored. The verified contract is ready for M3 ROS 2
+camera topics and a replayable rosbag; that integration has not been started.
 
 ## Troubleshooting
 
