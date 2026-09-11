@@ -377,8 +377,9 @@ available through its documented command for the HTML artifact.
 
 The current priority is to connect the pipeline before further component tuning.
 YOLO plus depth observations now connect original color frames to the saved map
-poses (Phase 5 below); persistent memory is next. The odometry bundle/database
-image and geometric cloud are grayscale in the original RTAB-Map export; the
+poses and persistent memory (Phases 5–6 below); offline search-goal previews are
+next. The odometry bundle/database image and geometric cloud are grayscale in
+the original RTAB-Map export; the
 original RGB recording remains available for perception and the new colored
 reconstruction.
 
@@ -408,7 +409,7 @@ regressions. Independent Open3D projection agrees with all accepted points withi
 
 The saved annotated images reveal overlapping chair boxes and likely class
 errors. These are 15 observations, not 15 distinct objects, and each point samples
-a visible surface within a detection box. Persistent association, position
+a visible surface within a detection box. Reliable instance association, position
 accuracy and live performance remain unverified. Measured processing times were
 8226.27/77.59/65.37 ms for the three frames, including first-call initialization
 and excluding PNG writing. No steady-state FPS is claimed. See
@@ -446,6 +447,23 @@ Deliverables:
 - Error/stability analysis
 
 ### Phase 6: Persistent Semantic Object Memory
+
+Status: `VERIFIED` for minimum offline SQLite memory and reopened queries.
+
+The three M5 frames now persist as 18 source observations: 13 representatives
+support nine provisional objects, two overlapping detections add no extra support,
+and three depth rejections remain unlocalized. Repeated imports leave the database
+byte-identical. Importing the same frames in reversed, separate batches produces
+the same logical database. All 17 memory tests and 21 existing mapping/observation
+tests pass, including transaction rollback and source-conflict cases.
+
+Fresh-process `list`, `find` and `last_seen` queries work after the importer exits.
+The refrigerator candidate retains three supporting frames and mean map point
+`[4.675447, 0.911362, -0.794313]` m. Labels and positions remain provisional:
+the original likely mislabels are retained, and this does not establish nine
+distinct real objects. Association uses explicit label/distance gates and one
+representative per object per frame; position means and detector confidence
+remain separate. See [commands, schema and measured evidence](docs/scene-memory.md).
 
 Goals:
 

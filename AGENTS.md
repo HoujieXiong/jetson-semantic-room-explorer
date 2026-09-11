@@ -380,87 +380,89 @@ rejections. Twenty-one focused tests pass; all accepted points agree with
 independent Open3D projection within 2.251e-7 m per coordinate. This checks math,
 not physical accuracy. Three annotations were inspected and reveal overlapping
 chair boxes and likely class errors. The outputs represent observations, not
-15 distinct objects. Surface-point accuracy, persistent association and live
+15 distinct objects. Surface-point accuracy, reliable instance association and live
 performance remain unverified. See `docs/rgbd-object-observations.md` and the
 M5 ledger entry for input identities, timestamps, timing and evidence.
 
+### 4.7 Persistent Object Memory
+
+Status: `VERIFIED` for minimum offline SQLite persistence and reopened queries.
+
+The measured M5 corpus retains 18 observations: 13 representatives support nine
+provisional objects, two same-frame overlapping detections add no extra support,
+and three depth rejections remain unlocalized. Duplicate imports leave the
+database byte-identical; reversed separate batches produce the same logical
+database. Seventeen memory tests and 21 mapping/observation regressions pass.
+Fresh-process `find refrigerator` returns three source-frame supports and mean
+map point `[4.675447,0.911362,-0.794313]` m. Identity/accuracy and live scaling
+remain unverified. See `docs/scene-memory.md`,
+`data/outputs/scene_memory/m6_20260910/integration.json` and `final_check.json`.
+
 ## 5. Current Next Task
 
-Milestone: **M6 minimal persistent map-frame object memory and queries**.
+Milestone: **M9 minimum offline object-search goal preview**.
 
 The user explicitly prioritized building the complete pipeline before improving
-individual components. Minimum camera, odometry, mapping and perception
-interfaces are now verified. Defer fast-turn diagnosis, parameter sweeps, capture
-refinement and throughput optimization; preserve the measured limitations while
-connecting the next component. Safe local work and GitHub progress updates remain authorized.
+individual components. Minimum camera, odometry, mapping, perception and memory
+interfaces are now verified. Connect remembered objects to a dry-run search goal
+before spending time on CuTR, embeddings, tracking refinement or throughput tuning.
+M7/M8 remain planned; this does not claim that model upgrades are complete.
+Safe local work and GitHub progress updates remain authorized.
 Ask before downloading newly required components. The odometry and four-package
 mapping downloads were already approved and completed; do not ask again.
 
-Recover `docs/rgbd-object-observations.md`, `docs/rtabmap-mapping.md` and
-`data/outputs/object_observations/m5_20260910/trial_01/observations.json`.
-The observation artifact is `MEASURED` and its independent artifact verification
-is `VERIFIED`. Reuse these saved observations without repeating capture or YOLO.
-The second room bag has 1411 source pairs. Mapping produced a reopenable
-41791488-byte database, 48 final graph poses, 45733 exported points and
-56 source-time map/optical-camera TF observations. Tracking gaps and unconfirmed
-loop detections remain. The original
-run harness is still marked `INCOMPLETE` for a late CLI parameter-query failure;
-the measurement passed, and direct parameter/map services passed on reopening.
-Do not rerun odometry merely to clear that preserved historical status.
+Recover `docs/scene-memory.md`, `scripts/scene_memory.py`,
+`data/outputs/scene_memory/m6_20260910/memory.db` and its `integration.json`.
+The database is 49152 bytes with nine provisional objects and complete original
+M5 source evidence. `list`, `find` and `last_seen` use exact normalized labels;
+the refrigerator candidate has three supporting frames. Preserve likely false
+labels and unresolved chair identity. Object means are sampled surface positions,
+not cuboid centers; detector confidence is separate from depth quality.
 
-The user's subsequent colored point-cloud request is also verified: 48 original
-mapped RGB-D frames are extracted with source/depth checks, and a 447905-point
-color cloud plus an offline rotatable viewer are saved under
-`data/outputs/rtabmap_slam/colored_cloud_20260910/`. Reuse `frames/frames.json`
-and the extraction/projection helpers where appropriate. These use frozen
-final poses, including node 1; that node's earlier missing online TF remains
-recorded. This follow-up does not improve or re-estimate the trajectory.
-For desktop viewing, double-click **Room point cloud.ply**. The installed Open3D
-native viewer opened the full PLY successfully and the user confirmed its
-appearance. User-level PLY registration now selects Open3D directly; see
-`colored_cloud_20260910/native_ply_viewer/`. The browser desktop launcher was
-replaced with the PLY file link. `scripts/view_colored_cloud.py` remains available
-for the HTML alternative; its earlier software-WebGL evidence is preserved.
+Reuse the frozen `mapping_02` map: `export/room.yaml`, `export/room.pgm`,
+`export/room_camera_poses.txt`, `export_run.json` and the existing mapping checks.
+Inspect their coordinate conventions, resolution, origin, free/unknown/occupied
+cells and hashes before designing goal placement. The saved occupancy export is
+222x138 at 5 cm/cell; it has not been verified for navigation. Its map/pose
+identity must agree with memory. The colored reconstruction remains at
+`data/outputs/rtabmap_slam/colored_cloud_20260910/`, with 447905 points from
+48 original RGB-D frames. On the Jetson desktop, **Room point cloud.ply** opens
+in Open3D; its appearance was accepted by the user. Do not revisit the viewer.
 
-The M5 JSON already retains both source stamps, node/detection IDs, source and
-model hashes, frozen map/pose identity, detector confidence, depth quality,
-camera/map surface points, and rejected observations. Inspect
-`scripts/observe_rgbd_objects.py` and existing repository patterns before adding
-persistence. Standard-library SQLite should suffice; do not add an ORM, ROS
-node, embedding backend or new model for this first memory slice.
+Tracking gaps and unconfirmed loop detections remain. The original mapping
+harness's late CLI-query `INCOMPLETE` status is preserved; the measurement and
+direct services on reopening passed. Do not rerun mapping to clear that history.
 
 Required sequence:
 
-1. Persist the measured source observations and their provenance in SQLite.
-   Keep rejection evidence, but never create an object position from rejected
-   depth. Do not import incomplete reports or silently mix different maps/graphs.
-2. Add a small deterministic label/distance association baseline for accepted
-   map points, preserving each source observation and the association decision.
-   Handle repeated imports idempotently. Inspect the overlapping same-frame chair
-   detections before deciding how to avoid counting them as independent support.
-3. Store provisional object records with first/last source times and separate
-   semantic confidence and depth evidence. Document the simple position update
-   rule; do not fabricate uncertainty or claim confirmed object identity.
-4. Provide `list`, `find` and `last_seen` queries. Close and reopen the database,
-   then demonstrate a query using an actual observed label such as refrigerator.
-5. Test duplicate imports, incompatible map identity, rejected depth, label/
-   distance gates and deterministic results. Run the actual saved M5 artifact on
-   this Jetson and record counts, associations, failures and query output.
+1. Query existing memory for an observed label and retain all candidate IDs,
+   source times, support counts, map positions and map identity. Handle unknown
+   labels explicitly without inventing a location.
+2. Establish the object-to-grid transform and inspect the actual occupancy
+   artifact. Use a documented offline stand-off/clearance assumption only if the
+   map supports it; unknown or occupied cells must not become valid goal cells.
+   No mobile-base footprint or physical clearance has been measured.
+3. Save a small structured dry-run goal candidate and an inspectable map overlay,
+   with its target, source evidence, grid checks and assumptions. If there is
+   insufficient usable free space or incompatible provenance, report an explicit
+   no-goal result instead of manufacturing a plausible destination.
+4. Test grid coordinates, boundaries, unknown/occupied cells, missing targets and
+   map identity, then run the existing data through the preview. Keep physical
+   motion and Nav2 commands outside this step.
 
-Integration acceptance: the real M5 observations produce a reopenable SQLite
-memory with queryable provisional objects and retained source evidence; repeat
-imports do not inflate observations or support counts. Known overlapping boxes
-and false labels must remain visible as limitations. Reliable instance identity,
-absolute position accuracy, live ROS integration and navigation remain later
-quality goals. No new capture or robot motion is needed.
+Integration acceptance: a remembered candidate produces a source-associated,
+inspectable offline goal preview with measured map-cell checks, or an evidenced
+no-goal result when the map cannot support one. This is not collision-safe robot
+navigation: identity, map accuracy, robot dimensions and traversability are
+unverified. No new capture, robot motion or model download is needed.
 
 The earlier M3 text in `prompt.md` remains unchanged because its capture-quality
 conditions were not fully verified. The user's newer offline/pipeline direction
 supersedes it for this work. Do not restart recording to improve those endpoints.
 Keep room images, bags, maps, trajectories and observations local and ignored.
 
-Learning checkpoint: distinguish an observation from an object hypothesis, then
-preserve the evidence needed to query and revise that hypothesis after restart.
+Learning checkpoint: a remembered object location and a possible observation
+viewpoint are different quantities; goal generation must consult map evidence.
 
 ## 6. Target System Architecture
 
@@ -748,7 +750,11 @@ Learning goal: projective geometry and uncertainty from 2D detection plus depth.
 
 ### M6: Persistent Map-Frame Scene Memory
 
-Status: `PLANNED`
+Status: `VERIFIED` for minimum offline persistence, deterministic association and
+reopened label queries. Seventeen memory tests, 21 existing regression tests and
+real M5 imports pass; 18 observations form nine provisional objects with
+13 supporting observations, at most one per object per frame. Reliable identity, covariance-aware fusion and
+live scaling remain `PLANNED`. See the M6 ledger entry and `docs/scene-memory.md`.
 
 Steps:
 
@@ -2129,6 +2135,101 @@ Next action:
 
 - Build minimal SQLite object memory from these observations, retaining source
   and association evidence and verifying idempotent import plus reopened queries.
+
+### 2026-09-10: M6 Persistent SQLite Memory And Reopened Queries
+
+Status: `VERIFIED` for minimum offline evidence persistence, deterministic
+association and reopened label queries. Object identity/accuracy, covariance-aware
+fusion, live scaling and navigation remain unverified.
+
+Changed:
+
+- Added `scripts/scene_memory.py`: four SQLite tables retain producer/map
+  identity, original frame/detection evidence, provisional objects and every
+  association decision. Reused the existing source-time helper and native
+  environment; SQLite is standard-library functionality. No dependency was added.
+- Added 17 focused SQLite/association tests and `docs/scene-memory.md`. Updated
+  README and current state; advanced the next task to an offline M9 search-goal
+  preview under the user's pipeline-first priority. M7/M8 remain planned.
+
+Verified on this Jetson:
+
+- Imported `object_observations/m5_20260910/trial_01/observations.json`, SHA256
+  `35c7738441daeaf665e0e725508bc2f13a6846cc0ca3dbef03d90eec32d821ec`.
+  Its three frames (7, 14, 32) retain all 18 detections. Thirteen representatives
+  support nine provisional objects: nine new-object and four cross-frame-match
+  decisions. Two same-frame overlapping detections add no support; three depth
+  rejections retain null object associations. Source hashes, poses, calibration,
+  timestamps, labels, confidence, boxes and depth evidence remain in the database.
+- Same-frame overlap uses same label, at most 0.35 m point distance and at least
+  50% intersection over the smaller box, selecting higher detector confidence
+  first. Other representatives match the nearest same-label object within
+  0.35 m, at most once per object per source frame. Positions are equal means
+  of representatives; detector confidence remains a separate mean. No physical
+  uncertainty or confirmed identity is fabricated.
+- Native `memory.db` is 49152 bytes, SHA256
+  `e2bf8d7db3902ded408c6a11006ab2135de654ecd11e76bee702468f6f41f3c0`.
+  Integrity check returned `ok`; foreign-key check reported zero violations.
+  All retained source evidence matched M5. All nine object means matched
+  independently calculated source means, with at most one support per frame.
+- Fresh CLI processes reopened the database for `list`, `find refrigerator`,
+  `last_seen refrigerator` and `find backpack`. The last query returned
+  `NOT_FOUND` with no fabricated location. Refrigerator object 1 has three
+  supports and mean map point `[4.675447,0.911362,-0.794313]` m, mean detector
+  confidence 0.921856, first source time `1789080208207783000` ns and last source
+  time `1789080265488456000` ns. Last observation evidence points to node 32.
+- Read-only queries and two duplicate imports (the original report and M5's
+  second timing-variant run) left the database byte-identical. Importing nodes
+  32/14/7 in separate reversed batches produced the same complete logical SQL
+  dump. Canonical evidence ignores only runtime timing/first-call fields and
+  annotation filenames; conflicts on an existing node/source stamp fail.
+- Thirteen measured CLI processes included ten successful import/query commands
+  and three expected failures: incompatible pose identity, incomplete report,
+  and missing database. The first two left the database unchanged; the missing
+  database query created no file. Final code passed another fresh import,
+  reopened refrigerator query and duplicate import with the same logical dump.
+- All 17 memory tests passed, covering label/distance gates, equal means,
+  duplicate support prevention, query ties, incompatible identities, unsupported
+  schemas, source-conflict rollback and an actual SQLite write-failure trigger.
+  The 21 existing mapping/observation tests also passed. Script compilation and
+  whitespace checks passed; no camera, ROS replay or GPU inference was needed.
+- Reviewed the complete five-file diff for duplicated configuration, failure
+  handling, generated data and unsupported claims. The final read-only query
+  uses a single snapshot, and the schema version has one code definition.
+- Runtime: Python 3.10.12, SQLite 3.37.2, aarch64. Initial import operation was
+  29.850 ms; ten subsequent successful mixed import/query operations had
+  min/median/P95/max 1.780/6.701/20.847/21.135 ms. All 13 CLI wall times had
+  min/median/P95/max 508.219/522.186/544.231/555.822 ms, including Python/dependency
+  startup. These selected three-frame functional timings are not a throughput
+  or scaling benchmark.
+
+Evidence:
+
+- `data/outputs/scene_memory/m6_20260910/`: `memory.db`, `first_import.json`,
+  `list.json`, `find.json`, `last_seen.json`, `associations.json`,
+  `integration.json`, `verify_memory.py`, CLI failure logs, `split_order.db`,
+  `final_check.json`, `final_check.db`, `final_unit_tests.log` and
+  `mapping_regression.log`. Room evidence and SQLite outputs remain local and
+  ignored; only code, tests and measured documentation belong in Git.
+
+Limits and decisions:
+
+- Nine provisional candidates do not establish nine distinct real objects.
+  M5's likely laptop/oven errors remain recorded; chair identity is unconfirmed.
+  Distance/overlap gates can still merge or split real instances incorrectly.
+- Each new import rebuilds derived associations from retained evidence in source
+  order. This gives deterministic results for the small offline corpus. IDs are
+  stable for repeated identical evidence, but older added evidence may renumber
+  them; live scaling and permanent external identifiers are not implemented.
+
+Learning: persistent memory must preserve the distinction between raw detections,
+independent source-frame support and provisional object identity. A durable query
+can now retrieve the evidence and location after the processing program exits.
+
+Next action:
+
+- Connect remembered object candidates to an offline search-goal preview using
+  the existing occupancy map, with explicit map-cell checks and no robot motion.
 
 ## 16. End-Of-Session Handoff Template
 
