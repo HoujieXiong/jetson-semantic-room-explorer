@@ -377,11 +377,10 @@ available through its documented command for the HTML artifact.
 
 The current priority is to connect the pipeline before further component tuning.
 YOLO plus depth observations now connect original color frames to the saved map
-poses and persistent memory (Phases 5–6 below); offline search-goal previews are
-next. The odometry bundle/database image and geometric cloud are grayscale in
-the original RTAB-Map export; the
-original RGB recording remains available for perception and the new colored
-reconstruction.
+poses and persistent memory (Phases 5–6 below); minimum offline search-goal
+previews are also verified (Phase 8). The odometry bundle/database image and
+geometric cloud are grayscale in the original RTAB-Map export; the original RGB
+recording remains available for perception and the new colored reconstruction.
 
 Goals:
 
@@ -510,6 +509,27 @@ Deliverables:
 
 ### Phase 8: Exploration, Navigation, And Edge Optimization
 
+Status: `VERIFIED` for minimum offline object-search goal previews only.
+
+The saved memory now connects to the frozen occupancy map through a read-only
+query and hash-verified map/pose identity. With a fixed 0.75–1.25 m stand-off
+band and assumed 0.25 m planar clearance, both provisional chair candidates
+produce a goal at map x/y `[1.15, 0.63366]` m, about 1 m from their recorded
+surface points. They retain separate IDs and evidence. The conservative map
+clearance is 0.256192 m; an independent cell-area check gives 0.257391 m.
+
+The refrigerator has no free cell in its stand-off band; the sink has 140 free
+cells but none pass clearance; `backpack` is absent from memory. Each produces
+an explicit no-goal result. Six CLI runs verified these outcomes, identical
+repeated chair decisions and rejection of incompatible pose identity. All
+16 search tests and 17 memory regressions pass; input artifacts remain unchanged.
+JSON results and ordinary PNG overlays need no WebGL. See
+[commands, previews and evidence](docs/search-goal-preview.md).
+
+These checks do not establish a route, visibility, current localization, robot
+dimensions or physical traversability. Offline route validation from an explicit
+start is next; frontier exploration, Nav2 and edge optimization remain planned.
+
 Goals:
 
 - Use occupancy-grid frontiers to guide unknown-room exploration
@@ -595,7 +615,9 @@ jetson-semantic-room-explorer/
 - [ ] TensorRT benchmark complete
 - [X] RTAB-Map minimum mapping integration: database reopening, geometry export and TF
 - [ ] Continuous tracking and room-map quality acceptance
-- [ ] Semantic object memory implemented
+- [X] Minimum offline semantic object memory and reopened queries verified
+- [X] Minimum offline object-search goal previews and explicit no-goal outcomes verified
+- [ ] Offline route validation and physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented
 

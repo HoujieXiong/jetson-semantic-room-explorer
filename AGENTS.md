@@ -398,71 +398,84 @@ map point `[4.675447,0.911362,-0.794313]` m. Identity/accuracy and live scaling
 remain unverified. See `docs/scene-memory.md`,
 `data/outputs/scene_memory/m6_20260910/integration.json` and `final_check.json`.
 
+### 4.8 Offline Object Search Goal Preview
+
+Status: `VERIFIED` for minimum offline memory-to-goal previews and explicit
+no-goal outcomes, using the frozen occupancy export and matching map/pose hashes.
+
+The grid has 1122 free, 6379 occupied and 23135 unknown cells; 168 free cells
+pass the assumed 0.25 m conservative clearance. Both provisional chair IDs
+produce an observation point [1.15,0.63366] m, about 1 m from their respective
+surface means. Refrigerator has no free cell in the stand-off band, sink has
+insufficient clearance, and backpack is absent from memory. Six fresh CLI
+processes, 16 search tests and 17 memory regressions pass the expected outcomes.
+Repeated chair decisions are identical; all inputs remain unchanged. Ordinary
+PNG overlays were inspected. Route, visibility, current localization, physical
+footprint and traversability remain unverified. See `docs/search-goal-preview.md`
+and `data/outputs/search_goal/m9_20260910/integration.json`.
+
 ## 5. Current Next Task
 
-Milestone: **M9 minimum offline object-search goal preview**.
+Milestone: **M9 minimum offline route-to-goal validation**.
 
-The user explicitly prioritized building the complete pipeline before improving
-individual components. Minimum camera, odometry, mapping, perception and memory
-interfaces are now verified. Connect remembered objects to a dry-run search goal
-before spending time on CuTR, embeddings, tracking refinement or throughput tuning.
-M7/M8 remain planned; this does not claim that model upgrades are complete.
-Safe local work and GitHub progress updates remain authorized.
-Ask before downloading newly required components. The odometry and four-package
-mapping downloads were already approved and completed; do not ask again.
+The user prioritized completing the pipeline before improving components.
+Minimum camera, odometry, mapping, perception, persistent memory and cell-only
+search-goal preview interfaces now have measured evidence. Connect a preview
+goal to an explicit start and offline grid route next. M7/M8 model upgrades,
+M10 frontier exploration and physical navigation remain planned. Safe local work
+and GitHub progress updates remain authorized. Ask before downloading newly
+required components; all dependencies used so far are already present.
 
-Recover `docs/scene-memory.md`, `scripts/scene_memory.py`,
-`data/outputs/scene_memory/m6_20260910/memory.db` and its `integration.json`.
-The database is 49152 bytes with nine provisional objects and complete original
-M5 source evidence. `list`, `find` and `last_seen` use exact normalized labels;
-the refrigerator candidate has three supporting frames. Preserve likely false
-labels and unresolved chair identity. Object means are sampled surface positions,
-not cuboid centers; detector confidence is separate from depth quality.
+Recover `docs/search-goal-preview.md`, `scripts/preview_search_goal.py`,
+`data/outputs/search_goal/m9_20260910/integration.json` and the per-label
+`preview.json` files. Reuse the read-only scene-memory query and frozen
+`data/outputs/rtabmap_slam/mapping_02/` occupancy export, map and pose hashes.
+Memory remains `data/outputs/scene_memory/m6_20260910/memory.db`: nine
+provisional objects, including unresolved chair identity and likely class errors.
+The targets are sampled surface means, not cuboid centers or measured floor poses.
 
-Reuse the frozen `mapping_02` map: `export/room.yaml`, `export/room.pgm`,
-`export/room_camera_poses.txt`, `export_run.json` and the existing mapping checks.
-Inspect their coordinate conventions, resolution, origin, free/unknown/occupied
-cells and hashes before designing goal placement. The saved occupancy export is
-222x138 at 5 cm/cell; it has not been verified for navigation. Its map/pose
-identity must agree with memory. The colored reconstruction remains at
-`data/outputs/rtabmap_slam/colored_cloud_20260910/`, with 447905 points from
-48 original RGB-D frames. On the Jetson desktop, **Room point cloud.ply** opens
-in Open3D; its appearance was accepted by the user. Do not revisit the viewer.
-
-Tracking gaps and unconfirmed loop detections remain. The original mapping
-harness's late CLI-query `INCOMPLETE` status is preserved; the measurement and
-direct services on reopening passed. Do not rerun mapping to clear that history.
+The 222x138 grid at 0.05 m/cell has only 1122 free cells and 168 passing the
+assumed 0.25 m conservative clearance. The two chair IDs select [114,84], map
+x/y [1.15,0.63366] m; both have 94 passing cells in their 0.75–1.25 m stand-off
+bands. Refrigerator has no free cell in its band, sink has no clearance-passing
+cell, and backpack is absent from memory. Preserve these measured no-goal cases;
+do not relax clearance or treat unknown cells as free to force success.
 
 Required sequence:
 
-1. Query existing memory for an observed label and retain all candidate IDs,
-   source times, support counts, map positions and map identity. Handle unknown
-   labels explicitly without inventing a location.
-2. Establish the object-to-grid transform and inspect the actual occupancy
-   artifact. Use a documented offline stand-off/clearance assumption only if the
-   map supports it; unknown or occupied cells must not become valid goal cells.
-   No mobile-base footprint or physical clearance has been measured.
-3. Save a small structured dry-run goal candidate and an inspectable map overlay,
-   with its target, source evidence, grid checks and assumptions. If there is
-   insufficient usable free space or incompatible provenance, report an explicit
-   no-goal result instead of manufacturing a plausible destination.
-4. Test grid coordinates, boundaries, unknown/occupied cells, missing targets and
-   map identity, then run the existing data through the preview. Keep physical
-   motion and Nav2 commands outside this step.
+1. Inspect saved poses and grid connectivity before choosing a start. A camera
+   pose is not automatically a robot-base pose, and no current robot location or
+   measured footprint exists. Require an explicit start with recorded provenance.
+   A free-cell test start may be used only when clearly labeled as a simulated
+   planning fixture; never present it as measured localization or silently snap
+   an invalid start into free space.
+2. Reuse the existing map decoding, coordinate/clearance policy and identity
+   checks. Add the smallest bounded offline route check needed for the candidate
+   goal, with unknown/occupied/outside cells blocked and explicit movement rules.
+   Check segment clearance as well as endpoints; prevent diagonal corner cutting.
+3. Save structured start/goal identity, path/cost and a map overlay, or an explicit
+   no-route/invalid-start result. Preserve the preceding object's evidence and
+   no-goal status. Keep viewpoint selection distinct from route feasibility.
+4. Test known paths, disconnected regions, invalid starts/goals, boundaries and
+   obstacle corners. Run the actual saved map through the check with unchanged
+   input hashes and report which conditions were measured versus simulated.
 
-Integration acceptance: a remembered candidate produces a source-associated,
-inspectable offline goal preview with measured map-cell checks, or an evidenced
-no-goal result when the map cannot support one. This is not collision-safe robot
-navigation: identity, map accuracy, robot dimensions and traversability are
-unverified. No new capture, robot motion or model download is needed.
+Acceptance: an inspectable offline route or evidenced refusal links an explicit
+start to the existing goal interface, with checked grid geometry. This does not
+establish physical navigation, target visibility, current localization or a real
+robot footprint. No new capture, replay, Nav2 command or robot motion is needed.
+Do not expand this step into frontier scoring, model upgrades or mapping tuning.
 
-The earlier M3 text in `prompt.md` remains unchanged because its capture-quality
-conditions were not fully verified. The user's newer offline/pipeline direction
-supersedes it for this work. Do not restart recording to improve those endpoints.
-Keep room images, bags, maps, trajectories and observations local and ignored.
+Tracking gaps, unconfirmed loop detections and unknown map/floor accuracy remain.
+Preserve the old mapping harness's late CLI-query `INCOMPLETE` history; direct
+reopening checks passed separately. The native Open3D colored-cloud viewer was
+accepted by the user; do not revisit it. The older M3 text in `prompt.md` stays
+unchanged because its capture-quality conditions were not fully verified; the
+newer offline/pipeline direction supersedes it. Keep all room evidence local
+and ignored.
 
-Learning checkpoint: a remembered object location and a possible observation
-viewpoint are different quantities; goal generation must consult map evidence.
+Learning checkpoint: a free goal cell does not establish a reachable route;
+a route needs an explicit start and checks along the entire path.
 
 ## 6. Target System Architecture
 
@@ -827,7 +840,11 @@ multi-view semantic fusion.
 
 ### M9: Object Search Interface
 
-Status: `PLANNED`
+Status: `VERIFIED` for minimum offline memory-to-goal previews only.
+Fixed stand-off/clearance assumptions, map/pose identity checks, per-object PNGs
+and explicit no-goal outcomes pass on the saved map. Route checks, cuboid-based
+geometry, live publication, continued exploration and physical navigation remain
+`PLANNED`. See `docs/search-goal-preview.md` and the M9 ledger entry.
 
 Steps:
 
@@ -2230,6 +2247,105 @@ Next action:
 
 - Connect remembered object candidates to an offline search-goal preview using
   the existing occupancy map, with explicit map-cell checks and no robot motion.
+
+### 2026-09-10: M9 Offline Object Search Goal Preview
+
+Status: `VERIFIED` for minimum offline memory-to-goal integration and explicit
+no-goal outcomes. Route, visibility, localization, physical footprint and
+traversability remain unverified.
+
+Changed:
+
+- Added `scripts/preview_search_goal.py`, reusing the existing read-only memory
+  query and file-hash helper. Added 16 focused tests and
+  `docs/search-goal-preview.md`; updated README and canonical current state.
+  Existing native NumPy/OpenCV/SciPy/Matplotlib/PyYAML dependencies suffice.
+- Retained each queried provisional object, source times/support/confidence,
+  last observation, map location, memory identity and frozen map/pose hashes.
+  Saved per-object decisions and PNG overlays; unknown labels have no invented
+  location. Inputs are read-only and output directories cannot be overwritten.
+
+Verified on this Jetson:
+
+- The saved occupancy export is 222x138, 0.05 m/cell, origin
+  [-4.575,-3.59134,0] (x/y/yaw). PGM top-row order was reconciled with installed
+  ROS bottom-left grid-origin/cell-corner definitions. Negate zero, free
+  threshold 0.196 and occupied threshold 0.5 give 1122 free (254), 6379 occupied
+  (0), and 23135 unknown (205) cells. Nonzero origin yaw and unsupported image
+  types/modes fail explicitly. Unknown/occupied/outside areas block clearance.
+- SHA256 identities match memory and the prior frozen export evidence:
+  memory `e2bf8d7db3902ded408c6a11006ab2135de654ecd11e76bee702468f6f41f3c0`;
+  map DB `77ce256f9ac9a6ae443a559a4d074e7a743de8f8724fb6ceebe03aecee79fa3e`;
+  camera poses `a47b2d71b6a4da402a42ec7c9b3e455767af876f172d830cee6159b9622c2c3b`;
+  PGM `8e78dd53911b8137bb0e5580bdd86c1ba37572b13da9d9ed3e4ff684d878e20b`;
+  YAML `7e47b94090c34765d4a9dac4ead6426e14e1f54e93edaaef8145eabf9507adc3`.
+  Original memory, map, export files and evidence manifests were byte-identical
+  before/after the integration runs.
+- The initial fixed policy uses horizontal stand-off 0.75–1.25 m, preferred
+  1.0 m, and 0.25 m clearance. It was chosen before observing goal outcomes.
+  Padded distance-to-non-free-center minus half a cell diagonal conservatively
+  bounds clearance to blocked cell areas; 168 cells pass globally. Rank by
+  preferred stand-off error, then larger clearance, then grid y/x.
+- Refrigerator object 1 has 1259 cells in its band: zero free, 373 unknown,
+  886 occupied. It returns `NO_GOAL: no_free_cells_in_standoff_band` without
+  altering the policy. Sink object 7 has 140 free cells in its band, none with
+  sufficient clearance: `NO_GOAL: insufficient_map_clearance`. Missing
+  `backpack` returns `NO_GOAL: target_not_in_memory`, with no object or goal.
+- Both chair objects remain separate provisional candidates. IDs 2/3 have
+  367/369 free cells in their bands and 94 clearance-passing cells each. Both
+  select grid [114,84], map x/y [1.15,0.63366] m. Stand-offs are
+  0.998861/0.999012 m and yaw -1.299565/-1.269940 rad. Each retains two
+  supporting frames and first/last times 1789080208207783000 /
+  1789080265488456000 ns. The shared goal does not resolve object identity.
+- Independently indexed original PGM pixel [114,53] is free. Cell-center metric
+  coordinates and facing yaw agree. An exact distance check against every
+  blocked cell square and map boundary gives 0.257391 m; the script's lower
+  bound is 0.256192 m. This verifies grid computation, not physical clearance.
+- Six fresh CLI runs completed within the 45-second per-process limit. Five
+  normal runs covered refrigerator/chair/sink/backpack and repeated chair
+  selection; decisions were identical on repetition. A copied memory with a
+  deliberately incompatible pose hash failed with exit 1 and `INCOMPLETE`,
+  without any goal or PNG. Normal no-goal outcomes exit zero. Generated PNGs
+  decoded, and both chair plus refrigerator/sink overlays were inspected.
+- All 16 search tests and 17 memory regression tests pass. Coverage includes
+  image direction, metric/grid boundaries, strict threshold equality, unknown
+  cells, obstacle areas/corners, outside-map clearance, unique/tied selection,
+  invalid targets, insufficient free space and changed/incomplete provenance.
+- Reviewed the complete five-file diff for scope, coordinate/identity contracts,
+  failure behavior, duplicated policy and generated data. Script/test compilation
+  and staged whitespace checks passed; `final_check.json` records the reviewed
+  source identities and saved verification evidence.
+- Runtime: Python 3.10.12, NumPy 1.26.4, OpenCV 4.11.0, SciPy 1.15.3,
+  Matplotlib 3.10.9 and PyYAML 6.0.3 on aarch64. Five successful mixed
+  query/render operation times have min/median/P95/max
+  1308.761/1771.175/2753.912/2762.452 ms, including hashing/PNG writing.
+  Process wall times are 2123.970/2573.909/3628.249/3628.538 ms, including
+  dependency startup. These are functional timings on the small frozen corpus,
+  not steady-state throughput or navigation benchmarks.
+
+Evidence:
+
+- `data/outputs/search_goal/m9_20260910/`: `integration.json`,
+  `verify_preview.py`, `verification.log`, `unit_tests.log`,
+  `memory_regression.log`, `final_check.json`, per-query CLI logs and `preview.json`/PNG outputs
+  in `refrigerator`, `chair`, `sink`, `backpack`, `chair_repeat`, and
+  `incompatible_pose`. The deliberately changed SQLite copy is local evidence.
+  Room data and generated outputs remain ignored.
+
+Limits and learning:
+
+- The export contains little usable free space, and saved surface means do not
+  establish object centers or floor height. Tracking gaps, likely class errors,
+  unresolved chair identity and map accuracy remain unchanged. No camera, ROS,
+  GPU inference, Nav2 or motion was required. No dependency was downloaded.
+- An object location and an observation position are different quantities.
+  Memory can supply the former while the occupancy map refuses the latter.
+  Passing local cell checks does not prove a route or target visibility.
+
+Next action:
+
+- Validate an offline grid route from an explicit, provenance-labeled start to
+  an existing candidate goal, preserving invalid-start/no-route outcomes.
 
 ## 16. End-Of-Session Handoff Template
 
