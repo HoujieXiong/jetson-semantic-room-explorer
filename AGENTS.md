@@ -398,11 +398,12 @@ color cloud plus an offline rotatable viewer are saved under
 and the extraction/projection helpers for M5 where appropriate. These use frozen
 final poses, including node 1; that node's earlier missing online TF remains
 recorded. This follow-up does not improve or re-estimate the trajectory.
-For desktop viewing, use `scripts/view_colored_cloud.py` or the **Room point cloud**
-desktop application launcher. The old HTML shortcut opened default Firefox and
-the user reported unsupported WebGL. A visible Chromium window with a dedicated
-software-rendering profile now passes rendering/rotation/zoom checks; see
-`colored_cloud_20260910/desktop_webgl_fix/`. The corrected map window was left open.
+For desktop viewing, double-click **Room point cloud.ply**. The installed Open3D
+native viewer opened the full PLY successfully and the user confirmed its
+appearance. User-level PLY registration now selects Open3D directly; see
+`colored_cloud_20260910/native_ply_viewer/`. The browser desktop launcher was
+replaced with the PLY file link. `scripts/view_colored_cloud.py` remains available
+for the HTML alternative; its earlier software-WebGL evidence is preserved.
 
 Use the original color RGB-D bag for perception: the odometry bundle/database
 images are grayscale. Keep ROS extraction in the isolated system-Python/OpenCV
@@ -1999,6 +2000,33 @@ Status: `VERIFIED` for the dedicated visible Chromium map viewer.
 Next action:
 
 - Inspect the point cloud in the corrected desktop viewer before resuming M5.
+
+### 2026-09-10: Native PLY Viewing And File Association
+
+Status: `VERIFIED` for native PLY loading and the user-level file association.
+
+- The user requested easier point-cloud viewing, then confirmed the Open3D view
+  looked acceptable. Reused installed Open3D 0.18.0's `open3d draw FILE` command.
+  The application selected OpenGL, reported successful PLY loading, created an
+  Open3D desktop window and exited 0. No download or custom viewer code was added.
+- Registered `model/ply` for `*.ply` under the user's MIME directory and associated
+  it with `jetson-open3d.desktop`. Replaced the prior browser desktop launcher
+  with a **Room point cloud.ply** symlink to the existing complete colored cloud.
+- Desktop-file validation and GIO handler resolution pass. The PLY hash remains
+  unchanged; plain-text files still use gedit and HTML still uses Firefox.
+  Updated viewing documentation and reviewed the complete diff/whitespace check.
+- Evidence: `data/outputs/rtabmap_slam/colored_cloud_20260910/native_ply_viewer/`
+  contains the user confirmation, successful native command/exit record,
+  application/MIME registration copies and `association_check.json`.
+- Limits: the native window closed before a requested screenshot could be taken;
+  visual acceptance comes from the user's report. Native mouse interaction and
+  frame rate were not benchmarked. Map quality claims remain unchanged.
+- Learning: a standard PLY file plus an existing native viewer and file association
+  provides a simpler desktop workflow than a browser-dependent visualization.
+
+Next action:
+
+- Resume M5: produce the first YOLO object observation in camera/map coordinates.
 
 ## 16. End-Of-Session Handoff Template
 

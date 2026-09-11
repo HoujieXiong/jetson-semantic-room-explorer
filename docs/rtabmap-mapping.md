@@ -330,14 +330,31 @@ Evidence is local and ignored under
 `data/outputs/rtabmap_slam/colored_cloud_20260910/`: extracted frames and
 `frames.json`, `map/reconstruction.json`, `room_colored.ply` / `.html` in `map/`,
 browser screenshots/checks, process measurements, comparison and unit-test log.
-On this Jetson, use the **Room point cloud** desktop application launcher
-(`Room point cloud.desktop`). It opens the local HTML in a dedicated Chromium
-software-WebGL window. Drag to rotate, scroll to zoom, and use the home icon
-to reset the view. Directly opening HTML with the default Firefox browser failed
-with the user's reported WebGL-unsupported message; the former HTML shortcut
-has been replaced.
+On this Jetson, the preferred path is now to double-click **Room point cloud.ply**
+on the desktop. The file opens directly in the existing Open3D 0.18.0 native
+viewer. The user confirmed the native view looks acceptable, and the viewer
+exited normally with code 0. The full 447905-point PLY is used. No new viewer
+implementation or dependency installation was necessary.
 
-The same viewer can be opened from the repository root:
+The native viewer can also be opened from the repository root:
+
+```bash
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/open3d draw \
+  data/outputs/rtabmap_slam/colored_cloud_20260910/map/room_colored.ply
+```
+
+User-level `~/.local/share/mime/packages/jetson-ply.xml` registers `model/ply`
+for `*.ply`; `~/.local/share/applications/jetson-open3d.desktop` associates that
+type with the installed `open3d draw %f` command. GIO resolves the desktop PLY
+symlink to that handler, and desktop-file validation passes. Plain-text and HTML
+associations remain unchanged. The previous browser desktop launcher was replaced
+by the PLY file link. Evidence and copies of the two registrations are under
+`colored_cloud_20260910/native_ply_viewer/`. Native-viewer frame rate and automated
+mouse interaction were not measured; the user supplied visual confirmation.
+
+The earlier HTML viewer is still available through its explicit command. Direct
+HTML opening in default Firefox reported unsupported WebGL; a dedicated Chromium
+software-WebGL window passed the earlier checks. To use that alternative:
 
 ```bash
 /usr/bin/python3 scripts/view_colored_cloud.py \
