@@ -290,6 +290,91 @@ Evidence root: `data/outputs/rtabmap_odom/trials_20260910/` (ignored):
   failure and guarantee cleanup if writing the report fails; measurement
   callbacks and checks are unchanged.
 
+## Controlled Motion-Prediction Comparison, 2026-09-10
+
+The user noticed a fast turn in the review video and approved one controlled
+comparison. The installed 0.23.7 `Parameters.h` describes `Odom/GuessMotion` as
+predicting the next transform from the previous motion. Baseline logs include
+failed guesses followed by successful retries without a guess. This motivated
+testing whether disabling prediction reduces sustained loss; it does not
+establish the camera's angular speed or the unique cause of failure.
+
+One new full-bag run changed only the string parameter `Odom/GuessMotion` from
+`"true"` to `"false"`, compared with the saved `rate_025` baseline. Runtime
+parameter dumps differ in exactly that entry; player commands and loaded library
+paths match. Both use 0.25x replay, the same 1411 pairs, the same measurement
+callbacks, 5 ms synchronization, the offline input policy and disabled automatic
+reset. Since the baseline, the checker received the output-file protection and
+cleanup fixes documented above; its subscriptions and measurement logic match
+the saved baseline checker.
+
+| Measurement | Prediction on, saved baseline | Prediction off |
+| --- | --- | --- |
+| Processed / input pairs | 1410 / 1411 | 1410 / 1411 |
+| Tracked / lost results | 420 / 990 | 1138 / 272 |
+| Lost fraction of results | 70.21% | 19.29% |
+| Main loss, source time | 21.104–81.870 s | 21.104–31.555 s |
+| Longest observed loss | 60.766 s | 10.451 s |
+| Lost results in 18–25 s, out of 105 | 61 | 68 |
+| Inliers at 21.104 s, minimum 20 | 7 | 8 |
+| Processing median / P95 / max | 183.90 / 239.05 / 349.26 ms | 229.26 / 268.03 / 332.57 ms |
+| Validated pose/TF pairs | 420 | 1138 |
+| Last tracked source time | 88.973 s | 87.499 s |
+
+Prediction-off loss intervals were 18.089–18.157, 18.358–18.893, 21.104–31.555,
+31.622–31.689, 39.326–39.527 and 87.566–94.467 s. Each trial omitted a result for
+the final input pair. The new run reproduced both CameraInfo reference hashes,
+passed source-stamp, clock and pose/TF checks, and received 11431 clock messages.
+Player/checker/odometry exited 0 without forced termination; harness wall time
+was 415.473 s. Odometry RSS was 154760–331440 KiB, descriptors stayed at 19 and
+threads ranged from 31 to 36. Final process inspection found no experiment or
+camera process remaining. This short run does not establish leak freedom.
+
+Inspection of 11 original depth frames between 18.023 and 24.990 s found
+60.74–76.55% nonzero depth. At the shared 21.104 s failure, 75.45% was valid,
+RGB/depth skew was 3.092 ms, and nonzero depth P05/median/P95 was
+1.250/1.492/2.431 m. The depth frame was present and not entirely invalid.
+Whole-image coverage does not establish depth validity at the matched features.
+Visible turning, blur and changing scene texture remain candidate contributors.
+
+Recovery improved in this comparison, but the turn still failed and the local
+18–25 s result worsened. Processing median rose by about 25%. Across 389 common
+tracked source stamps, the two trajectories differ by a median 0.268 m and
+3.090 degrees in their shared initial odometry frame, without post-alignment.
+Even before 18 s, the median differences are 0.262 m / 3.029 degrees over 269
+common poses. These are disagreements between estimates, not errors against
+ground truth. There is one run per setting and the baseline was saved earlier;
+repeatability, accurate poses, continuous tracking and real-time operation
+remain unverified. Keep the checked-in configuration unchanged and retain
+prediction-off as an experiment.
+
+Evidence root: `data/outputs/rtabmap_odom/motion_guess_20260910/` (ignored):
+
+- `plan.json`, `no_motion_guess.yaml`, and `run_trial.py`: hypothesis, tested
+  configuration and the existing bounded harness with an explicit config argument.
+- `guess_off/`: full logs, `run.json`, actual config/parameters and JSON/CSV results.
+- `compare.py`, `comparison.json`, and `motion_guess_comparison.png` / `.pdf`:
+  parameter/command/library assertions, full-bag and turn-window measurements.
+- `inspect_turn_depth.py`, `turn_depth.json`, `desktop_preflight.json`, and
+  `final_process_check.json`: original depth samples and process checks.
+- `verification.json` and `checker_during_trial.py`: checker snapshot/hash and
+  comparison of its measurement logic with the baseline version.
+
+To reproduce with the three-terminal instructions, copy the checked-in config
+to a new local file and add `Odom/GuessMotion: "false"` under `ros__parameters`;
+use that file in Terminal 1 and a fresh checker output directory. The measured
+run used the saved configuration and bounded harness:
+
+```bash
+source scripts/rtabmap_odom_env.bash
+/usr/bin/python3 data/outputs/rtabmap_odom/motion_guess_20260910/run_trial.py \
+  NEW_ATTEMPT 0.25 data/outputs/rtabmap_odom/motion_guess_20260910/no_motion_guess.yaml
+```
+
+Next: inspect feature correspondences and depth at their image locations around
+21.1 s in this same bag, using the installed diagnostics before changing another
+algorithm parameter. Preserve the earlier frames needed to initialize odometry.
+
 ## Interpretation
 
 The first run used 1x playback and the upstream default

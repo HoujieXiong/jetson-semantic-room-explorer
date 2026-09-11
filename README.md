@@ -345,6 +345,13 @@ Slow replay processed almost every input but still lost tracking from about
 pose accuracy and room mapping remain unverified; no new recording is required
 to investigate the first failure. Both playback rate and input policy changed,
 so these runs do not isolate the effect of rate alone.
+
+A subsequent controlled 0.25x replay changed only `Odom/GuessMotion` to `false`:
+1138 tracked / 272 lost results, with 1410 / 1411 inputs processed. The longest
+loss fell from 60.77 to 10.45 s, but both settings failed at the same 21.104 s
+turn; the 18–25 s window had 61 lost results with prediction and 68 without.
+Recovery improved in this one comparison, while processing became slower and
+pose accuracy remains unknown. The checked-in default is retained.
 See [odometry setup and evidence](docs/rtabmap-odometry.md).
 
 Goals:
@@ -520,6 +527,7 @@ jetson-semantic-room-explorer/
 - [X] Moving RGB-D sensor contract and exact rosbag replay verified
 - [ ] Controlled room-loop capture quality verified
 - [X] RTAB-Map offline odometry trial measured, including sustained tracking failure
+- [X] Controlled motion-prediction comparison measured; turn failure remains
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete
 - [ ] RTAB-Map RGB-D SLAM running

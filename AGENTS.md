@@ -352,6 +352,7 @@ Rosbag recording/replay: VERIFIED (59.39 s stationary bag, exact simulated-time 
 Moving RGB-D recording/replay: VERIFIED (93.88/94.49 s, 1402/1411 pairs)
 Controlled room-loop capture quality: NOT VERIFIED (end motion/blur remains)
 RTAB-Map offline odometry measurement: VERIFIED (sustained tracking loss recorded)
+Motion-prediction comparison: VERIFIED (earlier recovery; same 21.104 s turn failure)
 RTAB-Map RGB-D SLAM: NOT VERIFIED
 ```
 
@@ -383,6 +384,10 @@ these approval questions. Ask before downloading newly required components.
 The second bag preserves all 1411 RGB-D pairs and exact replay, but initial
 odometry trials report sustained tracking loss. Recover the latest measured
 results from `docs/rtabmap-odometry.md` and the ledger before any new trial.
+The approved single-parameter comparison is complete: disabling
+`Odom/GuessMotion` shortened the main loss from 60.766 to 10.451 s, while both
+settings failed at 21.104 s and the 18–25 s window worsened. Keep the checked-in
+default; prediction-off is an experimental result, not an accepted tracking fix.
 Keep camera data and derived trajectories local and ignored. Use the separate
 RTAB-Map environment; do not mix the camera OpenCV 4.8 overlay with this binary
 runtime's system OpenCV 4.5d.
@@ -396,12 +401,16 @@ Follow this explicitly authorized offline continuation and retain M3 limitations
 
 Required sequence:
 
-1. Recover git state and both preserved trials. Locate the earliest sustained
-   slow-replay loss using source timestamps and inspect nearby RGB-D frames,
-   matching statistics and arrival gaps. Preserve the original bag and reports.
-2. Identify one evidence-supported hypothesis and test one controlled change
-   using the same input. Do not attribute all failures to operator motion or
-   Jetson throughput without separating those effects.
+1. Recover git state, the original trials and `motion_guess_20260910/` evidence.
+   Inspect feature correspondences and depth at their image locations around
+   source time 21.1 s. The original failure frame has 75.45% valid depth overall;
+   this does not establish validity at the features used for odometry.
+2. Use installed diagnostics and the same bag, preserving earlier frames needed
+   to initialize odometry. The saved scalar diagnostics do not contain feature
+   locations; collect those only if needed for this bounded inspection. Label
+   independent feature matching separately from RTAB-Map's own correspondences.
+   Keep diagnostic overhead separate from timing results. Do not tune another
+   parameter or attribute all failures to operator motion from these data alone.
 3. Retain millimeter depth, camera calibration, 5 ms RGB-D synchronization,
    simulated time and timestamped pose/TF checks. Keep automatic reset disabled
    while diagnosing continuity. The accepted native/camera paths stay separate.
@@ -411,8 +420,9 @@ Required sequence:
 5. Review the complete diff and record measured results and one next action.
    Do not introduce perception, robot motion or a fresh capture in this step.
 
-Acceptance: a reproducible diagnosis of the first sustained tracking failure,
-with a controlled comparison and honest limits on any claimed improvement.
+Acceptance: source-stamped visual evidence around the first sustained loss,
+showing feature coverage, correspondence quality and depth validity where
+available, with explicit limits on the still-unresolved physical cause.
 
 Learning checkpoint: distinguish intact RGB-D delivery, timestamp-correct TF,
 the algorithm's tracking state, and independently established pose accuracy.
@@ -1646,6 +1656,80 @@ Next action:
 
 - Diagnose the first sustained slow-replay loss around 21.1 s using nearby frames
   and match statistics from this same bag, then test one controlled adjustment.
+
+### 2026-09-10: M4 Controlled Motion-Prediction Comparison
+
+Status: `VERIFIED` for the controlled measurement. Continuous tracking, pose
+accuracy and room mapping remain unverified.
+
+Changed:
+
+- After the user approved the fast-turn investigation, reused the existing bag,
+  runtime, checker and bounded harness. Changed only `Odom/GuessMotion` to the
+  string `"false"` in an ignored experimental configuration; retained the
+  checked-in default. No new dependencies, camera activation or recording.
+- Updated README and odometry documentation with the measured comparison and
+  advanced the next diagnostic task. Earlier M3 capture-quality limits and
+  `prompt.md` remain intact.
+
+Verified:
+
+- Ran `motion_guess_20260910/run_trial.py guess_off 0.25` with the saved
+  `no_motion_guess.yaml` as its third argument, in the isolated environment.
+  Compared with the saved `trials_20260910/rate_025` baseline. Runtime dumps
+  differ only in `Odom/GuessMotion`; player commands and library paths match.
+- Both settings processed 1410 / 1411 pairs; the final pair lacked a result.
+  Prediction on: 420 tracked / 990 lost (70.21% lost). Off: 1138 / 272 (19.29%).
+  The main loss starts at the same 21.104143 s source stamp, with 7 / 8 inliers
+  against the required 20; recovery is at 81.870444 / 31.555048 s. The longest
+  loss is 60.766301 / 10.450905 s. In the 18–25 s window, loss worsened from
+  61 / 105 to 68 / 105 results. Last tracked source time was 88.973 / 87.499 s.
+- Prediction-off processing median/P95/max: 229.256/268.032/332.570 ms, versus
+  baseline 183.904/239.055/349.257 ms. RSS 154760–331440 KiB, descriptors 19,
+  threads 31–36. All three processes exited 0 without forced termination;
+  harness wall time 415.473 s. Final inspection found no experiment or camera
+  process remaining. No long-run resource-leak claim.
+- Both CameraInfo reference hashes and all source-stamp/clock/pose/TF checks
+  passed: 1138 validated tracked pose/TF pairs and 11431 clock messages in the
+  new run. Lost poses and missing outputs remain explicit in the JSON/CSV.
+- Inspected 11 original 16UC1 depth frames near 18–25 s. Nonzero coverage was
+  60.74–76.55%; at the shared failure it was 75.45%, with 3.092 ms RGB/depth skew
+  and nonzero depth P05/median/P95 of 1.250/1.492/2.431 m. The depth frame was
+  present, not entirely invalid; feature-location depth remains unmeasured.
+- Across 389 common tracked stamps, estimates disagree by median 0.268 m /
+  3.090 degrees without post-alignment; before 18 s, by 0.262 m / 3.029 degrees
+  over 269 poses. These compare estimates and do not measure absolute accuracy.
+- Saved comparison assertions pass and the source-time plot was reviewed.
+  No runtime/checker code changed this session. Relative to the saved baseline,
+  only earlier checker output-file/cleanup fixes differ; subscriptions and
+  measurement logic match. Verification used the full-bag integration run and
+  saved-result/depth analysis. Complete diff and whitespace checks pass.
+
+Evidence:
+
+- `data/outputs/rtabmap_odom/motion_guess_20260910/`: experiment plan, config,
+  bounded harness, `guess_off/` logs/parameters/measurements, `compare.py`,
+  `comparison.json`, PNG/PDF comparison plots, original depth inspection script
+  and `turn_depth.json`, desktop preflight, final process check, checker snapshot
+  and `verification.json`.
+- Reproduction commands and all loss intervals are in
+  `docs/rtabmap-odometry.md`. Images, bags, videos and trajectories remain ignored.
+
+Limitations and decisions:
+
+- Recovery improved in one run compared with a saved baseline; the turn still
+  failed and median processing increased about 25%. Keep the existing default.
+  There is no repeated-run stability result or independently verified pose.
+- Turning, blur and scene texture may contribute, but neither angular speed nor
+  a unique physical cause was measured. A higher tracked count does not prove a
+  more accurate trajectory, and recovery does not establish loop closure.
+- Learning: evaluate failure onset, recovery, processing cost and pose quality
+  separately; a favorable full-bag count can hide a worse local failure.
+
+Next action:
+
+- Inspect feature correspondences and depth at their image locations around
+  source time 21.1 s in the same bag, before another parameter change.
 
 ## 16. End-Of-Session Handoff Template
 
