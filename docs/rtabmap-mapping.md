@@ -330,9 +330,35 @@ Evidence is local and ignored under
 `data/outputs/rtabmap_slam/colored_cloud_20260910/`: extracted frames and
 `frames.json`, `map/reconstruction.json`, `room_colored.ply` / `.html` in `map/`,
 browser screenshots/checks, process measurements, comparison and unit-test log.
-On this Jetson, double-click **Room point cloud.html** on the desktop, or open
-the HTML in Chromium. Drag to rotate, scroll to zoom, and use the home icon
-to reset the view. The desktop entry is a link to the ignored local artifact.
+On this Jetson, use the **Room point cloud** desktop application launcher
+(`Room point cloud.desktop`). It opens the local HTML in a dedicated Chromium
+software-WebGL window. Drag to rotate, scroll to zoom, and use the home icon
+to reset the view. Directly opening HTML with the default Firefox browser failed
+with the user's reported WebGL-unsupported message; the former HTML shortcut
+has been replaced.
+
+The same viewer can be opened from the repository root:
+
+```bash
+/usr/bin/python3 scripts/view_colored_cloud.py \
+  data/outputs/rtabmap_slam/colored_cloud_20260910/map/room_colored.html
+```
+
+The launcher uses installed Snap Chromium, a separate profile under
+`~/snap/chromium/common/room-cloud-viewer`, and the verified ANGLE/SwiftShader
+software-rendering flags. It accepts an existing local HTML file and opens an
+application window; the system default browser and normal browser profile stay
+intact. Use this software-rendering profile for the trusted local map only.
+
+The follow-up was verified in a visible desktop window, with WebGL 2.0 reporting
+the SwiftShader renderer, all 180000 displayed points, actual mouse rotation and
+wheel zoom. No severe browser errors or external page resource requests were
+recorded. The desktop file passes validation and is marked trusted; the launcher
+rejects a missing file with exit 2. The final local map window was left open for
+the user. This corrects the earlier gap between a headless browser test with
+explicit software-rendering flags and the default desktop HTML opening path.
+Evidence is in `colored_cloud_20260910/desktop_webgl_fix/`, including screenshots,
+browser checks, launch logs and `verification.json`. Point-cloud data is unchanged.
 
 Focused verification uses the native environment:
 

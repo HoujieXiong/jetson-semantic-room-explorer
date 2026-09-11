@@ -398,6 +398,11 @@ color cloud plus an offline rotatable viewer are saved under
 and the extraction/projection helpers for M5 where appropriate. These use frozen
 final poses, including node 1; that node's earlier missing online TF remains
 recorded. This follow-up does not improve or re-estimate the trajectory.
+For desktop viewing, use `scripts/view_colored_cloud.py` or the **Room point cloud**
+desktop application launcher. The old HTML shortcut opened default Firefox and
+the user reported unsupported WebGL. A visible Chromium window with a dedicated
+software-rendering profile now passes rendering/rotation/zoom checks; see
+`colored_cloud_20260910/desktop_webgl_fix/`. The corrected map window was left open.
 
 Use the original color RGB-D bag for perception: the odometry bundle/database
 images are grayscale. Keep ROS extraction in the isolated system-Python/OpenCV
@@ -1959,6 +1964,41 @@ Next action:
 
 - Use an extracted original RGB-D frame and its frozen camera pose to produce
   the first YOLO camera/map-frame 3D object observation (M5).
+
+### 2026-09-10: Correct Desktop Point-Cloud WebGL Launch
+
+Status: `VERIFIED` for the dedicated visible Chromium map viewer.
+
+- The user reported unsupported WebGL after opening the previous HTML shortcut.
+  Local HTML/default-browser associations are `firefox.desktop`. The previous
+  successful automation used explicit Chromium software-rendering flags; it did
+  not establish that the default desktop opening path worked.
+- Added `scripts/view_colored_cloud.py`, using installed Snap Chromium in a
+  separate `~/snap/chromium/common/room-cloud-viewer` profile. Opens only an
+  existing local HTML path in an application window with ANGLE/SwiftShader.
+  The software-rendering opt-in is limited to this trusted local map profile;
+  no browser sandbox-disabling flag or default-browser change is used.
+- Replaced the exact previous HTML symlink with a validated, trusted desktop
+  application launcher named **Room point cloud**. Updated README and viewing
+  instructions. No package download, point-cloud regeneration or camera activity.
+- Visible desktop testing reported WebGL 2.0 and the SwiftShader renderer,
+  displayed 180000 points, and passed real mouse-drag rotation and wheel zoom.
+  Screenshots were inspected; no severe browser errors or external page resource
+  requests were reported. The test browser/driver closed, then the actual local
+  launcher opened the map for the user; the dedicated window was left running.
+- Missing HTML input exits 2 explicitly. Python syntax, desktop-file validation
+  and whitespace checks pass. Complete diff reviewed. The PLY hash is unchanged.
+- Evidence: `data/outputs/rtabmap_slam/colored_cloud_20260910/desktop_webgl_fix/`
+  contains the headed browser check, screenshots, desktop file and trust/launch
+  evidence, previous shortcut target and final verification. An initial process
+  check missed Chromium's space-delimited process title; corrected inspection
+  confirmed its dedicated profile, local map URL and software-rendering flags.
+- Learning: a browser rendering test must reproduce the user's actual launch
+  path and graphics backend. A headless test alone did not verify this desktop.
+
+Next action:
+
+- Inspect the point cloud in the corrected desktop viewer before resuming M5.
 
 ## 16. End-Of-Session Handoff Template
 

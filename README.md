@@ -370,6 +370,9 @@ pixels match the stored node images, nine geometry/failure tests pass, and
 Chromium mouse rotation/zoom were verified. This makes the partial map easier
 to inspect; tracking gaps and overlapping surfaces remain. See the
 [colored point-cloud follow-up](docs/rtabmap-mapping.md#dense-colored-point-cloud-follow-up-2026-09-10).
+On the Jetson display, use the **Room point cloud** desktop launcher, which opens
+Chromium with verified software WebGL. The default Firefox HTML-opening path
+reported WebGL unavailable; the dedicated visible window passes rotation/zoom checks.
 
 The current priority is to connect the pipeline before further component tuning.
 Next is YOLO plus depth object observations using original color frames and the
