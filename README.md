@@ -376,10 +376,11 @@ view looks acceptable. The dedicated Chromium/software-WebGL viewer remains
 available through its documented command for the HTML artifact.
 
 The current priority is to connect the pipeline before further component tuning.
-Next is YOLO plus depth object observations using original color frames and the
-saved map poses. The odometry bundle/database image and geometric cloud are
-grayscale in the original RTAB-Map export; the original RGB recording remains
-available for perception and the new colored reconstruction.
+YOLO plus depth observations now connect original color frames to the saved map
+poses (Phase 5 below); persistent memory is next. The odometry bundle/database
+image and geometric cloud are grayscale in the original RTAB-Map export; the
+original RGB recording remains available for perception and the new colored
+reconstruction.
 
 Goals:
 
@@ -395,6 +396,23 @@ Deliverables:
 - TF and loop-closure validation evidence
 
 ### Phase 5: YOLO Plus Depth 3D Baseline
+
+Status: `VERIFIED` for minimum offline camera/map observation integration.
+
+YOLOv8n ran on the Jetson GPU using three original mapped 1280x720 RGB-D frames.
+Of 18 detections, 15 passed depth filtering and produced source-associated
+camera/map points in meters; three were explicitly rejected for missing or broad
+depth. All 21 geometry/association tests pass, including the existing point-cloud
+regressions. Independent Open3D projection agrees with all accepted points within
+2.251e-7 m per coordinate; this verifies computation, not physical accuracy.
+
+The saved annotated images reveal overlapping chair boxes and likely class
+errors. These are 15 observations, not 15 distinct objects, and each point samples
+a visible surface within a detection box. Persistent association, position
+accuracy and live performance remain unverified. Measured processing times were
+8226.27/77.59/65.37 ms for the three frames, including first-call initialization
+and excluding PNG writing. No steady-state FPS is claimed. See
+[the observation contract, command and evidence](docs/rgbd-object-observations.md).
 
 Goals:
 

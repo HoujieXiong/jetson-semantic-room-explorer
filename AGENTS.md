@@ -370,23 +370,40 @@ and 21 offline tests pass. Center aligned depth is 2.347–2.349 m; boundary che
 record occlusion gaps and mismatches. See the M2 and registration ledger entries
 and `docs/camera-femto-mega.md` for evidence and limitations.
 
+### 4.6 RGB-D Object Observations
+
+Status: `VERIFIED` for minimum offline camera/map observation integration.
+
+YOLOv8n ran on the Jetson GPU with original mapped RGB-D nodes 7, 14 and 32.
+Eighteen detections produced 15 depth-accepted observations and three explicit
+rejections. Twenty-one focused tests pass; all accepted points agree with
+independent Open3D projection within 2.251e-7 m per coordinate. This checks math,
+not physical accuracy. Three annotations were inspected and reveal overlapping
+chair boxes and likely class errors. The outputs represent observations, not
+15 distinct objects. Surface-point accuracy, persistent association and live
+performance remain unverified. See `docs/rgbd-object-observations.md` and the
+M5 ledger entry for input identities, timestamps, timing and evidence.
+
 ## 5. Current Next Task
 
-Milestone: **M5 first RGB-D object observation in camera and map coordinates**.
+Milestone: **M6 minimal persistent map-frame object memory and queries**.
 
 The user explicitly prioritized building the complete pipeline before improving
-individual components. Minimum camera, odometry and mapping interfaces are now
-verified. Defer fast-turn diagnosis, parameter sweeps, capture refinement and
-throughput optimization; preserve the measured limitations while connecting the
-next component. Safe local work and GitHub progress updates remain authorized.
+individual components. Minimum camera, odometry, mapping and perception
+interfaces are now verified. Defer fast-turn diagnosis, parameter sweeps, capture
+refinement and throughput optimization; preserve the measured limitations while
+connecting the next component. Safe local work and GitHub progress updates remain authorized.
 Ask before downloading newly required components. The odometry and four-package
 mapping downloads were already approved and completed; do not ask again.
 
-Recover `docs/rtabmap-mapping.md` and
-`data/outputs/rtabmap_slam/mapping_02/integration.json`. The second room bag has
-1411 source pairs. Mapping produced a reopenable 41791488-byte database, 48 final
-graph poses, 45733 exported points and 56 source-time map/optical-camera TF
-observations. Tracking gaps and unconfirmed loop detections remain. The original
+Recover `docs/rgbd-object-observations.md`, `docs/rtabmap-mapping.md` and
+`data/outputs/object_observations/m5_20260910/trial_01/observations.json`.
+The observation artifact is `MEASURED` and its independent artifact verification
+is `VERIFIED`. Reuse these saved observations without repeating capture or YOLO.
+The second room bag has 1411 source pairs. Mapping produced a reopenable
+41791488-byte database, 48 final graph poses, 45733 exported points and
+56 source-time map/optical-camera TF observations. Tracking gaps and unconfirmed
+loop detections remain. The original
 run harness is still marked `INCOMPLETE` for a late CLI parameter-query failure;
 the measurement passed, and direct parameter/map services passed on reopening.
 Do not rerun odometry merely to clear that preserved historical status.
@@ -395,7 +412,7 @@ The user's subsequent colored point-cloud request is also verified: 48 original
 mapped RGB-D frames are extracted with source/depth checks, and a 447905-point
 color cloud plus an offline rotatable viewer are saved under
 `data/outputs/rtabmap_slam/colored_cloud_20260910/`. Reuse `frames/frames.json`
-and the extraction/projection helpers for M5 where appropriate. These use frozen
+and the extraction/projection helpers where appropriate. These use frozen
 final poses, including node 1; that node's earlier missing online TF remains
 recorded. This follow-up does not improve or re-estimate the trajectory.
 For desktop viewing, double-click **Room point cloud.ply**. The installed Open3D
@@ -405,47 +422,45 @@ appearance. User-level PLY registration now selects Open3D directly; see
 replaced with the PLY file link. `scripts/view_colored_cloud.py` remains available
 for the HTML alternative; its earlier software-WebGL evidence is preserved.
 
-Use the original color RGB-D bag for perception: the odometry bundle/database
-images are grayscale. Keep ROS extraction in the isolated system-Python/OpenCV
-4.5d environment and YOLO in its existing native virtual environment. Inspect
-`scripts/yolo_image_smoke_test.py`, the local YOLOv8n weights and existing image/
-depth helpers before adding code. Resolve a real local model path before loading
-it so a library does not silently download a missing model.
+The M5 JSON already retains both source stamps, node/detection IDs, source and
+model hashes, frozen map/pose identity, detector confidence, depth quality,
+camera/map surface points, and rejected observations. Inspect
+`scripts/observe_rgbd_objects.py` and existing repository patterns before adding
+persistence. Standard-library SQLite should suffice; do not add an ORM, ROS
+node, embedding backend or new model for this first memory slice.
 
 Required sequence:
 
-1. Select an existing mapped node with a valid observation and obtain its original
-   color, aligned depth and CameraInfo from `room_walk_02`. Preserve source stamps,
-   1280x720 image grids, millimeter depth, invalid zeros and optical frame axes.
-2. Run the existing YOLOv8n baseline on that color frame. For a supported detection,
-   measure depth in a bounded inner box ROI, reject invalid/outlier values and
-   back-project a representative pixel into optical-camera coordinates in meters.
-3. Transform the point into the frozen final map using the corresponding exported
-   optical-camera pose. Join by node ID and the recorded original source stamp,
-   not exact equality with rounded pose-text timestamps. Record the database/
-   graph identity and pose provenance; do not mix final optimized poses with
-   historical online TF or use observations lacking valid pose association.
-4. Save a small structured observation containing timestamp, node ID, label,
-   detection confidence, box/ROI, valid-depth evidence, camera point and map point.
-   Save a local annotated color image for inspection. If a frame has no usable
-   detection/depth, report it explicitly and inspect another existing mapped frame.
-5. Test projection, unit conversion, invalid depth and coordinate transforms with
-   known cases, then run the actual Jetson inference/geometry path. Record the
-   measured result and advance toward persistent object memory once it works.
+1. Persist the measured source observations and their provenance in SQLite.
+   Keep rejection evidence, but never create an object position from rejected
+   depth. Do not import incomplete reports or silently mix different maps/graphs.
+2. Add a small deterministic label/distance association baseline for accepted
+   map points, preserving each source observation and the association decision.
+   Handle repeated imports idempotently. Inspect the overlapping same-frame chair
+   detections before deciding how to avoid counting them as independent support.
+3. Store provisional object records with first/last source times and separate
+   semantic confidence and depth evidence. Document the simple position update
+   rule; do not fabricate uncertainty or claim confirmed object identity.
+4. Provide `list`, `find` and `last_seen` queries. Close and reopen the database,
+   then demonstrate a query using an actual observed label such as refrigerator.
+5. Test duplicate imports, incompatible map identity, rejected depth, label/
+   distance gates and deterministic results. Run the actual saved M5 artifact on
+   this Jetson and record counts, associations, failures and query output.
 
-Integration acceptance: at least one real recorded detection produces a finite,
-source-associated 3D observation in both optical-camera and map coordinates,
-with invalid observations rejected and the original evidence retained. Detection
-accuracy, absolute position accuracy, repeated-view jitter and real-time behavior
-remain later quality acceptance goals. No new capture or robot motion is needed.
+Integration acceptance: the real M5 observations produce a reopenable SQLite
+memory with queryable provisional objects and retained source evidence; repeat
+imports do not inflate observations or support counts. Known overlapping boxes
+and false labels must remain visible as limitations. Reliable instance identity,
+absolute position accuracy, live ROS integration and navigation remain later
+quality goals. No new capture or robot motion is needed.
 
 The earlier M3 text in `prompt.md` remains unchanged because its capture-quality
 conditions were not fully verified. The user's newer offline/pipeline direction
 supersedes it for this work. Do not restart recording to improve those endpoints.
 Keep room images, bags, maps, trajectories and observations local and ignored.
 
-Learning checkpoint: connect detection, depth, calibration and pose provenance
-into one measured object observation before adding persistence or optimizing it.
+Learning checkpoint: distinguish an observation from an object hypothesis, then
+preserve the evidence needed to query and revise that hypothesis after restart.
 
 ## 6. Target System Architecture
 
@@ -705,7 +720,10 @@ Learning goal: odometry versus mapping, pose graphs, loop closure, and TF.
 
 ### M5: YOLO Plus Depth 3D Baseline
 
-Status: `PLANNED`
+Status: `VERIFIED` for minimum offline integration; later quality acceptance
+remains `PLANNED`. Three real mapped RGB-D frames produced 15 depth-accepted
+camera/map observations and three rejections; 21 tests and independent Open3D
+projection checks pass. See the M5 ledger entry and `docs/rgbd-object-observations.md`.
 
 Steps:
 
@@ -2027,6 +2045,90 @@ Status: `VERIFIED` for native PLY loading and the user-level file association.
 Next action:
 
 - Resume M5: produce the first YOLO object observation in camera/map coordinates.
+
+### 2026-09-10: M5 First RGB-D Camera/Map Object Observations
+
+Status: `VERIFIED` for minimum offline integration. Detection accuracy,
+instance identity, physical position accuracy and live performance remain
+unverified. Advance to M6 under the user's pipeline-first direction.
+
+Changed:
+
+- Added `scripts/observe_rgbd_objects.py` for local YOLO inference, bounded
+  inner-ROI depth filtering, metric camera/map surface points, source/pose checks,
+  explicit rejection records and PNG annotations. No dependency was added.
+- Extracted existing intrinsics/pose checks into `scripts/rgbd_geometry.py`, used
+  by both object observations and the existing point-cloud projection. Added
+  12 focused tests and `docs/rgbd-object-observations.md`; updated README/state.
+
+Verified on this Jetson:
+
+- Reused original RGB8/registered uint16 depth from `colored_cloud_20260910/frames`
+  and frozen final camera poses from `mapping_02`. All selected grids are
+  1280x720, depth is millimeters with invalid zeros. Database, exported pose and
+  NPZ hashes matched. Original source stamps/CameraInfo were checked; no pose
+  association relied on rounded timestamp-text equality.
+- Existing YOLOv8n weights were 6549796 bytes, SHA256
+  `f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36`.
+  Runtime reported PyTorch 2.8.0, Ultralytics 8.4.112, OpenCV 4.11.0 and GPU
+  `Orin`. The initial sandbox CUDA probe failed with `NvRmMemInitNvmap`;
+  authorized GPU access passed a tensor operation and actual inference. Offline
+  mode was enabled, with no download, installation or CPU inference fallback.
+- Nodes 7/14/32 produced respectively 7/6/5 detections and 5/5/5 accepted
+  observations. RGB/depth skews were 2.972/3.398/3.216 ms. Two detections had no
+  valid inner-ROI depth; one was rejected for 0.649 m inlier P90-P10 spread.
+  Rejected detections contain neither camera nor map points.
+- Example node 7 refrigerator: confidence 0.9371328354, pixel `[524,540]`,
+  source stamp `1789080208207783000` ns, raw depth 4607 mm. Camera point
+  `[-0.676296,1.253994,4.607000]` m; map point
+  `[4.677179,0.829901,-0.809701]` m. Its inner ROI was 82.65% valid, with
+  0.127 m inlier P90-P10 spread. This is a sampled surface point, not an object
+  center or a physical reference measurement.
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest discover
+  -s tests/mapping -v`: all 21 tests passed (12 new plus nine point-cloud
+  regressions). Syntax compilation of the three affected scripts passed.
+- Independent Open3D 0.18.0 camera/map projection checked all 15 selected source
+  pixels; maximum per-coordinate difference was 2.2506714e-7 m. All three PNGs
+  read back at 1280x720. A real node-1 CLI attempt exited 1 for missing validated
+  source-time map association before creating output or loading the model.
+- The bounded GPU process exited 0 in 17.826 s without timeout, peak child RSS
+  1250468 KiB. Prediction calls took 8121.49/64.56/49.32 ms; processing including
+  geometry/drawing took 8226.27/77.59/65.37 ms, excluding PNG writing. Across the
+  three processing samples min/median/P95/max were
+  65.37/77.59/7411.40/8226.27 ms. First-call initialization was included and
+  there was no explicit warmup. This is not a steady-state/concurrent benchmark
+  or a long-duration resource-leak check.
+- Inspected all three annotations. Node 7 contains overlapping chair detections;
+  node 14's laptop box includes a paper-towel roll and node 32's oven box covers
+  cabinet furniture, indicating likely semantic errors. Fifteen accepted
+  observations do not establish 15 distinct objects. Depth gates cannot resolve
+  these errors or guarantee that every chosen pixel belongs to the labeled object.
+- Review consolidated inference settings so execution uses the same values
+  recorded in JSON. Final `trial_02` exited 0 in 11.654 s, peak child RSS
+  1253916 KiB; its complete report exactly matched `trial_01` except timing
+  fields. All 21 focused tests passed again. The full seven-file diff was
+  reviewed; whitespace and script compilation checks passed. Only code, tests
+  and documentation are staged, with room artifacts and weights ignored.
+
+Evidence:
+
+- `data/outputs/object_observations/m5_20260910/`: `preflight.json`,
+  `unit_tests.log`, `trial_01.log`, `trial_01_process.json`,
+  `trial_01/observations.json`, `trial_01/node_{7,14,32}.png`,
+  `verify_artifacts.py`, `artifact_verification.json`, `rejected_node_1.log` and
+  `visual_inspection.json`. Final rerun evidence is in `trial_02/`,
+  `trial_02_process.json`, `repeat_comparison.json` and `final_unit_tests.log`.
+  Room data, weights and generated outputs remain local
+  and ignored. No new capture, trajectory estimation or parameter sweep ran.
+
+Learning: a detection box, actual valid depth pixel, calibration and correctly
+associated map pose now produce one inspectable metric observation. Semantic
+correctness, geometric validity and persistent object identity are separate.
+
+Next action:
+
+- Build minimal SQLite object memory from these observations, retaining source
+  and association evidence and verifying idempotent import plus reopened queries.
 
 ## 16. End-Of-Session Handoff Template
 

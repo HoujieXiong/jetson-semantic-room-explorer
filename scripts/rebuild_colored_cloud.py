@@ -8,24 +8,18 @@ import time
 import numpy as np
 import open3d as o3d
 import plotly.graph_objects as go
-from scipy.spatial.transform import Rotation
 
 from extract_mapped_rgbd import file_hash
+from rgbd_geometry import map_from_camera, pinhole_matrix
 
 
 def project_frame(rgb, depth_mm, k, position, quaternion, stride=2, max_depth_m=5.0):
     """Back-project optical x-right/y-down/z-forward, then apply map-from-camera."""
-    k = np.asarray(k, dtype=float).reshape(3, 3)
-    pose_values = np.r_[position, quaternion]
+    k = pinhole_matrix(k)
     if (rgb.dtype != np.uint8 or depth_mm.dtype != np.uint16
             or rgb.shape != (*depth_mm.shape, 3) or depth_mm.ndim != 2):
         raise ValueError('Expected same-grid RGB8 and raw uint16 millimeter depth')
-    if (not np.isfinite(k).all() or k[0, 0] <= 0 or k[1, 1] <= 0
-            or not np.array_equal(k[2], [0, 0, 1]) or k[0, 1] or k[1, 0]):
-        raise ValueError('Invalid pinhole intrinsics')
-    if (pose_values.shape != (7,) or not np.isfinite(pose_values).all()
-            or not np.isclose(np.linalg.norm(quaternion), 1, atol=2e-6, rtol=0)):
-        raise ValueError('Expected finite translation and normalized camera quaternion')
+    transform = map_from_camera(position, quaternion)
     if stride < 1 or not np.isfinite(max_depth_m) or max_depth_m <= 0:
         raise ValueError('Invalid sampling stride or depth limit')
     # Sampling preserves the original integer pixel origin; no image resizing.
@@ -40,9 +34,6 @@ def project_frame(rgb, depth_mm, k, position, quaternion, stride=2, max_depth_m=
     cloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, intrinsic)
     if not len(cloud.points):
         raise ValueError('Frame has no valid depth within the selected range')
-    transform = np.eye(4)
-    transform[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
-    transform[:3, 3] = position
     cloud.transform(transform)
     return cloud
 
