@@ -509,7 +509,8 @@ Deliverables:
 
 ### Phase 8: Exploration, Navigation, And Edge Optimization
 
-Status: `VERIFIED` for minimum offline object goals, routes and frontier fallback.
+Status: `VERIFIED` for minimum offline object goals, routes and frontier fallback,
+including a single-command search demo.
 
 The saved memory now connects to the frozen occupancy map through a read-only
 query and hash-verified map/pose identity. With a fixed 0.75–1.25 m stand-off
@@ -546,10 +547,19 @@ camera start remains invalid. All 48 goal/route/frontier tests and nine frontier
 CLI cases match expected outcomes; original goal/route regressions are unchanged.
 See [frontier commands, images and evidence](docs/frontier-search-preview.md).
 
+`scripts/run_offline_search.py` now joins these stages in one command and saves
+`search.json` with the branch, reason, candidate outcomes, start provenance and
+links to existing JSON/PNG evidence. All 63 search tests and 12 fresh CLI checks
+pass, including repeated queries, source-identity failure and output protection.
+Chair routes and frontier proposals match the preceding independent stages;
+all input hashes remain unchanged. See the
+[single-command demo and measured results](docs/offline-search-demo.md).
+
 These are offline grid checks. Physical footprint, floor/map accuracy, sensor
 visibility, current localization and traversability remain unverified. No new
-coverage or observation was measured. The next step is a single-command offline
-search demo; Nav2 and edge optimization remain planned.
+coverage or observation was measured. The next step is to replay existing
+observations into a separate memory and verify how search decisions change as
+evidence arrives; Nav2 and edge optimization remain planned.
 
 Goals:
 
@@ -640,7 +650,8 @@ jetson-semantic-room-explorer/
 - [X] Minimum offline object-search goal previews and explicit no-goal outcomes verified
 - [X] Offline route validation with an explicit simulated start and camera-start refusal
 - [X] Minimum offline frontier-search fallback with explicit simulated starts
-- [ ] Single-command offline search demo and physical navigation acceptance
+- [X] Single-command offline search demo with preserved decisions and stage evidence
+- [ ] Observation-feedback replay and physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented
 

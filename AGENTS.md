@@ -446,79 +446,74 @@ new coverage, physical visibility or navigation is verified. See
 `docs/frontier-search-preview.md` and
 `data/outputs/frontier_search/m10_20260911/integration.json`.
 
+### 4.11 Single-Command Offline Search
+
+Status: `VERIFIED` for composing the existing frozen-data search stages.
+
+`scripts/run_offline_search.py` takes memory, map, label and an explicit start.
+Available object goals lead to route checks; no-goal outcomes lead to frontier
+search. It retains all candidates/refusals and writes `search.json` with the
+branch, reason, source-associated outcomes and relative JSON/PNG evidence paths.
+All 63 search tests and 12 native CLI cases pass. Existing goal/route/frontier
+decisions and input hashes are unchanged; all 24 PNGs decode. No observations,
+motion or new coverage were executed. See `docs/offline-search-demo.md` and
+`data/outputs/offline_search/demo_20260911/integration.json`.
+
 ## 5. Current Next Task
 
-Milestone: **M9/M10 single-command offline search demonstration**.
+Milestone: **M6/M9/M10 offline observation-feedback replay**.
 
-The user prioritizes the complete pipeline before component tuning. Minimum
-camera, mapping, perception, memory, object-goal, route and geometric frontier
-interfaces have measured evidence. Connect the existing search stages into one
-reproducible offline command and one inspectable decision report. M7/M8 model
-upgrades, live sensor integration, physical navigation and optimization remain
-planned. Safe local work and GitHub progress updates remain authorized. Ask
-before downloading newly required components; the current dependencies are local.
+The single-command frozen-memory search demo is verified. The user's priority
+remains a complete pipeline before component tuning. Next, connect arrival of
+saved observation evidence to memory updates and repeated search decisions.
+Safe local work and GitHub updates remain authorized. Ask before downloading
+newly required components; current artifacts and dependencies are local.
 
-Recover `docs/frontier-search-preview.md`, the three `preview_*` search scripts,
-`data/outputs/frontier_search/m10_20260911/integration.json` and its per-query
-outputs. Reuse the read-only memory at
-`data/outputs/scene_memory/m6_20260910/memory.db`, the frozen `mapping_02` map
-and existing goal/route/frontier functions. Do not rebuild mapping, rerun capture
-or perception, or replace these measured artifacts just to simplify the demo.
-
-Verified behavior to preserve:
-
-- The 222x138 grid has 1122 free cells, 168 passing the assumed 0.25 m
-  conservative clearance. All 48 recorded camera positions project into unknown
-  cells. Node 1 is refused; it must never be silently relocated into free space.
-- Chair has two unresolved provisional candidates with a shared goal at
-  [1.15,0.63366] m. The explicit simulated start [1.65,0.08366] m reaches them
-  over 1.05 m / 22 cells. Available object goals suppress frontier fallback.
-- Backpack is absent; refrigerator has no free stand-off cell; sink has no
-  sufficiently clear goal. Their reasons remain intact when exploration is
-  proposed. The map has 102 frontier cells in 70 groups and 123 cardinal-view
-  candidates at 115 goal cells under the fixed 0.30–0.75 m frontier stand-off.
-- From [1.65,0.08366] m, frontier group 39 yields an in-place observation
-  proposal toward -Y. From the second explicit simulated fixture [1.05,0.13366]
-  m, group 49 requires a 0.05 m route and a -X viewing direction. Neither start
-  is current localization, and no observation/new coverage has been measured.
+Recover `docs/offline-search-demo.md`, `scripts/run_offline_search.py`,
+`scripts/scene_memory.py` and
+`data/outputs/offline_search/demo_20260911/integration.json`. Reuse the measured
+`data/outputs/object_observations/m5_20260910/trial_01/observations.json`,
+original `data/outputs/scene_memory/m6_20260910/memory.db` as a comparison, and
+frozen `data/outputs/rtabmap_slam/mapping_02`.
 
 Required sequence:
 
-1. Inspect existing CLI and function contracts before adding a thin orchestration
-   entry point. Require memory, frozen map, query label and an explicit recorded
-   or simulated start; do not silently choose a favorable start or target.
-2. Generate the existing object-goal preview from memory. If it supplies a goal,
-   run the existing route check and retain all candidate outcomes. If it has no
-   object goal, run the existing frontier fallback with the same start and
-   identities. Preserve invalid-start/no-route/no-frontier outcomes and source
-   errors; do not bypass them by selecting another stage.
-3. Save a small top-level report explaining which branch ran, the query's original
-   evidence, final outcome and paths to existing JSON/PNG stage artifacts. Keep
-   proposal generation distinct from observation execution and physical motion.
-   Reuse the current visual outputs; no new viewer or general workflow framework
-   is needed.
-4. Test branch selection and error propagation, then run chair, backpack and a
-   known no-goal label from the same explicit simulated start. Include the
-   recorded-camera refusal and source-identity failure, verify unchanged input
-   hashes, and leave a single documented command the user can reproduce.
+1. Inspect the original observations and existing import/query/search contracts.
+   Preserve source stamps, all accepted/rejected detections, producer/map/pose
+   identity and association policy. No capture, mapping or inference rerun is
+   needed. Explain the smallest implementation and verification plan in Chinese.
+2. Import frames 7, 14 and 32 chronologically into a separate memory, retaining
+   a frozen prefix snapshot for each search so later imports cannot invalidate
+   earlier report identities. Reuse existing functions and original evidence;
+   avoid a general replay framework or changes to the measured baseline memory.
+3. Run the current offline search from an explicitly simulated start at each
+   prefix. Use a label whose accepted evidence arrives later: the saved node 7
+   bottle detection was depth-rejected, while node 14 has accepted bottle
+   observations. Preserve whichever goal/route/frontier outcome the data yields;
+   do not force a route or claim that a provisional observation proves success.
+   Retain a compact chronological report linking imports, snapshots and searches.
+4. Verify the absent-to-remembered query transition, preservation of rejection
+   reasons and source timestamps, deterministic duplicate import behavior, and
+   final logical memory equivalence to the existing M6 corpus. Verify unchanged
+   original input hashes and explicit source-identity failures. Run focused tests
+   and native integration, inspect the full diff and record measured evidence.
 
-Acceptance: one command produces a source-associated offline object route or
-exploration proposal, or an explicit refusal, with an inspectable summary and
-stage evidence. This joins already verified frozen-data interfaces; it does not
-claim a live camera-to-motion pipeline, physical autonomy, measured information
-gain, or improved object/map accuracy. No new capture, ROS replay, GPU/model
-work, Nav2 command or robot motion is needed.
+Acceptance: one reproducible offline replay shows how new saved evidence changes
+memory and the resulting search decision, with source-associated snapshots and
+reports. The occupancy grid and optimized poses are still final frozen exports;
+this does not establish causal online mapping or observations acquired at proposed
+frontier goals. No physical motion, new coverage or live feedback loop is claimed.
 
-Keep partial tracking, likely class errors, unresolved chair identity and unknown
-floor/map accuracy explicit. Preserve the historical M4 late CLI-query and M9
-independent-verifier failure records; later direct checks passed separately.
-The native Open3D viewer remains accepted. The older M3 task in `prompt.md`
-stays unchanged because capture-quality conditions were not fully verified;
-the newer offline/pipeline direction supersedes it. Keep room evidence local
-and ignored.
+Keep all 48 camera projections into unknown grid cells, partial tracking,
+provisional labels/instance association, and uncertain floor/map accuracy explicit.
+Do not snap camera starts into free space, relax planning policies, install Nav2,
+or start ROS/GPU work for this step. Preserve historical M4/M9 failure evidence,
+the accepted native Open3D viewer and the older superseded task in `prompt.md`.
+Room data, generated snapshots and replay outputs remain local and ignored.
 
-Learning checkpoint: a useful search interface must expose a complete decision
-and its evidence, including why it chose an object route, exploration or refusal.
+Learning checkpoint: new observation evidence can change memory and planning,
+but a replayed detection is not proof that the selected exploration goal caused
+an observation or that a physical search succeeded.
 
 ## 6. Target System Architecture
 
@@ -883,7 +878,8 @@ multi-view semantic fusion.
 
 ### M9: Object Search Interface
 
-Status: `VERIFIED` for minimum offline memory-to-goal and route previews.
+Status: `VERIFIED` for minimum offline memory-to-goal and route previews,
+including the single-command goal/route/frontier composition.
 Fixed stand-off/clearance assumptions, map/pose identity, explicit starts,
 whole-segment route checks, PNGs and no-goal/no-route outcomes pass on the saved
 map. The successful route uses an explicitly simulated start; recorded camera
@@ -903,7 +899,8 @@ Learning goal: grounding semantic results into actionable robot goals.
 
 ### M10: Exploration And Navigation
 
-Status: `VERIFIED` for minimum offline geometric frontier fallback only.
+Status: `VERIFIED` for minimum offline geometric frontier fallback and its
+single-command search composition.
 Free/unknown boundaries, restricted cardinal viewing rays, explicit start
 validation and reused route checks pass on the frozen map. Starts are simulated
 for successful proposals; recorded camera starts remain invalid. Active sensing,
@@ -2612,6 +2609,98 @@ Next action:
 
 - Join the existing goal, route and frontier functions in one reproducible
   offline search-demo command with a single inspectable decision report.
+
+### 2026-09-11: M9/M10 Single-Command Offline Search Demonstration
+
+Status: `VERIFIED` for frozen-memory query, goal, route/frontier composition and
+explicit refusals. Live sensor-to-motion integration remains unverified.
+
+Changed:
+
+- Added `scripts/run_offline_search.py`, a thin caller of the three existing
+  search functions. It requires memory, map, label and one explicit start;
+  object goals select the route branch and no-goal outcomes select frontiers.
+  Route failure never silently switches branches. No planner, policy, dependency
+  or renderer was changed.
+- Added 15 composition tests and `docs/offline-search-demo.md`; updated README
+  and canonical state. The top-level `search.json` preserves query candidate IDs,
+  original no-goal reasons, per-candidate outcomes and start provenance. Relative
+  stage report/PNG paths and completed-report hashes lead to full source evidence.
+- Expected input/I/O/database errors are recorded and re-raised; incomplete
+  stages remain distinguishable. Existing output directories are refused without
+  overwriting them. Observation, motion and new-coverage flags remain false.
+
+Verified on this Jetson:
+
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest
+  discover -s tests/search -v`: all 63 tests pass in 14.783 s, including the
+  preceding 48 goal/route/frontier tests. New tests use real temporary SQLite
+  memory and synthetic map files through the actual stage functions; only PNG
+  rendering is stubbed. They cover branch choice, all candidate retention,
+  invalid starts, disconnected object/frontier routes, absent frontiers,
+  source and generated-goal corruption, image-write failure, missing memory,
+  start requirements and output preservation.
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python
+  data/outputs/offline_search/demo_20260911/verify_demo.py`: 12 fresh CLI
+  processes complete within the 60-second per-command limit. Nine normal
+  commands cover chair, backpack, refrigerator, sink, repeated chair/backpack,
+  a second simulated backpack start, and camera node 1 for both branches.
+- Chair retains provisional IDs 2/3, goal [1.15,0.63366] m, and the original
+  1.05 m / 22-cell route from simulated [1.65,0.08366] m. Backpack/fridge/sink
+  retain absent-target/no-free-cell/insufficient-clearance reasons and propose
+  the same in-place -Y view of group 39. Simulated [1.05,0.13366] m retains
+  the 0.05 m route to a -X view of group 49. Full goal decisions and matching
+  route/frontier decisions reproduce the preceding measured artifacts.
+- Camera node 1 preserves [-0.002109,-0.03223] m and source stamp
+  1789080202178160000 ns. Chair returns top-level `NO_ROUTE`, with
+  `INVALID_START: unknown_cell` for each candidate; backpack returns
+  `INVALID_START`. No relocation or alternate branch hides the failure.
+- An isolated memory copy with incompatible pose identity exits 1 with
+  `INCOMPLETE` at the goal stage and no branch/PNG. Missing start exits 2 before
+  creating output. Reusing the measured chair directory exits 1 and leaves its
+  successful earlier reports byte-identical; that prior report is not evidence
+  of success for the rejected invocation. All nine completed decisions/refusals
+  exit zero.
+- Repeated chair/backpack decisions match apart from timing. All input hashes
+  remain unchanged, including memory, mapping evidence and prior comparison
+  artifacts. The three planning scripts match their M10 verified source hashes.
+  All 24 PNGs decode; the chair route, backpack frontier and camera-chair
+  refusal overlays were visually inspected. Room evidence remains local/ignored.
+- Reviewed the complete five-file diff. Compilation of the new script/test and
+  staged whitespace checks pass. `final_check.json` records staged hashes,
+  unchanged verified runtime/input hashes, test evidence and ignored outputs.
+- Python 3.10.12, NumPy 1.26.4 and OpenCV 4.11.0 on aarch64, with existing
+  SciPy 1.15.3, Matplotlib 3.10.9 and PyYAML 6.0.3. Operation-time
+  min/median/P95/max across nine normal commands is
+  1801.753/2708.615/5378.207/5385.983 ms; process wall time is
+  2573.439/3527.471/6185.650/6185.835 ms. Mixed cases include repeated source
+  hashing and rendering; wall time also includes dependency startup. These are
+  functional timings, not a sustained resource or live throughput benchmark.
+
+Evidence:
+
+- `data/outputs/offline_search/demo_20260911/`: `integration.json`,
+  `verify_demo.py`, `verification.log`, `unit_tests.log`, `final_check.json`,
+  per-command logs and `chair`, `backpack`, `refrigerator`, `sink`,
+  `chair_repeat`, `backpack_repeat`, `backpack_move`, `camera_chair`,
+  `camera_backpack` and `changed_identity` outputs. The deliberately altered
+  `changed_identity_memory.db` is an ignored copy; original inputs are unchanged.
+
+Limits and learning:
+
+- This combines static search stages without acquiring observations or updating
+  memory. Successful routes use explicit simulated starts. Recorded camera
+  positions remain unsuitable in the occupancy export; physical footprint,
+  map/floor accuracy, visibility and current localization remain unverified.
+  Tracking gaps, likely class errors and unresolved chair identity persist.
+- A complete search decision includes its evidence and refusal reasons. A
+  remembered candidate, a usable goal, a route and an executed observation are
+  separate conditions; composing them does not make them physical acceptance.
+
+Next action:
+
+- Replay the saved observations chronologically into a separate memory and use
+  the new command to verify how arriving evidence changes the search decision.
 
 ## 16. End-Of-Session Handoff Template
 
