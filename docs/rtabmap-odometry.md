@@ -371,9 +371,33 @@ source scripts/rtabmap_odom_env.bash
   NEW_ATTEMPT 0.25 data/outputs/rtabmap_odom/motion_guess_20260910/no_motion_guess.yaml
 ```
 
-Next: inspect feature correspondences and depth at their image locations around
-21.1 s in this same bag, using the installed diagnostics before changing another
-algorithm parameter. Preserve the earlier frames needed to initialize odometry.
+The user subsequently chose to connect the whole pipeline before improving each
+component. Further feature/depth diagnosis around 21.1 s is deferred. The next
+validation is minimum mapping integration on this same bag: create and reopen a
+nonempty database, export geometry and verify the map-to-camera TF chain at
+mapped observation stamps. Partial coverage must stay explicit. Full-room
+accuracy, continuous tracking and real-time operation are later quality goals;
+they do not gate the first connection to M5 object observations.
+
+Local mapping preflight found no ROS `rtabmap_slam` node in system Humble or the
+extracted workspace. With existing dependencies reused, the missing packages
+listed in cached APT metadata are:
+
+| Package after `ros-humble-` | Version | Download bytes |
+| --- | --- | --- |
+| `rtabmap-slam` | `0.23.7-1jammy.20260805.010959` | 687952 |
+| `apriltag-msgs` | `2.0.2-1jammy.20260716.235846` | 64780 |
+| `aruco-msgs` | `5.0.5-1jammy.20260717.002603` | 52094 |
+| `aruco-opencv-msgs` | `2.4.2-1jammy.20260717.002616` | 61326 |
+
+Total: 866152 download bytes and 7328768 declared extracted bytes. The existing
+35 required dependency archives were hash-verified. The plan is to verify and
+extract only these four additions into the user workspace after the requested
+download approval. No system installation is planned. Remote availability has
+not been checked; no mapping run or export is claimed. Evidence is in
+`data/outputs/rtabmap_slam/preflight_20260910/`: `dependency_plan.json`, local APT
+simulation and package metadata. The installed core CLI is separate from the
+missing ROS mapping node.
 
 ## Interpretation
 

@@ -371,7 +371,7 @@ and `docs/camera-femto-mega.md` for evidence and limitations.
 
 ## 5. Current Next Task
 
-Milestone: **M4 offline odometry failure diagnosis on the existing second bag**.
+Milestone: **M4 minimum mapping integration on the existing second bag**.
 
 Session authorization, 2026-09-10: after questioning further recording, the user
 asked to try existing data and explicitly approved downloading the missing
@@ -381,13 +381,21 @@ under `~/projects/rtabmap_odom_ws` without system package installation. Safe
 continued work and GitHub progress updates are already authorized; do not repeat
 these approval questions. Ask before downloading newly required components.
 
+Latest user direction, 2026-09-10: build the complete pipeline first, then
+improve individual components. The existing odometry/TF evidence is sufficient
+to attempt the next integration step. Defer further fast-turn correspondence
+diagnosis, parameter sweeps and capture-quality refinement. This changes the
+order of work; it does not establish continuous tracking, pose accuracy or SLAM
+acceptance. Do not make those quality goals prerequisites for a minimal map
+that can drive the downstream object-observation pipeline.
+
 The second bag preserves all 1411 RGB-D pairs and exact replay, but initial
 odometry trials report sustained tracking loss. Recover the latest measured
 results from `docs/rtabmap-odometry.md` and the ledger before any new trial.
 The approved single-parameter comparison is complete: disabling
 `Odom/GuessMotion` shortened the main loss from 60.766 to 10.451 s, while both
-settings failed at 21.104 s and the 18–25 s window worsened. Keep the checked-in
-default; prediction-off is an experimental result, not an accepted tracking fix.
+settings failed at 21.104 s and the 18–25 s window worsened. Reuse a measured
+setting and record which one the integration uses; avoid further odometry tuning.
 Keep camera data and derived trajectories local and ignored. Use the separate
 RTAB-Map environment; do not mix the camera OpenCV 4.8 overlay with this binary
 runtime's system OpenCV 4.5d.
@@ -399,33 +407,41 @@ earlier M3 task text in `prompt.md` remains unchanged because its full capture
 quality was not verified; that is not an instruction to restart recording.
 Follow this explicitly authorized offline continuation and retain M3 limitations.
 
+Local preflight: the ROS `rtabmap_slam` node is absent from both system Humble
+and the extracted workspace. Cached APT metadata identifies four additional
+ARM64 packages totaling 866152 download bytes and 7328768 declared extracted
+bytes; 35 required existing archives were hash-verified for reuse. The exact
+plan is `data/outputs/rtabmap_slam/preflight_20260910/dependency_plan.json`.
+Download permission for these newly required packages is pending. Do not run a
+system installation or mistake the installed core CLI for the ROS mapping node.
+
 Required sequence:
 
-1. Recover git state, the original trials and `motion_guess_20260910/` evidence.
-   Inspect feature correspondences and depth at their image locations around
-   source time 21.1 s. The original failure frame has 75.45% valid depth overall;
-   this does not establish validity at the features used for odometry.
-2. Use installed diagnostics and the same bag, preserving earlier frames needed
-   to initialize odometry. The saved scalar diagnostics do not contain feature
-   locations; collect those only if needed for this bounded inspection. Label
-   independent feature matching separately from RTAB-Map's own correspondences.
-   Keep diagnostic overhead separate from timing results. Do not tune another
-   parameter or attribute all failures to operator motion from these data alone.
-3. Retain millimeter depth, camera calibration, 5 ms RGB-D synchronization,
-   simulated time and timestamped pose/TF checks. Keep automatic reset disabled
-   while diagnosing continuity. The accepted native/camera paths stay separate.
-4. Save tracking loss and input omissions explicitly. A successful process exit
-   or a `MEASURED` checker report does not establish accurate odometry. Validate
-   any promising adjustment over the full bag before enabling full mapping.
-5. Review the complete diff and record measured results and one next action.
-   Do not introduce perception, robot motion or a fresh capture in this step.
+1. Resolve the four-package download under the standing user instruction, then
+   verify hashes and inspect/extract into the existing user workspace. Check
+   actual runtime libraries and installed mapping interfaces before editing.
+2. Connect the existing RGB-D bag and odometry to the upstream ROS mapping node.
+   Reuse measured settings, millimeter depth, calibration, 5 ms RGB-D sync and
+   simulated time. Keep lost poses explicit and automatic reset disabled.
+3. Replay the full bag with bounded startup/shutdown, saving a new database,
+   graph/trajectory and geometric map export. Record rejected inputs, tracking
+   gaps, map segments and reported loop closures, including zero closures.
+4. Verify a nonempty database can be reopened and map geometry exported. Check
+   `map -> odom -> camera_link -> camera_color_optical_frame` at source stamps
+   used for mapped observations. Exclude observations without valid poses/TF;
+   never fill tracking gaps with invented poses or combine unrelated map segments.
+5. Review the diff and update measured evidence. Once this integration contract
+   passes, advance to M5 YOLO plus depth object observations rather than another
+   odometry tuning cycle. No fresh capture or robot motion is needed for this step.
 
-Acceptance: source-stamped visual evidence around the first sustained loss,
-showing feature coverage, correspondence quality and depth validity where
-available, with explicit limits on the still-unresolved physical cause.
+Integration acceptance: the bag drives a mapping node, creates a nonempty,
+reopenable database and geometric export, and provides a valid timestamped map
+coordinate chain for mapped observations. Partial coverage is acceptable when
+explicitly reported. Continuous tracking, geometric accuracy, loop consistency
+and real-time throughput remain separate quality acceptance goals.
 
-Learning checkpoint: distinguish intact RGB-D delivery, timestamp-correct TF,
-the algorithm's tracking state, and independently established pose accuracy.
+Learning checkpoint: distinguish a working component, a connected pipeline,
+and a validated high-quality result; improve quality after the interfaces work.
 
 ## 6. Target System Architecture
 
@@ -658,17 +674,25 @@ Learning goal: ROS topics, QoS, synchronization, calibration, TF, and rosbag.
 ### M4: RTAB-Map RGB-D SLAM
 
 Status: `IMPLEMENTED` for the offline odometry experiment; measurement `VERIFIED`
-with sustained tracking loss. Continuous tracking and mapping remain `PLANNED`.
+with sustained tracking loss. Minimum mapping integration is `PLANNED`, with its
+ROS node dependency currently `BLOCKED` pending the requested download approval.
+Continuous tracking and mapping quality remain `PLANNED`.
 
 Steps:
 
 1. Run RTAB-Map on recorded data first.
-2. Validate odometry and TF before enabling full mapping.
-3. Tune depth limits and synchronization using measured camera behavior.
-4. Run a room loop and verify a plausible loop closure.
-5. Save database, occupancy map, trajectory, and launch configuration.
+2. Use the verified odometry/TF contract to connect the mapping node.
+3. Save and reopen a database; export geometry and timestamped poses/TF.
+4. Advance to M5 once the minimum integration contract passes.
+5. Improve tracking, depth limits and throughput, then evaluate room-loop quality.
 
-Acceptance:
+Minimum integration acceptance:
+
+- A nonempty database can be reopened and a geometric map exported.
+- Mapped observations have a connected, timestamp-valid TF chain.
+- Tracking loss and partial map coverage remain explicit for downstream users.
+
+Later quality acceptance:
 
 - The TF tree is connected and temporally valid.
 - Mapping survives the full bag without repeated reset or fatal frame drops.
@@ -942,10 +966,13 @@ cuboid, but Jetson feasibility and Femto domain transfer are unverified.
 Reason: objectness, 3D geometry, class labels, and text similarity have different
 failure modes and must not be collapsed into one confidence value.
 
-### ADR-005: Build The Vertical Slice Before TensorRT Optimization
+### ADR-005: Build The Vertical Slice Before Component Optimization
 
-Reason: optimizing YOLO alone does not prove that camera, SLAM, TF, memory, and
-query behavior work together. Profile the integrated system first.
+Reason: optimizing YOLO or odometry alone does not prove that camera, SLAM, TF,
+memory and query behavior work together. The user reaffirmed pipeline-first work
+on 2026-09-10. Once a component's minimum interface contract is measured, connect
+the next component; retain known limitations and profile the integrated system
+before spending more time on individual quality or performance improvements.
 
 ### ADR-006: The Core Is Robot-Base Agnostic
 
@@ -1730,6 +1757,46 @@ Next action:
 
 - Inspect feature correspondences and depth at their image locations around
   source time 21.1 s in the same bag, before another parameter change.
+
+### 2026-09-10: Pipeline-First Direction And Mapping Dependency Preflight
+
+Status: `VERIFIED` for local dependency inspection. Mapping integration is
+`PLANNED`; its missing ROS node is `BLOCKED` pending download approval.
+
+Changed:
+
+- Applied the user's direction to connect the whole pipeline before refining
+  components. Deferred further turn-failure diagnosis and advanced the next task
+  to minimum mapping integration, followed by M5 object observations.
+- Separated integration acceptance from later mapping quality acceptance in this
+  file and documented the direction in README and the odometry notes. Preserved
+  all negative results; no new tracking, mapping or accuracy success is claimed.
+
+Verified:
+
+- No `rtabmap_slam` package registration or executable exists in system Humble
+  or the extracted RTAB-Map workspace. Local core tools do exist, but they do not
+  provide the missing ROS node. No matching SLAM archive/source was found in the
+  searched project, download and user-cache locations.
+- A local `apt-get --simulate --no-install-recommends install
+  ros-humble-rtabmap-slam` requires 39 packages not registered in system dpkg.
+  Of these, 35 match the versions already extracted and their retained archive
+  hashes pass. Four additional packages are needed: `rtabmap-slam`,
+  `apriltag-msgs`, `aruco-msgs`, `aruco-opencv-msgs` (all `ros-humble-` prefixed).
+- Cached metadata totals 866152 new download bytes and 7328768 declared
+  extracted bytes. Exact versions, hashes and repository paths are saved;
+  remote availability is not checked. No download or system installation ran.
+
+Evidence:
+
+- `data/outputs/rtabmap_slam/preflight_20260910/`: `dependency_plan.json`,
+  `apt_simulation.log`, four package metadata records and reused archive hashes.
+
+Decision and next action:
+
+- Obtain the requested approval for those four missing packages, then run the
+  existing bag through minimal mapping with database/export/TF verification.
+  Keep the accepted camera path and `prompt.md` intact; no new recording.
 
 ## 16. End-Of-Session Handoff Template
 

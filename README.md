@@ -354,6 +354,14 @@ Recovery improved in this one comparison, while processing became slower and
 pose accuracy remains unknown. The checked-in default is retained.
 See [odometry setup and evidence](docs/rtabmap-odometry.md).
 
+The current priority is to connect the pipeline before further component tuning.
+Next is minimum mapping integration on this same bag: create and reopen a map
+database, export geometry, and verify timestamped `map -> odom -> camera` TF.
+Explicit partial coverage is acceptable for this integration step; mapping
+quality and real-time performance remain separate goals. After that contract
+passes, proceed to YOLO plus depth object observations. The ROS mapping node is
+currently missing locally; its four-package dependency plan is prepared.
+
 Goals:
 
 - Run RTAB-Map first on recorded RGB-D data
