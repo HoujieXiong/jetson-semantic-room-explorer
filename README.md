@@ -9,8 +9,10 @@ The first **offline pipeline MVP is verified** on the Jetson: one command takes
 saved RGB-D frames and final map poses through GPU detection, persistent object
 memory and search decisions. See the [runnable demo and measured timeline](docs/rgbd-search-demo.md).
 Planning starts are explicitly simulated. SLAM and GPU perception now also pass
-a bounded concurrent rosbag trial at 0.25x; live real-time operation and physical
-navigation remain unverified.
+a bounded concurrent rosbag trial at 0.25x. Its own final map and observations
+now feed a separate persistent memory and matching search preview; see the
+[measured finalization](docs/finalize-concurrent-memory.md). Live real-time
+operation and physical navigation remain unverified.
 
 ## Goal
 
@@ -579,8 +581,7 @@ GPU perception: 18 detections, 15 accepted depth observations and three rejectio
 feed the same memory/search timeline. All 130 focused tests and 11 fresh CLI
 acceptance cases pass; repeated detections and decisions match, and all 66 PNGs
 decode. This completes the first offline pipeline MVP. See the
-[command, artifacts and limitations](docs/rgbd-search-demo.md). The next step is
-finalization of the new concurrent run into frozen memory/search; Nav2 and edge
+[command, artifacts and limitations](docs/rgbd-search-demo.md). Nav2 and edge
 optimization remain planned.
 
 Concurrent SLAM and GPU perception are now verified at 0.25x rosbag replay.
@@ -591,6 +592,18 @@ tests pass, independent pixel/TF checks pass, and every owned process closes.
 See [the measured comparison and commands](docs/concurrent-rgbd-perception.md).
 Real-time throughput, reliable tracking and causal online memory/search remain
 unverified.
+
+The concurrent run's own frozen map now feeds memory and search without rerunning
+inference: 62 of 64 exported nodes retain 252 detections, with 189 accepted depths
+and 63 explicit rejections. Two nodes are excluded with source reasons. The new
+memory has 46 provisional records; duplicate import leaves it byte-identical.
+Bottle/chair searches produce routes from an explicit simulated start, backpack
+uses the frontier fallback, and the recorded camera start is refused as unknown.
+All 29 memory/finalization tests pass. Original online poses/points are preserved
+beside final optimized coordinates. See the
+[commands, results and evidence](docs/finalize-concurrent-memory.md).
+The next step needs human help with a short camera translation between measured
+marks to assess tracking and physical scale. No new capture has started.
 
 Goals:
 
@@ -685,6 +698,7 @@ jetson-semantic-room-explorer/
 - [X] Chronological observation-feedback replay with preserved memory snapshots
 - [X] Single-command saved RGB-D-to-search demo: first offline pipeline MVP
 - [X] Bounded concurrent SLAM/perception and resources at 0.25x rosbag replay
+- [X] Concurrent observations finalized into their own frozen memory and search
 - [ ] Real-time SLAM/perception and causal online memory/search acceptance
 - [ ] Physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete

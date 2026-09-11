@@ -506,53 +506,80 @@ See `docs/concurrent-rgbd-perception.md` and
 Real-time throughput, tracking/geometry quality and causal online memory/search
 remain unverified. No live camera capture or physical motion was executed.
 
+### 4.15 Concurrent Observations To Frozen Memory And Search
+
+Status: `VERIFIED` for post-run finalization against the concurrent run's own map.
+
+The new map reopens with 76 stored nodes and exports 64 final poses, 50,537 points
+and a checked occupancy grid. Original RGB-D extraction verifies all 58,982,400
+depth pixels. `scripts/finalize_concurrent_observations.py` selects 62 exported
+nodes by source timestamp, explicitly excludes two, and retains all 252 detections
+(189 accepted depths, 63 rejections). Final poses reproject camera surface points
+while preserving original online poses/points. The new SQLite memory has 46
+provisional records and 185 supporting observations. Reopened queries and
+matching-map searches pass: simulated bottle/chair routes, backpack frontier
+fallback and recorded-camera-start refusal. Duplicate import is byte-identical;
+29 focused tests pass. See `docs/finalize-concurrent-memory.md` and
+`data/outputs/concurrent_rgbd/finalization_20260911/integration.json`.
+No inference rerun or physical motion occurred. This is frozen post-run memory,
+not causal online search; physical geometry and identity remain unverified.
+
 ## 5. Current Next Task
 
-Milestone: **M5/M6/M9 finalize concurrent observations into frozen memory/search**.
+Milestone: **M4 controlled measured-motion data and tracking/scale evaluation**.
 
-The bounded concurrent producer is verified, including its measured scheduling
-fix. The user explicitly requested continued autonomous work until human feedback
-or new data collection is needed. Continue with the existing data and authorized
-GitHub updates; ask before downloading newly needed components.
+Status: `PLANNED`; new physical reference data needs an available operator.
 
-Use `data/outputs/concurrent_rgbd/trial_20260911/attempt_02` as the new source run,
-its `verification.json`, `measurement.json`, original `room_walk_02` bag and local
-weights. Read the existing database/export/check helpers under
-`data/outputs/rtabmap_slam/`, `scripts/extract_mapped_rgbd.py`,
-`scripts/observe_rgbd_objects.py`, `scripts/scene_memory.py` and
-`scripts/run_offline_search.py`. Keep all earlier maps/memories/evidence intact.
+The concurrent run and its own final map-to-memory/search acceptance are now
+verified and recorded below. The user requested continued autonomous work until
+human feedback or data collection is needed. This next check needs the user to
+measure a short translation path and move the camera; existing footage has no
+precise displacement reference and includes fast turns/handling. Do not request
+another whole-room loop. Keep authorized safe work and GitHub updates moving
+once the reference and operator readiness are available; ask before downloading
+newly needed components. No new recording has been started.
+
+Read `docs/finalize-concurrent-memory.md`, `docs/camera-ros2.md`,
+`docs/rtabmap-odometry.md`, the bounded local recorder
+`data/outputs/femto_ros2/room_walk_20260910T223548Z/run_check.py`, and the existing
+sensor/odometry/concurrent checkers. Preserve all prior bags, maps and memories.
 
 Required sequence:
 
-1. Explain in Chinese the input/output boundary, smallest change, files and
-   verification. Reopen/check and export the newly completed map using existing
-   local RTAB-Map helpers; verify final poses/geometry and original database hashes.
-2. Reuse original mapped RGB-D extraction and source identity checks. Match the
-   concurrent camera-frame detections to exported nodes by exact source timestamp,
-   verify source pixels/calibration/depth, and explicitly list excluded nodes.
-   Use a minimal finalization entry, without rerunning inference or changing the
-   memory schema. Preserve every selected detection and depth rejection.
-3. Reproject accepted camera surface points with this run's final optimized poses
-   into a separate frozen-map observation report. Preserve the original online
-   pose/evidence and identify the final reprojection separately. Do not label this
-   post-run finalization as causal online memory, or mix it with the old map.
-4. Import the completed report into a new SQLite memory, reopen queries and run
-   the existing search preview against the matching new occupancy export. Keep
-   actual camera-start refusals and successful simulated starts explicit. Check
-   source hashes, points, counts, duplicate import behavior and generated outputs.
-5. Run focused tests, inspect artifacts, review the complete diff and update the
-   ledger only with measured results. Continue from the resulting evidence until
-   a concrete next acceptance check requires human input or new camera data.
+1. Obtain operator readiness, actual spacing/measurement uncertainty of two
+   marks about 1 m apart, camera reference point/height and a cable-safe path.
+   Prefer a slow lateral translation while keeping the camera level and heading
+   fixed. Confirm that the scene has usable texture and depth. Explain the
+   proposed sequence and verification in Chinese before any changes/capture.
+2. Use a fresh evidence directory and the existing 60-second bounded recorder.
+   Proposed sequence: 5 s still, 15 s outbound, 5 s still, 15 s return, 20 s still.
+   Give movement cues only after recording is confirmed started; keep the camera
+   still until recording closes. Record actual movement/handling deviations.
+   Check local camera availability, disk space, process ownership and stream
+   contract before the trial; do not move equipment automatically.
+3. Predeclare stationary windows and evaluation criteria using the actual
+   reference precision. Verify recorded/replayed source hashes, timestamps,
+   calibration/depth units and clean shutdown. Replay the same baseline and
+   report tracked/lost/dropped intervals, stationary drift, endpoint displacement
+   error and return error. Preserve failed results rather than tuning the
+   acceptance criteria after seeing them.
+4. Once the data is usable, run the existing mapping/perception/finalization/
+   memory/search sequence on that new bag. Review images and map/floor coverage
+   before making physical claims. Do not treat unknown camera-start cells alone
+   as proof of wrong floor alignment, or use simulated routes as navigation proof.
+5. Make only changes required by observed failures or this measurement boundary.
+   Run focused checks, inspect the complete diff, update evidence and push the
+   verified checkpoint. Continue without additional permission for authorized
+   software work; pause only when a specific missing reference or human action
+   prevents the next acceptance check.
 
-Acceptance: this newly measured concurrent run produces a checked frozen map,
-source-associated persistent scene memory and an inspectable search decision,
-without substituting the earlier map or rerunning object inference. Preserve
-online/final pose distinctions, provisional identities, partial tracking and
-unverified map/floor accuracy. No Nav2, physical motion, new model, new viewer or
-open-vocabulary/CuTR implementation is required for this step.
+Acceptance: one source-verified controlled recording with explicit human
+reference and a reproducible tracking/scale report. Keep measurement completion
+separate from passing geometric-quality thresholds. Do not claim full room-map
+accuracy, instance identity, real-time acceptance or navigation from this trial.
 
-Learning checkpoint: observations remain tied to sensor time; after graph
-optimization their map coordinates must use a named, consistent pose version.
+Learning checkpoint: correct source-time arithmetic and consistent map versions
+are necessary, but only a physical reference can measure physical scale error.
 
 ## 6. Target System Architecture
 
@@ -3054,6 +3081,104 @@ Next action:
 
 - Finalize the new concurrent run's map and camera observations into a separate
   frozen scene memory and matching search preview, preserving both pose versions.
+
+### 2026-09-11: M5/M6/M9 Concurrent Observations Finalized Into New Map Memory
+
+Status: `VERIFIED` for frozen post-run observations, persistence and matching-map
+search using the newly measured concurrent run, without rerunning inference.
+
+Changed:
+
+- Added `scripts/finalize_concurrent_observations.py` and 12 focused tests.
+  The finalizer reuses mapped-frame loading, depth estimation and memory
+  validation; existing inference, memory schema and search policies are unchanged.
+- Exact source timestamps select exported nodes. Run/measurement verification,
+  source pixels, calibration, model, map/pose identity and raw-depth results must
+  agree. Every selected detection/rejection is preserved. Accepted camera points
+  are reprojected with final optimized poses; original online poses, points and
+  result completion times remain separately inspectable. Missing source/online
+  evidence is explicitly excluded. Mismatches leave an incomplete report; existing
+  outputs are refused. Added reproduction/results documentation and README status.
+
+Verified on this Jetson:
+
+- Existing local RTAB-Map database/export/check helpers complete successfully on
+  `data/outputs/concurrent_rgbd/trial_20260911/attempt_02`. SQLite integrity passes
+  with 76 stored nodes. Export has 64 optimized camera/robot poses, 50,537 grayscale
+  points, 64 decoded depth images and a 223 x 140 grid at 0.05 m. Grid counts are
+  1,422 free, 6,064 occupied and 23,734 unknown. Final poses match the final graph;
+  the original database hash remains unchanged.
+- Existing `extract_mapped_rgbd.py` retrieves all 64 original RGB-D frames. All
+  58,982,400 raw depth pixels equal exported depth; original RGB is retained in
+  place of database grayscale. Both are on the verified 1280x720 color grid,
+  RGB uint8 and depth uint16 millimeters with zero invalid.
+- First finalization completes in 29.367 s: 62 selected nodes, 252 detections,
+  189 accepted depths and 63 depth rejections. Excluded node 1 has no accepted
+  online source map TF; node 44's inference was queue-dropped. Later final poses
+  do not erase those original exclusions. No YOLO inference is rerun.
+- Independent raw-pixel projection agrees within 8.882e-16 m per coordinate.
+  Accepted points shift from online to final map positions by median 0.022823 m,
+  P95 0.081945 m and maximum 0.157852 m. This measures pose-version correction,
+  not physical accuracy. Reversing that field replacement exactly reproduces
+  every original selected detection; source poses/times are also unchanged.
+- New SQLite import takes 128.575 ms and stores 62 frames/252 observations.
+  There are 46 provisional records supported by 185 observations: 46 new-record
+  decisions, 139 nearest matches, four same-frame overlaps without additional
+  support and 63 unlocalized depth rejections. These are not 46 verified objects.
+- Fresh-process bottle query returns six candidates (IDs/supports
+  13/8, 38/2, 4/13, 3/5, 29/1, 14/1); chair returns four (10/16, 11/12, 30/1,
+  28/1); backpack is absent from memory. Repeated finalization is identical
+  except elapsed time. Duplicate import adds zero frames and leaves memory
+  byte-identical. Reopened SQL integrity/foreign keys and complete stored frame
+  evidence pass independent checks.
+- The new grid has 186 free cells passing the assumed 0.25 m clearance.
+  The explicit simulated start [1.5,0.43366000000000016] m is selected by maximum
+  conservative clearance, with y/x tie ordering; clearance is 0.523662 m.
+  All six bottle candidates have routes of 0.15-0.55 m and all four chair
+  candidates have routes of 0.15-0.45 m. Backpack uses the geometric frontier
+  branch with `EXPLORATION_READY` and a 0.05 m preview route. No movement occurs.
+- All 64 recorded camera translations project into unknown grid cells. The node
+  1 bottle invocation returns `NO_ROUTE`, with `INVALID_START: unknown_cell` for
+  all six candidates. It is not snapped into the simulated free region. Every
+  search uses the new memory/map hashes and completes with checked stage reports.
+- Wrong-map finalization and existing-output reuse both exit 1 as expected;
+  the wrong-map report remains `INCOMPLETE` with zero frames, and the existing
+  primary report is unchanged. All 34 search PNGs decode. Map overview, bottle
+  route, frontier and camera-start refusal images were visually inspected.
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest discover
+  -s tests/memory -v`: 29 pass in 0.519 s, including 12 new cases using real depth
+  validation/SQLite with a controlled frame-loader boundary. Cases exercise known
+  online/final transforms, reopened means, exclusion/no-valid results, corrupted
+  source evidence, policy/units, model identity, mid-run mutation and output reuse.
+
+Evidence:
+
+- `data/outputs/concurrent_rgbd/trial_20260911/attempt_02/`: database/export
+  checks, commands/logs, final export and map preview, alongside original trial.
+- `data/outputs/concurrent_rgbd/finalization_20260911/`: frames, primary/repeat
+  reports, memory/import/query results, start fixture, four search cases, expected
+  failures, local acceptance harness, `integration.json`, `verification.log`,
+  `memory_tests.log` and `final_check.json`. Inputs and previous artifacts remain
+  intact. Raw room data, databases, weights and generated outputs stay ignored.
+- `docs/finalize-concurrent-memory.md`: exact commands, measured counts and limits.
+
+Limits and learning:
+
+- This completes the existing-data concurrent producer to frozen memory/search
+  slice. It does not establish causal online memory, real-time throughput, object
+  identity, physical scale/floor accuracy or navigation. Tracking failures in the
+  original bag remain. Unknown camera projections alone do not diagnose the floor.
+- Map optimization changes coordinates without changing the original observation.
+  A consistent named pose version and preserved source evidence prevent fusion
+  from silently mixing online and final geometry. Physical accuracy still needs
+  a measured physical reference, which this source bag does not provide.
+
+Next action:
+
+- With an available operator, record a short level-camera translation between
+  measured marks and back, using stationary endpoints and the existing bounded
+  recorder, to evaluate tracking and scale. Await that human reference/readiness;
+  no new capture has started and no whole-room loop is required.
 
 ## 16. End-Of-Session Handoff Template
 
