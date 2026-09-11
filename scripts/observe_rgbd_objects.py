@@ -12,6 +12,9 @@ from extract_mapped_rgbd import file_hash
 from rgbd_geometry import map_from_camera, pinhole_matrix
 
 
+INFERENCE = {'imgsz': 640, 'confidence_threshold': 0.25, 'device': 'cuda:0'}
+
+
 DEPTH_POLICY = {'inner_box_fraction': 0.5, 'max_depth_m': 5.0,
                 'min_valid_pixels': 20, 'min_valid_fraction': 0.25,
                 'mad_multiplier': 3.0, 'mad_sigma_factor': 1.4826,
@@ -129,6 +132,38 @@ def load_frame(manifest_path, node_id):
     return rgb, depth, k, transform, provenance
 
 
+def infer_rgbd(model, rgb, depth, k, transform=None):
+    """GPU inference and depth localization; an absent online pose leaves map points absent."""
+    import cv2
+    import torch
+
+    begin = time.monotonic()
+    inference = INFERENCE
+    # Ultralytics numpy inputs use OpenCV BGR; source NPZ arrays preserve RGB.
+    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    result = model.predict(source=bgr, imgsz=inference['imgsz'], conf=inference['confidence_threshold'],
+                           device=inference['device'], save=False, verbose=False)[0]
+    torch.cuda.synchronize()
+    prediction_ms = (time.monotonic()-begin)*1000
+    frame = {'predict_wall_ms': prediction_ms, 'model_stage_ms': result.speed, 'detections': []}
+    boxes = result.boxes
+    if boxes is not None:
+        for detection_id, box in enumerate(boxes):
+            xyxy = box.xyxy[0].cpu().tolist()
+            cls, confidence = int(box.cls.item()), float(box.conf.item())
+            if not np.isfinite(confidence) or not 0 <= confidence <= 1:
+                raise ValueError('Invalid detector confidence')
+            estimate = depth_observation(depth, k, xyxy)
+            detection = {'detection_index': detection_id, 'class_id': cls, 'label': result.names[cls],
+                         'detection_confidence': confidence, 'box_xyxy': xyxy, 'depth': estimate}
+            if estimate['status'] == 'ACCEPTED' and transform is not None:
+                camera = np.array(estimate['camera_point_m'])
+                detection['map_point_m'] = (transform[:3, :3]@camera+transform[:3, 3]).tolist()
+            frame['detections'].append(detection)
+    frame['inference_depth_wall_ms'] = (time.monotonic()-begin)*1000
+    return frame
+
+
 def observe(args):
     # Resolve local artifacts before loading a library that accepts model URLs/names.
     model_path = args.model.resolve(strict=True)
@@ -137,7 +172,7 @@ def observe(args):
     samples = [load_frame(args.frames.resolve(), node) for node in args.nodes]
     args.output.mkdir(parents=True, exist_ok=False)
     report = {'status': 'INCOMPLETE', 'model_path': str(model_path), 'model_sha256': file_hash(model_path),
-              'inference': {'imgsz': 640, 'confidence_threshold': 0.25, 'device': 'cuda:0'},
+              'inference': INFERENCE,
               'depth_policy': DEPTH_POLICY, 'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map',
               'point_unit': 'meter', 'frames': [],
               'representative_method': 'Actual inner-ROI pixel closest to inlier median depth; ties nearest box center.',
@@ -155,42 +190,25 @@ def observe(args):
         report['runtime'] = {'torch': torch.__version__, 'ultralytics': ultralytics.__version__,
                              'opencv': cv2.__version__, 'device': torch.cuda.get_device_name(0)}
         model = YOLO(str(model_path))
-        inference = report['inference']
         for index, (rgb, depth, k, transform, provenance) in enumerate(samples):
             begin = time.monotonic()
-            # Ultralytics numpy inputs use OpenCV BGR; source NPZ arrays preserve RGB.
-            bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-            result = model.predict(source=bgr, imgsz=inference['imgsz'], conf=inference['confidence_threshold'],
-                                   device=inference['device'], save=False, verbose=False)[0]
-            torch.cuda.synchronize()
-            prediction_ms = (time.monotonic()-begin)*1000
-            frame = {**provenance, 'first_predict_call': index == 0, 'predict_wall_ms': prediction_ms,
-                     'model_stage_ms': result.speed, 'detections': []}
-            canvas = bgr.copy()
-            boxes = result.boxes
-            if boxes is not None:
-                for detection_id, box in enumerate(boxes):
-                    xyxy = box.xyxy[0].cpu().tolist()
-                    cls, confidence = int(box.cls.item()), float(box.conf.item())
-                    if not np.isfinite(confidence) or not 0 <= confidence <= 1:
-                        raise ValueError('Invalid detector confidence')
-                    estimate = depth_observation(depth, k, xyxy)
-                    detection = {'detection_index': detection_id, 'class_id': cls, 'label': result.names[cls],
-                                 'detection_confidence': confidence, 'box_xyxy': xyxy, 'depth': estimate}
-                    if estimate['status'] == 'ACCEPTED':
-                        camera = np.array(estimate['camera_point_m'])
-                        detection['map_point_m'] = (transform[:3, :3]@camera+transform[:3, 3]).tolist()
-                    frame['detections'].append(detection)
-                    color = (80, 220, 80) if estimate['status'] == 'ACCEPTED' else (70, 70, 230)
-                    x0, y0, x1, y1 = [int(v) for v in xyxy]
-                    cv2.rectangle(canvas, (x0, y0), (x1, y1), color, 2)
-                    label = f'{detection_id}: {result.names[cls]} {confidence:.2f}'
-                    label += f' z={estimate["depth_m"]:.2f}m' if estimate['status'] == 'ACCEPTED' else ' depth rejected'
-                    cv2.putText(canvas, label, (max(0, x0), max(18, y0-6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
-                    a, b, c, d = estimate['roi_xyxy_exclusive']
-                    cv2.rectangle(canvas, (a, b), (max(a, c-1), max(b, d-1)), color, 1)
-                    if 'pixel_uv' in estimate:
-                        cv2.drawMarker(canvas, tuple(estimate['pixel_uv']), (0, 255, 255), cv2.MARKER_CROSS, 14, 2)
+            frame = {**provenance, 'first_predict_call': index == 0,
+                     **infer_rgbd(model, rgb, depth, k, transform)}
+            frame.pop('inference_depth_wall_ms')
+            canvas = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            for detection in frame['detections']:
+                detection_id, xyxy = detection['detection_index'], detection['box_xyxy']
+                estimate, confidence = detection['depth'], detection['detection_confidence']
+                color = (80, 220, 80) if estimate['status'] == 'ACCEPTED' else (70, 70, 230)
+                x0, y0, x1, y1 = [int(v) for v in xyxy]
+                cv2.rectangle(canvas, (x0, y0), (x1, y1), color, 2)
+                label = f'{detection_id}: {detection["label"]} {confidence:.2f}'
+                label += f' z={estimate["depth_m"]:.2f}m' if estimate['status'] == 'ACCEPTED' else ' depth rejected'
+                cv2.putText(canvas, label, (max(0, x0), max(18, y0-6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+                a, b, c, d = estimate['roi_xyxy_exclusive']
+                cv2.rectangle(canvas, (a, b), (max(a, c-1), max(b, d-1)), color, 1)
+                if 'pixel_uv' in estimate:
+                    cv2.drawMarker(canvas, tuple(estimate['pixel_uv']), (0, 255, 255), cv2.MARKER_CROSS, 14, 2)
             frame['processing_wall_ms'] = (time.monotonic()-begin)*1000
             frame['accepted_observations'] = sum(d['depth']['status'] == 'ACCEPTED' for d in frame['detections'])
             frame['annotation'] = f'node_{provenance["node_id"]}.png'

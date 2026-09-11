@@ -8,7 +8,8 @@ Autonomous semantic room exploration and object memory on Jetson Orin Nano.
 The first **offline pipeline MVP is verified** on the Jetson: one command takes
 saved RGB-D frames and final map poses through GPU detection, persistent object
 memory and search decisions. See the [runnable demo and measured timeline](docs/rgbd-search-demo.md).
-Planning starts are explicitly simulated; live concurrent integration and physical
+Planning starts are explicitly simulated. SLAM and GPU perception now also pass
+a bounded concurrent rosbag trial at 0.25x; live real-time operation and physical
 navigation remain unverified.
 
 ## Goal
@@ -579,8 +580,17 @@ feed the same memory/search timeline. All 130 focused tests and 11 fresh CLI
 acceptance cases pass; repeated detections and decisions match, and all 66 PNGs
 decode. This completes the first offline pipeline MVP. See the
 [command, artifacts and limitations](docs/rgbd-search-demo.md). The next step is
-a bounded concurrent SLAM/perception trial using the existing rosbag; Nav2 and
-edge optimization remain planned.
+finalization of the new concurrent run into frozen memory/search; Nav2 and edge
+optimization remain planned.
+
+Concurrent SLAM and GPU perception are now verified at 0.25x rosbag replay.
+All 1411 source pairs are received unchanged; overlapping inference with online
+pose waiting reduces queue drops from 793 to nine. The final run processes 1402
+frames, with 1109 accepted poses and 293 explicit pose refusals. All 56 focused
+tests pass, independent pixel/TF checks pass, and every owned process closes.
+See [the measured comparison and commands](docs/concurrent-rgbd-perception.md).
+Real-time throughput, reliable tracking and causal online memory/search remain
+unverified.
 
 Goals:
 
@@ -674,7 +684,8 @@ jetson-semantic-room-explorer/
 - [X] Single-command offline search demo with preserved decisions and stage evidence
 - [X] Chronological observation-feedback replay with preserved memory snapshots
 - [X] Single-command saved RGB-D-to-search demo: first offline pipeline MVP
-- [ ] Concurrent SLAM/perception integration and resource acceptance
+- [X] Bounded concurrent SLAM/perception and resources at 0.25x rosbag replay
+- [ ] Real-time SLAM/perception and causal online memory/search acceptance
 - [ ] Physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented

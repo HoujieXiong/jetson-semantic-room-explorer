@@ -489,61 +489,70 @@ checked. No dependency or existing runtime policy changed. See
 This is saved-frame inference using final poses and simulated starts; it does
 not complete live integration, CuTR, open vocabulary or physical navigation.
 
+### 4.14 Concurrent RGB-D Perception And SLAM
+
+Status: `VERIFIED` for bounded same-stream concurrency at 0.25x replay.
+
+`tests/check_concurrent_perception.py` reuses the mapping/sensor checkers and
+shared `infer_rgbd` GPU/depth work. Inference overlaps online source-time pose
+waiting, with one pending image, one worker and at most eight pose-waiting results.
+Two full trials receive all 1411 original pairs. Moving pose waiting after
+prediction reduces queue drops from 793 to nine; the final trial processes 1402
+frames, accepts 1109 online poses and retains 293 explicit pose refusals.
+Independent source-pixel/causal-TF checks pass. All 35 odometry/concurrency and
+21 depth/mapping tests pass, as does the original offline GPU demo regression.
+See `docs/concurrent-rgbd-perception.md` and
+`data/outputs/concurrent_rgbd/trial_20260911/attempt_02/verification.json`.
+Real-time throughput, tracking/geometry quality and causal online memory/search
+remain unverified. No live camera capture or physical motion was executed.
+
 ## 5. Current Next Task
 
-Milestone: **M4/M5 first bounded concurrent SLAM/perception validation**.
+Milestone: **M5/M6/M9 finalize concurrent observations into frozen memory/search**.
 
-The saved RGB-D-to-search offline MVP is verified and recorded in the ledger.
-Move toward concurrent operation using the existing rosbag before asking for a
-new room scan. The user prioritizes the whole pipeline before component tuning
-and has asked whether Python is a performance problem. Measure the overlapping
-workload before choosing language changes or inference optimization.
-Safe local work and GitHub updates remain authorized; ask before downloading
-newly needed components. No physical motion or live camera capture is needed.
+The bounded concurrent producer is verified, including its measured scheduling
+fix. The user explicitly requested continued autonomous work until human feedback
+or new data collection is needed. Continue with the existing data and authorized
+GitHub updates; ask before downloading newly needed components.
 
-Recover `docs/rgbd-search-demo.md`, `docs/rtabmap-mapping.md`,
-`docs/rgbd-object-observations.md`, `scripts/rtabmap_odom_env.bash`,
-`tests/check_rtabmap_mapping.py`, the existing local bounded mapping harness
-`data/outputs/rtabmap_slam/run_mapping.py`, and the original `room_walk_02` bag.
-Inspect the local ROS/native Python environments and installed GPU dependencies
-before designing the smallest adapter; preserve their existing library isolation.
+Use `data/outputs/concurrent_rgbd/trial_20260911/attempt_02` as the new source run,
+its `verification.json`, `measurement.json`, original `room_walk_02` bag and local
+weights. Read the existing database/export/check helpers under
+`data/outputs/rtabmap_slam/`, `scripts/extract_mapped_rgbd.py`,
+`scripts/observe_rgbd_objects.py`, `scripts/scene_memory.py` and
+`scripts/run_offline_search.py`. Keep all earlier maps/memories/evidence intact.
 
 Required sequence:
 
-1. Explain in Chinese the existing interfaces, minimal change, touched files and
-   measurable result. Inspect the saved mapping/odometry resource baseline and
-   source-time association checks. Reuse local weights and the existing detector,
-   depth and pose math; avoid another offline wrapper or a broad C++ rewrite.
-2. Connect bounded RGB-D perception to the replay while odometry/mapping run.
-   Keep inference out of ingestion callbacks, make sampling/queue limits explicit,
-   and record selected, processed, dropped and failed source frames. Preserve RGB
-   and registered-depth calibration, original timestamps and millimeter units.
-3. Associate processed observations with the pose available at the original
-   source time. Record missing/lost poses explicitly; never substitute the latest
-   TF or a later final optimized pose as proof of causal online localization.
-   Keep observed online poses distinct from any final map export.
-4. Run one bounded trial in new output directories using the existing accepted
-   0.25x replay rate. Save actual settings, process exits, source association and
-   queue/drop counts, latency distributions, RSS and available GPU/thermal samples.
-   Verify clean shutdown of every child and preservation of the original bag/map.
-   Review the complete diff and record measured results and limitations.
+1. Explain in Chinese the input/output boundary, smallest change, files and
+   verification. Reopen/check and export the newly completed map using existing
+   local RTAB-Map helpers; verify final poses/geometry and original database hashes.
+2. Reuse original mapped RGB-D extraction and source identity checks. Match the
+   concurrent camera-frame detections to exported nodes by exact source timestamp,
+   verify source pixels/calibration/depth, and explicitly list excluded nodes.
+   Use a minimal finalization entry, without rerunning inference or changing the
+   memory schema. Preserve every selected detection and depth rejection.
+3. Reproject accepted camera surface points with this run's final optimized poses
+   into a separate frozen-map observation report. Preserve the original online
+   pose/evidence and identify the final reprojection separately. Do not label this
+   post-run finalization as causal online memory, or mix it with the old map.
+4. Import the completed report into a new SQLite memory, reopen queries and run
+   the existing search preview against the matching new occupancy export. Keep
+   actual camera-start refusals and successful simulated starts explicit. Check
+   source hashes, points, counts, duplicate import behavior and generated outputs.
+5. Run focused tests, inspect artifacts, review the complete diff and update the
+   ledger only with measured results. Continue from the resulting evidence until
+   a concrete next acceptance check requires human input or new camera data.
 
-Acceptance: actual GPU perception and RTAB-Map overlap on this Jetson using the
-same recorded source stream; a saved report traces processed RGB-D observations
-to valid source-time poses or explicit refusals, accounts for bounded queue
-behavior, and records process/resource evidence. Slowed replay is not real-time
-acceptance. Preserve existing tracking failures and report incomplete runs rather
-than relaxing checks to pass. Do not claim causal memory/search integration from
-this producer trial alone; use the resulting contract for that later connection.
+Acceptance: this newly measured concurrent run produces a checked frozen map,
+source-associated persistent scene memory and an inspectable search decision,
+without substituting the earlier map or rerunning object inference. Preserve
+online/final pose distinctions, provisional identities, partial tracking and
+unverified map/floor accuracy. No Nav2, physical motion, new model, new viewer or
+open-vocabulary/CuTR implementation is required for this step.
 
-No Nav2, robot motion, new viewer, CuTR, open-vocabulary backend, TensorRT work or
-model download is required. Keep simulated planning starts, provisional labels/
-identity, unknown floor/map accuracy and the existing first-prefix memory limit
-explicit. Preserve the accepted Open3D viewer, all earlier evidence and `prompt.md`.
-Room artifacts and weights stay local and ignored.
-
-Learning checkpoint: the next risk is timestamp-correct data flow and bounded
-resource use when components run together, not the percentage of Python files.
+Learning checkpoint: observations remain tied to sensor time; after graph
+optimization their map coordinates must use a named, consistent pose version.
 
 ## 6. Target System Architecture
 
@@ -2941,6 +2950,110 @@ Next action:
 
 - Run a bounded concurrent SLAM/perception trial from the existing rosbag,
   measuring timestamp association, queues/drops and Jetson resource use.
+
+### 2026-09-11: M4/M5 Concurrent RGB-D/SLAM And Bounded Scheduling Comparison
+
+Status: `VERIFIED` for same-stream GPU perception and RTAB-Map at 0.25x replay.
+
+Changed:
+
+- Extracted `infer_rgbd` and one shared inference-settings constant from the
+  existing offline producer. Detector/depth policy and offline output content
+  remain unchanged. Added the concurrent measurement checker, 13 focused tests
+  and `docs/concurrent-rgbd-perception.md`. No new dependency or environment was installed.
+- The checker reuses the sensor and mapping checks, keeps callbacks separate
+  from one GPU worker, and retains all synchronized-pair statuses and pixel hashes.
+  The final scheduler allows one pending image and eight completed results awaiting
+  source-time TF. Overflow drops the new pair explicitly; pose waits have a
+  two-second post-prediction timeout checked by the main loop.
+- Online poses are frozen at result finalization using only already received TF.
+  Original odometry stamps/loss and TF receipt events remain inspectable. Missing
+  poses never produce map points; missing depth never produces camera/map points.
+
+Verified on this Jetson:
+
+- Native `.venv` imports ROS messages/TF, PyTorch 2.8.0, Ultralytics 8.4.112 and
+  OpenCV 4.11.0 together. Orin CUDA sum of arange(4) is six; ROS node lifecycle
+  passes. The perception process does not import cv_bridge; RTAB-Map keeps its
+  separate system OpenCV libraries. Actual library maps/ROS parameters are saved.
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest
+  discover -s tests/odometry -v` after sourcing `scripts/rtabmap_odom_env.bash`:
+  35 pass in 27.394 s. The analogous `tests/mapping` run passes 21 in 0.032 s.
+  New tests use real synchronization/TF and controlled inference futures to cover
+  queue/result bounds, overlap, late/missing/lost poses, corrupt calibration,
+  source mismatch, worker failure, immutable finalized poses and incomplete work.
+- A fresh native GPU `scripts/run_rgbd_search_demo.py` invocation on original
+  nodes 7/14/32 reproduces all 18 detections, 15 accepted depths, three rejections
+  and the original bottle search timeline, excluding timings. Its operation time
+  is 18.369 s; evidence is `offline_regression` and `offline_regression_check.json`.
+- The adapted bounded local `run_trial.py attempt_01` and `attempt_02` each
+  replay the full 94.487476504-second bag at 0.25x. Both receive all 1411 image/
+  calibration pairs with original serialized hashes and no synchronizer omissions.
+  Perception, odometry, mapping and playback all exit 0; the owned tegrastats
+  process exits -2 after SIGINT. No forced termination or child PID remains.
+  Total supervised wall times are 451.698 and 427.024 s, including startup,
+  warmup, measurement, parameter queries, shutdown and input hashing.
+- Attempt 1 waits for TF before inference: 618 processed and 793 queue drops.
+  Median/P95 prediction is 79.773/98.756 ms; pre-inference waiting median is
+  491.399 ms; arrival-to-result median/P95 is 600.078/822.668 ms. It has 482
+  accepted and 136 rejected online poses. Exact first-trial runtime and verifier
+  snapshots remain archived with the verified baseline.
+- Attempt 2 overlaps inference and pose waiting: 1402 processed, nine queue
+  drops (0.64%), zero inference failures or unresolved jobs. Event-interval
+  reconstruction confirms peaks of one pending image, one GPU job and eight
+  pose-waiting results. This reduces the measured scheduling drops without
+  unbounded buffering. It does not establish a language-level speedup.
+- Attempt 2 median/P95 timings: input queue 7.934/10.397 ms, prediction
+  70.483/91.100 ms, prediction-plus-depth 87.247/117.748 ms, post-prediction
+  pose wait 397.804/1110.800 ms, total arrival-to-result 501.363/1222.399 ms,
+  callbacks 5.143/18.809 ms. Total P95 is higher than attempt 1; frame populations
+  differ because more inputs are retained. Maximum pose-wait threshold overshoot
+  is about 15 ms. No uniform latency improvement is claimed.
+- Final perception has 5022 detections: 3832 accepted camera depth points,
+  1190 explicit depth rejections and 3434 map-localized observations. Its 1109
+  accepted online poses coexist with 293 refusals: 272 tracking losses, 13 source
+  odometry timeouts and eight unavailable source map transforms.
+- Independent `verify_trial.py attempt_02` rereads original decompressed image
+  bytes and verifies every selected pixel hash/raw depth. Rebuilding TF using only
+  events received by each finalization cutoff reproduces accepted poses exactly.
+  Independent camera/map arithmetic differs by at most 8.882e-16 m. This checks
+  source association and units rather than physical accuracy.
+- Odometry processes 1410 inputs: 1138 tracked, 272 lost and one source without
+  an output. Mapping stores 76 database nodes, retains 64 final graph poses and
+  has 75 checked source-time map observations. SQLite integrity passes. Attempt 1
+  tracked 1141 frames; no improved tracking-quality claim is made.
+- Final perception/odometry/mapping RSS peaks are 1321688/335084/441476 KiB.
+  Perception CPU median/P95 is 62.28/70.82% of one core, including native work
+  and measurement; odometry is 92.57/103.62%. Whole-device tegrastats RAM peaks
+  at 3951 MB, swap at 249 MB, GPU temperature at 53.875 C and module power at
+  7451 mW. GPU load median/P95 is 43/98%. There are 381 simultaneous resource
+  samples. These include startup/shutdown and do not prove long-term leak freedom.
+- Original bag, weights and mapping_02 database hashes remain unchanged. Both
+  runs retain actual parameters, library maps, commands and local resource logs.
+
+Evidence:
+
+- `data/outputs/concurrent_rgbd/trial_20260911/`: shared harness/verifier,
+  `attempt_01` and `attempt_02` reports, runtime snapshots, parameters, resources,
+  test logs and offline regression. Initial 43-test discovery included ten duplicate
+  imported tests; the import was corrected before the final 35-test suite, which
+  includes two added overlap/result-capacity cases. Earlier logs are retained.
+
+Limits and learning:
+
+- Slowed recorded playback is not live capture or real-time acceptance. Tracking,
+  physical geometry, floor alignment, labels/identity and navigation remain
+  unverified. The checker has no live memory/search integration and never revises
+  old observations with later TF. Records accumulate for a bounded trial; this is
+  measurement tooling, not an indefinite production service.
+- The measured bottleneck was waiting for SLAM before permitting inference.
+  Overlapping those stages removes most queue drops without a C++ rewrite.
+  Native/GPU work, ingestion costs and pose availability must be profiled separately.
+
+Next action:
+
+- Finalize the new concurrent run's map and camera observations into a separate
+  frozen scene memory and matching search preview, preserving both pose versions.
 
 ## 16. End-Of-Session Handoff Template
 
