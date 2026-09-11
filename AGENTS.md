@@ -353,7 +353,8 @@ Moving RGB-D recording/replay: VERIFIED (93.88/94.49 s, 1402/1411 pairs)
 Controlled room-loop capture quality: NOT VERIFIED (end motion/blur remains)
 RTAB-Map offline odometry measurement: VERIFIED (sustained tracking loss recorded)
 Motion-prediction comparison: VERIFIED (earlier recovery; same 21.104 s turn failure)
-RTAB-Map RGB-D SLAM: NOT VERIFIED
+RTAB-Map minimum mapping integration: VERIFIED (database, export, source-time TF)
+Continuous tracking, geometric accuracy and navigation quality: PLANNED
 ```
 
 `scripts/femto_mega_capture_once.py` captures 1280x720 MJPG color and 640x576
@@ -371,77 +372,66 @@ and `docs/camera-femto-mega.md` for evidence and limitations.
 
 ## 5. Current Next Task
 
-Milestone: **M4 minimum mapping integration on the existing second bag**.
+Milestone: **M5 first RGB-D object observation in camera and map coordinates**.
 
-Session authorization, 2026-09-10: after questioning further recording, the user
-asked to try existing data and explicitly approved downloading the missing
-RTAB-Map odometry components. This advances the authorized scope beyond M3
-recording. The 36-package plan was downloaded/reused, hash-verified and extracted
-under `~/projects/rtabmap_odom_ws` without system package installation. Safe
-continued work and GitHub progress updates are already authorized; do not repeat
-these approval questions. Ask before downloading newly required components.
+The user explicitly prioritized building the complete pipeline before improving
+individual components. Minimum camera, odometry and mapping interfaces are now
+verified. Defer fast-turn diagnosis, parameter sweeps, capture refinement and
+throughput optimization; preserve the measured limitations while connecting the
+next component. Safe local work and GitHub progress updates remain authorized.
+Ask before downloading newly required components. The odometry and four-package
+mapping downloads were already approved and completed; do not ask again.
 
-Latest user direction, 2026-09-10: build the complete pipeline first, then
-improve individual components. The existing odometry/TF evidence is sufficient
-to attempt the next integration step. Defer further fast-turn correspondence
-diagnosis, parameter sweeps and capture-quality refinement. This changes the
-order of work; it does not establish continuous tracking, pose accuracy or SLAM
-acceptance. Do not make those quality goals prerequisites for a minimal map
-that can drive the downstream object-observation pipeline.
+Recover `docs/rtabmap-mapping.md` and
+`data/outputs/rtabmap_slam/mapping_02/integration.json`. The second room bag has
+1411 source pairs. Mapping produced a reopenable 41791488-byte database, 48 final
+graph poses, 45733 exported points and 56 source-time map/optical-camera TF
+observations. Tracking gaps and unconfirmed loop detections remain. The original
+run harness is still marked `INCOMPLETE` for a late CLI parameter-query failure;
+the measurement passed, and direct parameter/map services passed on reopening.
+Do not rerun odometry merely to clear that preserved historical status.
 
-The second bag preserves all 1411 RGB-D pairs and exact replay, but initial
-odometry trials report sustained tracking loss. Recover the latest measured
-results from `docs/rtabmap-odometry.md` and the ledger before any new trial.
-The approved single-parameter comparison is complete: disabling
-`Odom/GuessMotion` shortened the main loss from 60.766 to 10.451 s, while both
-settings failed at 21.104 s and the 18–25 s window worsened. Reuse a measured
-setting and record which one the integration uses; avoid further odometry tuning.
-Keep camera data and derived trajectories local and ignored. Use the separate
-RTAB-Map environment; do not mix the camera OpenCV 4.8 overlay with this binary
-runtime's system OpenCV 4.5d.
-
-The user reported returning to the start, then adjusting/putting down the camera.
-Stationary endpoints remain unverified. A third take was never started. Do not
-automatically request or start another recording to improve the endpoints. The
-earlier M3 task text in `prompt.md` remains unchanged because its full capture
-quality was not verified; that is not an instruction to restart recording.
-Follow this explicitly authorized offline continuation and retain M3 limitations.
-
-Local preflight: the ROS `rtabmap_slam` node is absent from both system Humble
-and the extracted workspace. Cached APT metadata identifies four additional
-ARM64 packages totaling 866152 download bytes and 7328768 declared extracted
-bytes; 35 required existing archives were hash-verified for reuse. The exact
-plan is `data/outputs/rtabmap_slam/preflight_20260910/dependency_plan.json`.
-Download permission for these newly required packages is pending. Do not run a
-system installation or mistake the installed core CLI for the ROS mapping node.
+Use the original color RGB-D bag for perception: the odometry bundle/database
+images are grayscale. Keep ROS extraction in the isolated system-Python/OpenCV
+4.5d environment and YOLO in its existing native virtual environment. Inspect
+`scripts/yolo_image_smoke_test.py`, the local YOLOv8n weights and existing image/
+depth helpers before adding code. Resolve a real local model path before loading
+it so a library does not silently download a missing model.
 
 Required sequence:
 
-1. Resolve the four-package download under the standing user instruction, then
-   verify hashes and inspect/extract into the existing user workspace. Check
-   actual runtime libraries and installed mapping interfaces before editing.
-2. Connect the existing RGB-D bag and odometry to the upstream ROS mapping node.
-   Reuse measured settings, millimeter depth, calibration, 5 ms RGB-D sync and
-   simulated time. Keep lost poses explicit and automatic reset disabled.
-3. Replay the full bag with bounded startup/shutdown, saving a new database,
-   graph/trajectory and geometric map export. Record rejected inputs, tracking
-   gaps, map segments and reported loop closures, including zero closures.
-4. Verify a nonempty database can be reopened and map geometry exported. Check
-   `map -> odom -> camera_link -> camera_color_optical_frame` at source stamps
-   used for mapped observations. Exclude observations without valid poses/TF;
-   never fill tracking gaps with invented poses or combine unrelated map segments.
-5. Review the diff and update measured evidence. Once this integration contract
-   passes, advance to M5 YOLO plus depth object observations rather than another
-   odometry tuning cycle. No fresh capture or robot motion is needed for this step.
+1. Select an existing mapped node with a valid observation and obtain its original
+   color, aligned depth and CameraInfo from `room_walk_02`. Preserve source stamps,
+   1280x720 image grids, millimeter depth, invalid zeros and optical frame axes.
+2. Run the existing YOLOv8n baseline on that color frame. For a supported detection,
+   measure depth in a bounded inner box ROI, reject invalid/outlier values and
+   back-project a representative pixel into optical-camera coordinates in meters.
+3. Transform the point into the frozen final map using the corresponding exported
+   optical-camera pose. Join by node ID and the recorded original source stamp,
+   not exact equality with rounded pose-text timestamps. Record the database/
+   graph identity and pose provenance; do not mix final optimized poses with
+   historical online TF or use observations lacking valid pose association.
+4. Save a small structured observation containing timestamp, node ID, label,
+   detection confidence, box/ROI, valid-depth evidence, camera point and map point.
+   Save a local annotated color image for inspection. If a frame has no usable
+   detection/depth, report it explicitly and inspect another existing mapped frame.
+5. Test projection, unit conversion, invalid depth and coordinate transforms with
+   known cases, then run the actual Jetson inference/geometry path. Record the
+   measured result and advance toward persistent object memory once it works.
 
-Integration acceptance: the bag drives a mapping node, creates a nonempty,
-reopenable database and geometric export, and provides a valid timestamped map
-coordinate chain for mapped observations. Partial coverage is acceptable when
-explicitly reported. Continuous tracking, geometric accuracy, loop consistency
-and real-time throughput remain separate quality acceptance goals.
+Integration acceptance: at least one real recorded detection produces a finite,
+source-associated 3D observation in both optical-camera and map coordinates,
+with invalid observations rejected and the original evidence retained. Detection
+accuracy, absolute position accuracy, repeated-view jitter and real-time behavior
+remain later quality acceptance goals. No new capture or robot motion is needed.
 
-Learning checkpoint: distinguish a working component, a connected pipeline,
-and a validated high-quality result; improve quality after the interfaces work.
+The earlier M3 text in `prompt.md` remains unchanged because its capture-quality
+conditions were not fully verified. The user's newer offline/pipeline direction
+supersedes it for this work. Do not restart recording to improve those endpoints.
+Keep room images, bags, maps, trajectories and observations local and ignored.
+
+Learning checkpoint: connect detection, depth, calibration and pose provenance
+into one measured object observation before adding persistence or optimizing it.
 
 ## 6. Target System Architecture
 
@@ -673,10 +663,9 @@ Learning goal: ROS topics, QoS, synchronization, calibration, TF, and rosbag.
 
 ### M4: RTAB-Map RGB-D SLAM
 
-Status: `IMPLEMENTED` for the offline odometry experiment; measurement `VERIFIED`
-with sustained tracking loss. Minimum mapping integration is `PLANNED`, with its
-ROS node dependency currently `BLOCKED` pending the requested download approval.
-Continuous tracking and mapping quality remain `PLANNED`.
+Status: `VERIFIED` for minimum offline mapping integration: database reopening,
+geometric export and timestamped map/optical-camera TF. Continuous tracking,
+map accuracy, loop consistency and real-time performance remain `PLANNED`.
 
 Steps:
 
@@ -706,17 +695,22 @@ Status: `PLANNED`
 
 Steps:
 
-1. Subscribe to synchronized RGB, depth, and intrinsics.
-2. Run YOLO at a configurable capped rate.
+1. Start with an existing mapped color RGB-D frame and its intrinsics/source stamp.
+2. Run the existing YOLO baseline.
 3. Reject invalid and outlier depth within an inner detection ROI.
 4. Back-project the robust depth estimate into the optical camera frame.
-5. Publish structured timestamped observations.
-6. Test the projection math with synthetic and measured cases.
+5. Associate the mapped pose and save structured camera/map-frame observations.
+6. Test the projection math and data association with known and measured cases.
 
-Acceptance:
+Minimum integration acceptance:
 
-- Unit tests cover projection, invalid depth, and coordinate conventions.
+- A real detection produces a source-associated camera/map-frame 3D observation.
+- Tests cover projection, depth units, invalid depth and coordinate conventions.
+
+Later quality acceptance:
+
 - Repeated views of a static object produce characterized position jitter.
+- Detection and geometric accuracy and live processing cost are measured.
 
 Learning goal: projective geometry and uncertainty from 2D detection plus depth.
 
@@ -1797,6 +1791,97 @@ Decision and next action:
 - Obtain the requested approval for those four missing packages, then run the
   existing bag through minimal mapping with database/export/TF verification.
   Keep the accepted camera path and `prompt.md` intact; no new recording.
+
+### 2026-09-10: M4 Minimum Mapping Integration And Artifact Acceptance
+
+Status: `VERIFIED` for minimum mapping integration with partial coverage.
+Continuous tracking, geometric accuracy, navigation and real-time performance
+remain unverified. Advance to M5 under the user's pipeline-first direction.
+
+Changed:
+
+- Downloaded the four approved packages (866152 bytes), checked their pinned
+  hashes, paths and potential overwrites, and extracted into the existing user
+  workspace. No system installation or maintainer script ran.
+- Added `config/rtabmap_rgbd_mapping.yaml`, a mapping checker and eight mapping
+  contract tests plus two timestamp-precision tests. Reused the odometry checker
+  by sharing its subscriptions, incomplete evidence and bounded entry point.
+- Mapping consumes the existing `/odom_rgbd_image` and `/odom` with exact sync.
+  The odometry input still enforces 5 ms RGB/depth sync and uses the measured
+  prediction-off setting; automatic reset remains disabled. No new sync node.
+- Added mapping reproduction/evidence documentation and updated README/current
+  task. The next step uses original color frames; the measured odometry bundle
+  and database images are grayscale. `prompt.md` and original bags remain intact.
+
+Verified:
+
+- Node startup/interfaces and loaded system OpenCV 4.5d libraries were inspected.
+  First CLI startup inspection timed out; direct discovery passed and closed cleanly.
+- Second full 0.25x replay: all 1411 CameraInfo pairs/hashes reproduced, 1410
+  odometry results, 858 tracked and 552 lost, one final input without a result.
+  Observed source-time losses: 18.089477–49.376231 s and 88.771819–94.467266 s.
+  All 858 tracked pose/TF pairs passed; 11368 clock messages were observed.
+- Mapping published 57 info/graph updates and 7905 map TF messages. Fifty-six
+  observations pass the map-to-optical-camera chain at the original source stamp.
+  The initial observation is explicitly excluded because map TF starts later.
+- Database size 41791488 bytes, 57 stored image/depth/calibration nodes, one map
+  ID (0), 48 final optimized graph poses. SQLite integrity check passed. Reopening
+  a copy in read-only localization returned the same 48 node IDs and 72 links;
+  direct parameter queries confirmed all requested mapping settings. The copy
+  was unchanged and the node exited 0.
+- Upstream export using stored optimized poses produced 45733 finite points,
+  48 robot and 48 optical-camera poses, 48 depth images and a 222 x 138 grid at
+  0.05 m/cell. Exported robot poses match the final graph within text precision.
+  The input database stayed unchanged; preview PNG/PDF was visually reviewed.
+- The upstream RVL decoder/exporter preserved all 921600 pixels of one original
+  1280x720 depth frame, including invalid zeros; verified units remain millimeters.
+  Initial inspection assumed RGB/PNG storage and failed; that report is retained.
+- Six global loop closures and 25 proximity detections were reported by the
+  algorithm; these are not independently validated room-loop or accuracy results.
+- Odometry processing median/P95/max: 215.34/258.28/301.75 ms. Mapping core update:
+  201.17/308.10/495.53 ms. RSS ranges: odometry 151476–331076 KiB, mapping
+  172840–405704 KiB; descriptors stayed 19/20, threads 31–36/31–63.
+- Player/checker/odometry/mapping all exited 0 in the second run with no forced
+  termination; harness time 419.274 s. Final process inspection found no remaining
+  experiment or camera process. No long-duration leak or real-time claim.
+- Twenty-two focused tests passed (0.096 s). A real ROS no-input measurement
+  exited 1, saving `INCOMPLETE` with empty mapping evidence. Full diff and focused
+  syntax/whitespace checks were reviewed before the checkpoint.
+
+Preserved failures and limits:
+
+- The first full run's checker rejected mapping stamps rounded through double
+  seconds (maximum 218 ns difference). The corrected association allows only two
+  timestamp ULPs plus 1 ns, retains both stamps/difference and rejects a 1 us
+  offset in the epoch-time test. Odometry stamp equality remains exact.
+- The second full measurement passed, but its harness stays `INCOMPLETE` because
+  a late CLI mapping-parameter dump returned 1. Direct service queries and map
+  reopening resolved the missing metadata check. The local harness now uses the
+  tested service helper and saves query logs; it was not fully replayed again.
+- Mapping rejects null odometry explicitly and preserves tracking gaps. Partial
+  geometry and grayscale output suffice for this integration; source color is
+  available for YOLO. This concurrent run is not an isolated performance comparison.
+- Learning: a component's measurement, process bookkeeping, persisted artifacts
+  and map quality are separate checks. Connect the next component once the
+  minimum data contract passes, while keeping every failure visible.
+
+Evidence:
+
+- `data/outputs/rtabmap_slam/preflight_20260910/`: dependency/startup evidence,
+  test logs and the real no-input failure.
+- `data/outputs/rtabmap_slam/mapping_01/`: preserved first attempt and stamp diagnosis.
+- `data/outputs/rtabmap_slam/mapping_02/`: all run/checker logs and implementation
+  snapshots, `map.db`, `measurement.json`/CSV, `database_check.json`,
+  `depth_source_check.json`, `export_run.json`, `export_check.json`, `reopen/`,
+  `integration.json`, preview and final process check. Generated room data is ignored.
+- Local run/export/reopen/inspection scripts are in the parent evidence directory;
+  reproduction and limits are in `docs/rtabmap-mapping.md`.
+
+Next action:
+
+- Run YOLOv8n on an original color frame with a valid mapped node association,
+  combine its detections with depth, and save the first camera/map-frame 3D object
+  observation using the frozen final map pose.
 
 ## 16. End-Of-Session Handoff Template
 

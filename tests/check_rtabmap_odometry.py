@@ -65,6 +65,22 @@ class OdomCheck:
         self.dynamic_tf = {}
         self.clock_stamps = []
 
+    def subscribe(self, node):
+        qos = QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE)
+        for stream in self.camera_stamps:
+            node.create_subscription(CameraInfo, f'/camera/{stream}/camera_info', lambda msg, stream=stream: self.camera_info(stream, msg), qos, raw=True)
+        node.create_subscription(OdomInfo, '/odom_info_lite', self.odom_info, qos)
+        node.create_subscription(Odometry, '/odom', self.odometry, qos)
+        node.create_subscription(TFMessage, '/tf', lambda msg: self.transforms(msg, False), qos)
+        node.create_subscription(TFMessage, '/tf_static', lambda msg: self.transforms(msg, True),
+                                 QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        node.create_subscription(Clock, '/clock', lambda msg: self.clock_stamps.append(stamp_ns(msg.clock)),
+                                 QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+
+    def incomplete_evidence(self):
+        return {'odom_info': self.info, 'odometry': self.poses,
+                'received_camera_info': {stream: len(stamps) for stream, stamps in self.camera_stamps.items()}}
+
     def camera_info(self, stream, payload):
         message = deserialize_message(payload, CameraInfo)
         self.camera_stamps[stream].append(stamp_ns(message.header.stamp))
@@ -157,7 +173,7 @@ class OdomCheck:
                 'limitation': 'No ground-truth pose, accuracy or loop-closure claim; dropped input frames and lost outputs are reported separately.'}
 
 
-def main():
+def main(check_type=OdomCheck):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--reference', required=True, type=Path)
     parser.add_argument('--duration', type=float, required=True)
@@ -170,21 +186,12 @@ def main():
     if reference.get('status') != 'PASSED':
         parser.error('Use a verified sensor bag report')
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    check = OdomCheck()
+    check = check_type()
     result = {'status': 'INCOMPLETE'}
     rclpy.init()
     node = rclpy.create_node('rtabmap_trial_check', parameter_overrides=[Parameter('use_sim_time', value=True)])
-    qos = QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE)
     try:
-        for stream in check.camera_stamps:
-            node.create_subscription(CameraInfo, f'/camera/{stream}/camera_info', lambda msg, stream=stream: check.camera_info(stream, msg), qos, raw=True)
-        node.create_subscription(OdomInfo, '/odom_info_lite', check.odom_info, qos)
-        node.create_subscription(Odometry, '/odom', check.odometry, qos)
-        node.create_subscription(TFMessage, '/tf', lambda msg: check.transforms(msg, False), qos)
-        node.create_subscription(TFMessage, '/tf_static', lambda msg: check.transforms(msg, True),
-                                 QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL))
-        node.create_subscription(Clock, '/clock', lambda msg: check.clock_stamps.append(stamp_ns(msg.clock)),
-                                 QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+        check.subscribe(node)
         deadline = time.monotonic() + args.duration
         while time.monotonic() < deadline:
             rclpy.spin_once(node, timeout_sec=0.1)
@@ -199,8 +206,7 @@ def main():
         result = measured
     finally:
         if result['status'] == 'INCOMPLETE':
-            result.update({'odom_info': check.info, 'odometry': check.poses,
-                           'received_camera_info': {stream: len(stamps) for stream, stamps in check.camera_stamps.items()}})
+            result.update(check.incomplete_evidence())
         try:
             args.output.write_text(json.dumps(result, indent=2, allow_nan=False)+'\n')
         finally:

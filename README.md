@@ -354,13 +354,19 @@ Recovery improved in this one comparison, while processing became slower and
 pose accuracy remains unknown. The checked-in default is retained.
 See [odometry setup and evidence](docs/rtabmap-odometry.md).
 
+Minimum mapping integration is now verified on this same bag: a 41.8 MB database
+reopens with 48 graph nodes; exports contain 45733 points, 48 camera poses and a
+222 × 138 occupancy grid at 5 cm/cell. Fifty-six mapped observations pass the
+source-time map-to-camera TF check; the initial observation is excluded for
+unavailable map TF. Tracking gaps remain, and the six reported loop closures
+have not been independently confirmed. A late CLI metadata-query failure is
+preserved separately and was resolved through direct service checks on reopening.
+See [mapping setup, artifacts and limits](docs/rtabmap-mapping.md).
+
 The current priority is to connect the pipeline before further component tuning.
-Next is minimum mapping integration on this same bag: create and reopen a map
-database, export geometry, and verify timestamped `map -> odom -> camera` TF.
-Explicit partial coverage is acceptable for this integration step; mapping
-quality and real-time performance remain separate goals. After that contract
-passes, proceed to YOLO plus depth object observations. The ROS mapping node is
-currently missing locally; its four-package dependency plan is prepared.
+Next is YOLO plus depth object observations using original color frames and the
+saved map poses. The odometry bundle/database image and geometric cloud are
+grayscale; the original RGB recording remains available for perception.
 
 Goals:
 
@@ -538,7 +544,8 @@ jetson-semantic-room-explorer/
 - [X] Controlled motion-prediction comparison measured; turn failure remains
 - [ ] TensorRT Python binding added
 - [ ] TensorRT benchmark complete
-- [ ] RTAB-Map RGB-D SLAM running
+- [X] RTAB-Map minimum mapping integration: database reopening, geometry export and TF
+- [ ] Continuous tracking and room-map quality acceptance
 - [ ] Semantic object memory implemented
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented

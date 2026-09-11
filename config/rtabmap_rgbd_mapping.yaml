@@ -1,0 +1,26 @@
+/rgbd_odometry:
+  ros__parameters:
+    # Reuse the measured setting with more tracked frames for this integration.
+    Odom/GuessMotion: "false"
+
+/rtabmap:
+  ros__parameters:
+    use_sim_time: true
+    frame_id: camera_link
+    map_frame_id: map
+    # Pair odom_rgbd_image with its exact Odometry stamp. The odometry input
+    # already enforces the 5 ms RGB/depth limit in the base configuration.
+    odom_frame_id: ""
+    subscribe_depth: false
+    subscribe_rgb: false
+    subscribe_rgbd: true
+    subscribe_odom_info: false
+    approx_sync: false
+    topic_queue_size: 30
+    sync_queue_size: 30
+    qos: 1
+    qos_odom: 1
+    wait_for_transform: 0.2
+    publish_tf: true
+    Rtabmap/DetectionRate: "1"
+    RGBD/CreateOccupancyGrid: "true"

@@ -391,13 +391,13 @@ listed in cached APT metadata are:
 | `aruco-opencv-msgs` | `2.4.2-1jammy.20260717.002616` | 61326 |
 
 Total: 866152 download bytes and 7328768 declared extracted bytes. The existing
-35 required dependency archives were hash-verified. The plan is to verify and
-extract only these four additions into the user workspace after the requested
-download approval. No system installation is planned. Remote availability has
-not been checked; no mapping run or export is claimed. Evidence is in
-`data/outputs/rtabmap_slam/preflight_20260910/`: `dependency_plan.json`, local APT
-simulation and package metadata. The installed core CLI is separate from the
-missing ROS mapping node.
+35 required dependency archives were hash-verified. The user approved the four
+additions; they were downloaded, verified and extracted into the user workspace
+without system installation. Minimum mapping integration subsequently passed
+database, export and TF checks; see [mapping evidence](rtabmap-mapping.md) for
+the results and preserved checker/CLI failures. The original dependency plan in
+`data/outputs/rtabmap_slam/preflight_20260910/` is historical;
+`dependencies_prepared.json` records successful preparation.
 
 ## Interpretation
 
