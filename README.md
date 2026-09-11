@@ -5,6 +5,12 @@ Autonomous semantic room exploration and object memory on Jetson Orin Nano.
 > The living architecture, milestone plan, Codex CLI workflow, verification
 > criteria, and recovery protocol are maintained in [AGENTS.md](AGENTS.md).
 
+The first **offline pipeline MVP is verified** on the Jetson: one command takes
+saved RGB-D frames and final map poses through GPU detection, persistent object
+memory and search decisions. See the [runnable demo and measured timeline](docs/rgbd-search-demo.md).
+Planning starts are explicitly simulated; live concurrent integration and physical
+navigation remain unverified.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
@@ -565,9 +571,16 @@ logical memory matches the original M6 result. See the
 
 These are offline grid checks. Physical footprint, floor/map accuracy, sensor
 visibility, current localization and traversability remain unverified. No new
-coverage or observation was measured. The next step connects the existing RGB-D
-observation producer to the replay for one command from saved RGB-D frames to
-search decisions; Nav2 and edge optimization remain planned.
+coverage or live observation was measured.
+
+The complete saved RGB-D-to-search command is now verified with actual Jetson
+GPU perception: 18 detections, 15 accepted depth observations and three rejections
+feed the same memory/search timeline. All 130 focused tests and 11 fresh CLI
+acceptance cases pass; repeated detections and decisions match, and all 66 PNGs
+decode. This completes the first offline pipeline MVP. See the
+[command, artifacts and limitations](docs/rgbd-search-demo.md). The next step is
+a bounded concurrent SLAM/perception trial using the existing rosbag; Nav2 and
+edge optimization remain planned.
 
 Goals:
 
@@ -660,7 +673,9 @@ jetson-semantic-room-explorer/
 - [X] Minimum offline frontier-search fallback with explicit simulated starts
 - [X] Single-command offline search demo with preserved decisions and stage evidence
 - [X] Chronological observation-feedback replay with preserved memory snapshots
-- [ ] Single-command saved RGB-D-to-search demo and physical navigation acceptance
+- [X] Single-command saved RGB-D-to-search demo: first offline pipeline MVP
+- [ ] Concurrent SLAM/perception integration and resource acceptance
+- [ ] Physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented
 

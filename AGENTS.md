@@ -474,65 +474,76 @@ No causal online mapping, new observation, coverage or physical search is claime
 See `docs/observation-search-replay.md` and
 `data/outputs/observation_replay/replay_20260911/integration.json`.
 
+### 4.13 Saved RGB-D To Search Demo
+
+Status: `VERIFIED` for the first complete offline pipeline MVP.
+
+`scripts/run_rgbd_search_demo.py` connects actual local GPU perception to the
+existing prefix memory/search replay. Nodes 7/14/32 reproduce 18 detections,
+15 accepted depth observations and three rejections; bottle changes from frontier
+search to two remembered routes. Repeated results and final logical memory match
+previous evidence. All 130 focused tests and 11 fresh CLI cases pass; all 66 PNGs
+decode. The source pixels, units, timestamps, hashes and frozen prefixes were
+checked. No dependency or existing runtime policy changed. See
+`docs/rgbd-search-demo.md` and `data/outputs/rgbd_search/demo_20260911/integration.json`.
+This is saved-frame inference using final poses and simulated starts; it does
+not complete live integration, CuTR, open vocabulary or physical navigation.
+
 ## 5. Current Next Task
 
-Milestone: **M5/M6/M9/M10 single-command saved RGB-D-to-search demonstration**.
+Milestone: **M4/M5 first bounded concurrent SLAM/perception validation**.
 
-Chronological observation feedback is verified. Complete the offline vertical
-slice by connecting the existing RGB-D observation producer to the replay,
-starting from saved RGB-D frames instead of an already generated detection
-report. The user prioritizes the whole pipeline before component optimization.
+The saved RGB-D-to-search offline MVP is verified and recorded in the ledger.
+Move toward concurrent operation using the existing rosbag before asking for a
+new room scan. The user prioritizes the whole pipeline before component tuning
+and has asked whether Python is a performance problem. Measure the overlapping
+workload before choosing language changes or inference optimization.
 Safe local work and GitHub updates remain authorized; ask before downloading
-newly needed components. Existing frames, model weights and dependencies are local.
+newly needed components. No physical motion or live camera capture is needed.
 
-Recover `docs/observation-search-replay.md`, `docs/rgbd-object-observations.md`,
-`scripts/observe_rgbd_objects.py`, `scripts/replay_observation_search.py`, and
-`data/outputs/observation_replay/replay_20260911/integration.json`.
-Use the original frames manifest
-`data/outputs/rtabmap_slam/colored_cloud_20260910/frames/frames.json`,
-local `yolov8n.pt`, frozen `data/outputs/rtabmap_slam/mapping_02`, and explicitly
-selected nodes 7/14/32 for this minimum end-to-end demonstration.
+Recover `docs/rgbd-search-demo.md`, `docs/rtabmap-mapping.md`,
+`docs/rgbd-object-observations.md`, `scripts/rtabmap_odom_env.bash`,
+`tests/check_rtabmap_mapping.py`, the existing local bounded mapping harness
+`data/outputs/rtabmap_slam/run_mapping.py`, and the original `room_walk_02` bag.
+Inspect the local ROS/native Python environments and installed GPU dependencies
+before designing the smallest adapter; preserve their existing library isolation.
 
 Required sequence:
 
-1. Inspect the existing observation and replay entry points, source-frame/model
-   identities, and local GPU access. Explain in Chinese the smallest change,
-   touched files and verification. Reuse the current native environment and
-   YOLO settings; no model download, CPU fallback or ROS/capture rerun is needed.
-2. Add the minimum entry point that generates a fresh measured observation report
-   from the explicit RGB-D node selection and then calls the existing replay.
-   Require source frames, frozen map, label and explicit simulated start; preserve
-   model/source identities and all accepted/rejected detections. Use new output
-   directories and keep all earlier measured reports/databases unchanged.
-3. Save one top-level result linking the perception output, memory snapshots and
-   search decisions. Propagate source, inference, no-valid-observation and replay
-   failures with clear stage evidence. A final completed report requires both
-   stages to finish. Do not add a general workflow framework or new viewer.
-4. Run focused contract/failure tests and actual Jetson GPU inference on the
-   three saved nodes, followed by memory/search replay. Verify original input
-   hashes, source timestamps, depth units, prefix isolation and all final query/
-   branch outcomes. Compare fresh detections and decisions with previous evidence;
-   record differences if measured, without forcing historical results. Inspect
-   annotations and search PNGs, review the complete diff and update the ledger.
+1. Explain in Chinese the existing interfaces, minimal change, touched files and
+   measurable result. Inspect the saved mapping/odometry resource baseline and
+   source-time association checks. Reuse local weights and the existing detector,
+   depth and pose math; avoid another offline wrapper or a broad C++ rewrite.
+2. Connect bounded RGB-D perception to the replay while odometry/mapping run.
+   Keep inference out of ingestion callbacks, make sampling/queue limits explicit,
+   and record selected, processed, dropped and failed source frames. Preserve RGB
+   and registered-depth calibration, original timestamps and millimeter units.
+3. Associate processed observations with the pose available at the original
+   source time. Record missing/lost poses explicitly; never substitute the latest
+   TF or a later final optimized pose as proof of causal online localization.
+   Keep observed online poses distinct from any final map export.
+4. Run one bounded trial in new output directories using the existing accepted
+   0.25x replay rate. Save actual settings, process exits, source association and
+   queue/drop counts, latency distributions, RSS and available GPU/thermal samples.
+   Verify clean shutdown of every child and preservation of the original bag/map.
+   Review the complete diff and record measured results and limitations.
 
-Acceptance: one reproducible command takes the existing RGB-D frames and frozen
-map/poses through actual perception, persistent prefix memories and an inspectable
-search decision timeline. The scope is offline with final geometry: it does not
-claim live SLAM integration, causal online mapping, observations acquired at
-proposed goals or physical navigation. No Nav2, robot motion or optimization work
-is required. Keep successful planning starts explicitly simulated.
+Acceptance: actual GPU perception and RTAB-Map overlap on this Jetson using the
+same recorded source stream; a saved report traces processed RGB-D observations
+to valid source-time poses or explicit refusals, accounts for bounded queue
+behavior, and records process/resource evidence. Slowed replay is not real-time
+acceptance. Preserve existing tracking failures and report incomplete runs rather
+than relaxing checks to pass. Do not claim causal memory/search integration from
+this producer trial alone; use the resulting contract for that later connection.
 
-Preserve the earlier replay limitation: the first prefix needs an accepted
-observation of some label. Do not discard rejected detections, inflate support,
-or relax clearance to produce a result. Partial tracking, provisional labels and
-instance identity, unknown floor/map accuracy and all 48 recorded camera starts
-in unknown cells remain explicit. Keep historical M4/M9 failure evidence, the
-accepted Open3D viewer and the superseded older task in `prompt.md`. Room outputs,
-model weights and generated snapshots stay local and ignored.
+No Nav2, robot motion, new viewer, CuTR, open-vocabulary backend, TensorRT work or
+model download is required. Keep simulated planning starts, provisional labels/
+identity, unknown floor/map accuracy and the existing first-prefix memory limit
+explicit. Preserve the accepted Open3D viewer, all earlier evidence and `prompt.md`.
+Room artifacts and weights stay local and ignored.
 
-Learning checkpoint: starting from saved sensor frames verifies the interfaces
-from perception to planning; frozen poses and simulated starts still limit what
-can be claimed about a live robot.
+Learning checkpoint: the next risk is timestamp-correct data flow and bounded
+resource use when components run together, not the percentage of Python files.
 
 ## 6. Target System Architecture
 
@@ -2827,6 +2838,109 @@ Next action:
 
 - Connect the existing RGB-D observation producer to the replay for one offline
   command from saved RGB-D frames to search decisions.
+
+### 2026-09-11: M5/M6/M9/M10 Saved RGB-D To Search, Offline MVP Acceptance
+
+Status: `VERIFIED` for the complete saved-frame perception-to-search pipeline.
+
+Changed:
+
+- Added `scripts/run_rgbd_search_demo.py`, a thin entry to the existing GPU
+  observation producer and prefix replay. Explicit inputs are frames, local model,
+  node selection, frozen mapping run, label and simulated start. `demo.json`
+  links stage reports/hashes/images and the chronological search timeline.
+- Validate source/map/model identity, preserve every depth acceptance/rejection,
+  propagate failures with incomplete stage evidence, and refuse output reuse.
+  No-valid perception exits 2 without replay. Complete search refusals remain
+  explicit outcomes. Existing producer, memory, search and renderer code is unchanged.
+- Added 14 entry-point tests and `docs/rgbd-search-demo.md`; updated README and
+  this playbook with the verified offline finish line. No dependency was added.
+
+Verified on this Jetson:
+
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest
+  discover -s tests/search -v`: 92 pass in 26.955 s. Analogous `tests/mapping`
+  and `tests/memory` runs pass 21 in 0.030 s and 17 in 0.739 s: 130 total.
+  New tests stub GPU production/rendering and run real map validation, SQLite
+  imports and search. They cover source/model identity, inference/replay errors,
+  no-valid observations, first-prefix rejection, source mutation and output reuse.
+- GPU preflight and `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python
+  data/outputs/rgbd_search/demo_20260911/verify_demo.py` ran with authorized
+  native CUDA access. Eleven fresh CLI invocations completed within their
+  180-second per-command bounds; six ran actual GPU inference. Five whole demos
+  completed: bottle, repeated bottle, chair, backpack and an invalid simulated start.
+- Original frames manifest SHA256 remains
+  `3dab83691a7db746e6d85d49921c9c951b29dde4eb27428dff64e5917b5487e8`;
+  local `yolov8n.pt` remains
+  `f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36`.
+  Nodes 7/14/32 retain stamps 1789080208207783000, 1789080215242330000 and
+  1789080265488456000 ns. RGB/depth skew is 2.972/3.398/3.216 ms.
+- Selected RGB is uint8 1280x720; registered depth is uint16 1280x720 in
+  millimeters, where zero denotes invalid depth. Every accepted depth equals its actual source pixel
+  divided by 1000. Independent backprojection/map transformation differs by at
+  most 8.882e-16 m, an arithmetic check rather than physical position accuracy.
+- All five normal fresh perception reports match original M5 detections/depth
+  results apart from timing: 18 detections, 15 accepted and three rejected.
+  Per-node accepted/rejected counts are 5/2, 5/1 and 5/0. Repeated bottle
+  perception and timelines are identical apart from timing.
+- Bottle from explicit simulated [1.65,0.08366] m changes from depth-rejected
+  `NOT_FOUND`/`EXPLORATION_READY` at node 7 to `FOUND`/`ROUTE_READY` at node 14.
+  Candidates 4/6 retain previous 0.75/0.60 m paths and unchanged single-frame
+  supports at node 32. Goals/routes match the preceding replay exactly.
+- Chair produces `FOUND`/`ROUTE_READY` at all prefixes; absent backpack produces
+  `NOT_FOUND`/`EXPLORATION_READY` at all prefixes. Explicit simulated
+  [-0.002109,-0.03223] m is refused: `INVALID_START`, then `NO_ROUTE` twice.
+  No pose snapping, support inflation or clearance relaxation was introduced.
+- Prefix databases contain exactly [7], [7,14] and [7,14,32], pass SQLite
+  integrity/foreign-key checks, and retain matching memory/search/stage hashes.
+  Final logical memory equals M6, including 18 observations, 13 supports,
+  two overlaps and nine provisional objects. Original inputs remain unchanged.
+- Synthetic all-zero-depth copies retain original RGB and produce 18 GPU
+  detections, all rejected: exit 2, `NO_VALID_OBSERVATIONS`, no replay. These
+  marked fixtures are not sensor captures or replacements for original data.
+- Incompatible mapping identity exits 1 before perception. Corrupted node 7
+  frame hash and node 1's absent validated source-time association exit 1 before
+  model loading. Missing start exits 2 without output; output reuse exits 1
+  without changing any earlier evidence. All failures match expected outcomes.
+- All 66 PNGs decode. Visually inspected all three primary detection annotations,
+  node 7 frontier and both node 14 bottle routes. Apparent laptop/oven class errors
+  and overlapping chairs remain visible; no label/identity accuracy is claimed.
+- Runtime: Python 3.10.12, PyTorch 2.8.0, Ultralytics 8.4.112, OpenCV 4.11.0,
+  NumPy 1.26.4, SQLite 3.37.2, aarch64/Orin GPU. Five complete three-frame runs
+  have operation-time min/median/P95/max 12.491/18.375/23.037/23.404 s and process
+  wall time 14.868/20.722/25.503/25.896 s. These mixed normal/refusal functional
+  runs include startup, inference, imports, source checks and rendering; they
+  do not establish concurrent throughput, resource bounds or camera lifecycle behavior.
+- Reviewed the complete five-file diff. Compilation of all scripts and the new
+  test file and staged whitespace checks pass. Final checks tie the staged runtime
+  to the GPU acceptance evidence and preserve all original input hashes.
+
+Evidence:
+
+- `data/outputs/rgbd_search/demo_20260911/`: `integration.json`, `verify_demo.py`,
+  `verification.log`, GPU preflight JSON/log, search/mapping/memory test logs,
+  per-command logs and run artifacts. `final_check.json` records the final
+  source/input hashes, syntax/whitespace review and image checks. Room images,
+  fault fixtures, weights and databases remain local and ignored.
+
+Limits and learning:
+
+- The first offline pipeline MVP is complete. The full project still needs
+  concurrent integration, measured mapping/identity quality, the CuTR feasibility
+  gate, open-vocabulary queries and later navigation/edge evaluation.
+- The first replay prefix still needs an accepted observation of some label.
+  Final poses/occupancy are frozen across prefixes. Actual localization, physical
+  visibility and map/floor accuracy remain unresolved; all 48 recorded camera
+  starts lie in unknown cells. No live capture, physical motion or new coverage
+  was executed. Keep historical tracking failures and `prompt.md` unchanged.
+- Accepted depth and preserved source evidence connect a detection to a search
+  decision. Python currently orchestrates native/GPU work; concurrent profiling,
+  not source-language proportions, should guide any C++ or TensorRT optimization.
+
+Next action:
+
+- Run a bounded concurrent SLAM/perception trial from the existing rosbag,
+  measuring timestamp association, queues/drops and Jetson resource use.
 
 ## 16. End-Of-Session Handoff Template
 
