@@ -555,11 +555,19 @@ Chair routes and frontier proposals match the preceding independent stages;
 all input hashes remain unchanged. See the
 [single-command demo and measured results](docs/offline-search-demo.md).
 
+Chronological observation feedback is now verified with
+`scripts/replay_observation_search.py`. Frozen prefixes for nodes 7/14/32 show
+`bottle` changing from a depth-rejected, unlocalized detection to two remembered
+candidates with 0.75/0.60 m routes. Later observations leave the earlier snapshots
+intact. All 78 search tests, 17 memory tests and 14 CLI checks pass; the final
+logical memory matches the original M6 result. See the
+[replay command, timeline and evidence](docs/observation-search-replay.md).
+
 These are offline grid checks. Physical footprint, floor/map accuracy, sensor
 visibility, current localization and traversability remain unverified. No new
-coverage or observation was measured. The next step is to replay existing
-observations into a separate memory and verify how search decisions change as
-evidence arrives; Nav2 and edge optimization remain planned.
+coverage or observation was measured. The next step connects the existing RGB-D
+observation producer to the replay for one command from saved RGB-D frames to
+search decisions; Nav2 and edge optimization remain planned.
 
 Goals:
 
@@ -651,7 +659,8 @@ jetson-semantic-room-explorer/
 - [X] Offline route validation with an explicit simulated start and camera-start refusal
 - [X] Minimum offline frontier-search fallback with explicit simulated starts
 - [X] Single-command offline search demo with preserved decisions and stage evidence
-- [ ] Observation-feedback replay and physical navigation acceptance
+- [X] Chronological observation-feedback replay with preserved memory snapshots
+- [ ] Single-command saved RGB-D-to-search demo and physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented
 

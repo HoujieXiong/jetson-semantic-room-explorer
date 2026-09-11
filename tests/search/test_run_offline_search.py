@@ -20,7 +20,7 @@ from scene_memory import import_report
 from test_scene_memory import detection, frame, report as observation_report
 
 
-class OfflineSearchTests(unittest.TestCase):
+class SearchFixture(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
@@ -42,7 +42,8 @@ class OfflineSearchTests(unittest.TestCase):
             detection(2, point=(20, 20, 2), label='refrigerator', box=(60, 0, 80, 20))])
         mapped.update(database_sha256=file_hash(self.mapping/'map.db'),
                       camera_poses_sha256=file_hash(self.export/'room_camera_poses.txt'))
-        import_report(self.memory, observation_report(mapped))
+        self.observations = observation_report(mapped)
+        import_report(self.memory, self.observations)
         (self.mapping/'database_check.json').write_text(json.dumps({
             'status': 'VERIFIED', 'database_sha256': mapped['database_sha256'],
             'nodes': [{'node_id': 1, 'map_id': 0, 'source_stamp_ns': mapped['source_stamp_ns']}]}))
@@ -59,6 +60,8 @@ class OfflineSearchTests(unittest.TestCase):
             'status': 'EXPORTED', 'exit_code': 0, 'database_unchanged': True,
             'files': [{'name': p.name, 'sha256': file_hash(p)} for p in sorted(self.export.iterdir())]}))
 
+
+class OfflineSearchTests(SearchFixture):
     def search(self, label='chair', **start):
         if not start:
             start = {'simulated_xy': [1.05, 1.55]}

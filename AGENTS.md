@@ -459,61 +459,80 @@ decisions and input hashes are unchanged; all 24 PNGs decode. No observations,
 motion or new coverage were executed. See `docs/offline-search-demo.md` and
 `data/outputs/offline_search/demo_20260911/integration.json`.
 
+### 4.12 Chronological Observation-To-Search Replay
+
+Status: `VERIFIED` for saved-observation feedback through immutable memory prefixes.
+
+`scripts/replay_observation_search.py` imports original nodes 7/14/32 by source
+time into separate snapshots and runs the existing search command after each
+prefix. Bottle changes from `NOT_FOUND`/frontier to candidates 4/6 with
+0.75/0.60 m routes, retaining one source-frame support each. All 78 search tests,
+17 memory tests and 14 native CLI cases pass. Repeated/reversed inputs produce
+identical decisions and corresponding snapshot bytes; the final logical SQL
+dump matches the original M6 memory. Inputs and prior snapshots remain unchanged.
+No causal online mapping, new observation, coverage or physical search is claimed.
+See `docs/observation-search-replay.md` and
+`data/outputs/observation_replay/replay_20260911/integration.json`.
+
 ## 5. Current Next Task
 
-Milestone: **M6/M9/M10 offline observation-feedback replay**.
+Milestone: **M5/M6/M9/M10 single-command saved RGB-D-to-search demonstration**.
 
-The single-command frozen-memory search demo is verified. The user's priority
-remains a complete pipeline before component tuning. Next, connect arrival of
-saved observation evidence to memory updates and repeated search decisions.
-Safe local work and GitHub updates remain authorized. Ask before downloading
-newly required components; current artifacts and dependencies are local.
+Chronological observation feedback is verified. Complete the offline vertical
+slice by connecting the existing RGB-D observation producer to the replay,
+starting from saved RGB-D frames instead of an already generated detection
+report. The user prioritizes the whole pipeline before component optimization.
+Safe local work and GitHub updates remain authorized; ask before downloading
+newly needed components. Existing frames, model weights and dependencies are local.
 
-Recover `docs/offline-search-demo.md`, `scripts/run_offline_search.py`,
-`scripts/scene_memory.py` and
-`data/outputs/offline_search/demo_20260911/integration.json`. Reuse the measured
-`data/outputs/object_observations/m5_20260910/trial_01/observations.json`,
-original `data/outputs/scene_memory/m6_20260910/memory.db` as a comparison, and
-frozen `data/outputs/rtabmap_slam/mapping_02`.
+Recover `docs/observation-search-replay.md`, `docs/rgbd-object-observations.md`,
+`scripts/observe_rgbd_objects.py`, `scripts/replay_observation_search.py`, and
+`data/outputs/observation_replay/replay_20260911/integration.json`.
+Use the original frames manifest
+`data/outputs/rtabmap_slam/colored_cloud_20260910/frames/frames.json`,
+local `yolov8n.pt`, frozen `data/outputs/rtabmap_slam/mapping_02`, and explicitly
+selected nodes 7/14/32 for this minimum end-to-end demonstration.
 
 Required sequence:
 
-1. Inspect the original observations and existing import/query/search contracts.
-   Preserve source stamps, all accepted/rejected detections, producer/map/pose
-   identity and association policy. No capture, mapping or inference rerun is
-   needed. Explain the smallest implementation and verification plan in Chinese.
-2. Import frames 7, 14 and 32 chronologically into a separate memory, retaining
-   a frozen prefix snapshot for each search so later imports cannot invalidate
-   earlier report identities. Reuse existing functions and original evidence;
-   avoid a general replay framework or changes to the measured baseline memory.
-3. Run the current offline search from an explicitly simulated start at each
-   prefix. Use a label whose accepted evidence arrives later: the saved node 7
-   bottle detection was depth-rejected, while node 14 has accepted bottle
-   observations. Preserve whichever goal/route/frontier outcome the data yields;
-   do not force a route or claim that a provisional observation proves success.
-   Retain a compact chronological report linking imports, snapshots and searches.
-4. Verify the absent-to-remembered query transition, preservation of rejection
-   reasons and source timestamps, deterministic duplicate import behavior, and
-   final logical memory equivalence to the existing M6 corpus. Verify unchanged
-   original input hashes and explicit source-identity failures. Run focused tests
-   and native integration, inspect the full diff and record measured evidence.
+1. Inspect the existing observation and replay entry points, source-frame/model
+   identities, and local GPU access. Explain in Chinese the smallest change,
+   touched files and verification. Reuse the current native environment and
+   YOLO settings; no model download, CPU fallback or ROS/capture rerun is needed.
+2. Add the minimum entry point that generates a fresh measured observation report
+   from the explicit RGB-D node selection and then calls the existing replay.
+   Require source frames, frozen map, label and explicit simulated start; preserve
+   model/source identities and all accepted/rejected detections. Use new output
+   directories and keep all earlier measured reports/databases unchanged.
+3. Save one top-level result linking the perception output, memory snapshots and
+   search decisions. Propagate source, inference, no-valid-observation and replay
+   failures with clear stage evidence. A final completed report requires both
+   stages to finish. Do not add a general workflow framework or new viewer.
+4. Run focused contract/failure tests and actual Jetson GPU inference on the
+   three saved nodes, followed by memory/search replay. Verify original input
+   hashes, source timestamps, depth units, prefix isolation and all final query/
+   branch outcomes. Compare fresh detections and decisions with previous evidence;
+   record differences if measured, without forcing historical results. Inspect
+   annotations and search PNGs, review the complete diff and update the ledger.
 
-Acceptance: one reproducible offline replay shows how new saved evidence changes
-memory and the resulting search decision, with source-associated snapshots and
-reports. The occupancy grid and optimized poses are still final frozen exports;
-this does not establish causal online mapping or observations acquired at proposed
-frontier goals. No physical motion, new coverage or live feedback loop is claimed.
+Acceptance: one reproducible command takes the existing RGB-D frames and frozen
+map/poses through actual perception, persistent prefix memories and an inspectable
+search decision timeline. The scope is offline with final geometry: it does not
+claim live SLAM integration, causal online mapping, observations acquired at
+proposed goals or physical navigation. No Nav2, robot motion or optimization work
+is required. Keep successful planning starts explicitly simulated.
 
-Keep all 48 camera projections into unknown grid cells, partial tracking,
-provisional labels/instance association, and uncertain floor/map accuracy explicit.
-Do not snap camera starts into free space, relax planning policies, install Nav2,
-or start ROS/GPU work for this step. Preserve historical M4/M9 failure evidence,
-the accepted native Open3D viewer and the older superseded task in `prompt.md`.
-Room data, generated snapshots and replay outputs remain local and ignored.
+Preserve the earlier replay limitation: the first prefix needs an accepted
+observation of some label. Do not discard rejected detections, inflate support,
+or relax clearance to produce a result. Partial tracking, provisional labels and
+instance identity, unknown floor/map accuracy and all 48 recorded camera starts
+in unknown cells remain explicit. Keep historical M4/M9 failure evidence, the
+accepted Open3D viewer and the superseded older task in `prompt.md`. Room outputs,
+model weights and generated snapshots stay local and ignored.
 
-Learning checkpoint: new observation evidence can change memory and planning,
-but a replayed detection is not proof that the selected exploration goal caused
-an observation or that a physical search succeeded.
+Learning checkpoint: starting from saved sensor frames verifies the interfaces
+from perception to planning; frozen poses and simulated starts still limit what
+can be claimed about a live robot.
 
 ## 6. Target System Architecture
 
@@ -2701,6 +2720,113 @@ Next action:
 
 - Replay the saved observations chronologically into a separate memory and use
   the new command to verify how arriving evidence changes the search decision.
+
+### 2026-09-11: M6/M9/M10 Chronological Observation Feedback Replay
+
+Status: `VERIFIED` for saved-evidence arrival, memory snapshots and resulting
+search decisions. This is offline replay against final frozen map geometry.
+
+Changed:
+
+- Added `scripts/replay_observation_search.py`, reusing the original observation
+  validator, map identity loader, transactional importer and search command.
+  It requires the source report, frozen map, label and explicit simulated start.
+  Frames sort by source time; each new prefix imports into a fresh copy of the
+  closed preceding database. Earlier snapshots are never reopened for writing.
+- `replay.json` links original frame times, matching-label depth accept/reject
+  evidence, import counts, memory/search hashes and per-prefix search outcomes.
+  Errors propagate with an incomplete replay and failing stage/node; completed
+  refusals stay explicit. New-observation/motion/coverage flags remain false.
+- Added 15 replay tests, reused the existing synthetic search fixture for both
+  test classes, and added `docs/observation-search-replay.md`. Existing memory,
+  search, planner and renderer runtime code is unchanged. No dependency was added.
+
+Verified on this Jetson:
+
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest
+  discover -s tests/search -v`: 78 tests pass in 24.520 s. The analogous
+  `tests/memory` command passes 17 tests in 0.312 s. New tests exercise real
+  temporary SQLite and synthetic maps; only PNG rendering is stubbed. They
+  cover chronological transitions, prefix isolation, final full-import
+  equivalence, duplicates, rejection-only frames, explicit refusals, source
+  corruption, mid-replay failure and output preservation.
+- `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python
+  data/outputs/observation_replay/replay_20260911/verify_replay.py`: 14 fresh
+  CLI processes complete within a 90-second per-command limit. These comprise
+  eight replay invocations, three duplicate imports and three reopened queries.
+  All four normal replays complete their three search prefixes; two source errors,
+  missing start and output reuse return expected nonzero exits.
+- Original M5 source SHA256 remains
+  `35c7738441daeaf665e0e725508bc2f13a6846cc0ca3dbef03d90eec32d821ec`.
+  Nodes 7/14/32 retain source stamps 1789080208207783000,
+  1789080215242330000 and 1789080265488456000 ns. SQL inspection reproduces
+  every normalized original frame/detection, not just aggregate counts.
+- At node 7, bottle detection 5 retains `insufficient_valid_depth`, a null
+  object association and `NOT_FOUND`. From explicit simulated [1.65,0.08366] m,
+  search proposes the existing in-place -Y observation of frontier group 39.
+- At node 14, two accepted bottle observations produce provisional IDs 4/6.
+  Search changes to `ROUTE_READY`: goals [1.55,0.73366] and [1.70,0.63366] m,
+  paths 0.75/0.60 m through 16/13 grid cells. The reused planner reports minimum
+  segment clearance approximately 0.257391 m for both. No policy was relaxed.
+- Node 32 contains no bottle observation. IDs 4/6 retain one supporting frame
+  each, node 14 source times and the same route decisions. New unrelated evidence
+  does not fabricate extra support or a new last-seen time for the bottle.
+- Prefix counts are 7/13/18 detections, 3/7/9 provisional objects and 3/8/13
+  supporting observations. Snapshot sizes are 32768/45056/49152 bytes. They
+  contain exactly [7], [7,14] and [7,14,32], pass integrity/foreign-key checks,
+  and the final complete logical SQL dump equals the original M6 database.
+- Repeated and reversed-input replays produce identical decisions apart from
+  timing and byte-identical corresponding snapshots. Three fresh-process
+  duplicate imports into separate copies add zero frames and leave hashes
+  unchanged. Fresh read-only queries reproduce `NOT_FOUND`/`FOUND`/`FOUND`.
+- Explicit simulated [-0.002109,-0.03223] m is refused at every prefix:
+  `INVALID_START` first, then `NO_ROUTE` with each candidate `INVALID_START:
+  unknown_cell`. Although these values coincide with recorded camera node 1,
+  this replay CLI records them as simulated coordinates, not measured localization.
+- Altered source copies with incompatible pose identity or inconsistent source
+  timestamps exit 1 before imports, leaving no database or PNG. Missing start
+  exits 2 without output; reuse exits 1 with prior evidence unchanged. Normal
+  replay completion includes explicit search refusals and does not mean discovery.
+- All original input hashes and earlier snapshots remain unchanged. All 40
+  PNGs decode; the node 7 frontier and both node 14 bottle route overlays were
+  visually inspected. Generated snapshots and room evidence remain ignored.
+- Reviewed the complete six-file diff. Compilation of the new script and both
+  affected test files and staged whitespace checks pass. `final_check.json`
+  records staged hashes, unchanged runtime/inputs, frozen prefixes and test logs.
+- Runtime: Python 3.10.12, SQLite 3.37.2, NumPy 1.26.4 and OpenCV 4.11.0,
+  aarch64. Four completed three-prefix replays have operation-time
+  min/median/P95/max 9738.501/11035.504/11060.200/11060.587 ms and process
+  wall time 10644.382/11929.296/11954.510/11954.601 ms. These mixed normal/
+  refusal cases include imports, copies, source checks and rendering; wall time
+  includes dependency startup. No live throughput/resource benchmark is claimed.
+
+Evidence:
+
+- `data/outputs/observation_replay/replay_20260911/`: `integration.json`,
+  `verify_replay.py`, `verification.log`, `search_tests.log`, `memory_tests.log`,
+  `final_check.json`, per-command logs and `bottle`, `bottle_repeat`,
+  `bottle_reversed`, `invalid_start`, `changed_pose`, `changed_stamp` outputs.
+  Reordered/altered source copies, three prefix reports and duplicate-import
+  copies are local verification fixtures. Original inputs remain unchanged.
+
+Limits and learning:
+
+- The earliest prefix must have an accepted observation of some label under
+  the unchanged memory importer contract. A rejection-only first frame fails
+  explicitly; later rejection-only frames work in cumulative prefixes. This
+  case is covered by tests and is not a cold-start empty-memory implementation.
+- Final occupancy and optimized poses are shared by all prefixes. Replayed
+  detections were not acquired at selected exploration goals. Tracking, physical
+  visibility, floor/map accuracy, provisional labels/identity and current
+  localization remain unverified; no observation, motion or coverage is executed.
+- Arrival of accepted evidence can change an exploration decision to an object
+  route. Freezing each memory prefix preserves what was actually known then;
+  repeated imports and unrelated frames must not inflate target support.
+
+Next action:
+
+- Connect the existing RGB-D observation producer to the replay for one offline
+  command from saved RGB-D frames to search decisions.
 
 ## 16. End-Of-Session Handoff Template
 
