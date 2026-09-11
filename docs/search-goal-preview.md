@@ -145,5 +145,6 @@ The partial SLAM trajectory, provisional labels/identities and unverified floor
 geometry still limit interpretation. This step does not check a route from a
 known start, line of sight, physical footprint, current localization or Nav2.
 An object location and an observation position are different quantities; even a
-valid observation cell does not prove it can be reached. Next: validate an
-offline grid route from an explicitly identified start to a candidate goal.
+valid observation cell does not prove it can be reached. The subsequent
+[offline route validation](search-route-preview.md) now checks an explicit start
+and complete path segments while preserving these limitations.

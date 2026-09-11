@@ -135,7 +135,7 @@ def select_goal(grid, target, clearance):
     return {**result, 'status': 'PREVIEW_CANDIDATE', 'goal': goal}, eligible
 
 
-def render_overlay(grid, label, obj, decision, eligible, path):
+def render_overlay(grid, label, obj, decision, eligible, path, route=None):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -168,17 +168,35 @@ def render_overlay(grid, label, obj, decision, eligible, path):
                     radius = POLICY['max_standoff_m']+0.3
                     ax.set_xlim(target[0]-radius, target[0]+radius)
                     ax.set_ylim(target[1]-radius, target[1]+radius)
+            if route is not None:
+                start = np.array(route['start']['map_xy_m'])
+                ax.scatter(*start, marker='*', s=130, color='#0891b2', edgecolors='black',
+                           zorder=7, label='Explicit start ('+route['start']['kind'].replace('_', ' ')+')')
+                points = np.array(route['path_map_xy_m'])
+                if len(points):
+                    ax.plot(points[:, 0], points[:, 1], color='#9333ea', linewidth=2,
+                            zorder=6, label='Checked four-direction route')
+                if index == 1:
+                    ax.set_xlim(min(ax.get_xlim()[0], start[0]-.2), max(ax.get_xlim()[1], start[0]+.2))
+                    ax.set_ylim(min(ax.get_ylim()[0], start[1]-.2), max(ax.get_ylim()[1], start[1]+.2))
             ax.set_xlabel('map x (m)')
             ax.set_ylabel('map y (m)')
             ax.set_aspect('equal')
             ax.set_title('Full occupancy export' if index == 0 else 'Target detail')
         title = f'{label}: not present in saved memory' if obj is None else f'Object {obj["object_id"]}: {obj["label"]} | '+(
             'cell-only goal preview' if decision['goal'] else 'No goal: '+decision['reason'].replace('_', ' '))
-        figure.suptitle(title+'\nOffline map checks; route, visibility and physical clearance unverified', fontsize=12)
+        if route is None:
+            subtitle = 'Offline map checks; route, visibility and physical clearance unverified'
+        else:
+            title = f'{label}'+(f' / object {obj["object_id"]}' if obj else '')+' | '+route['status']
+            if route.get('reason'):
+                title += ': '+route['reason'].replace('_', ' ')
+            subtitle = 'Offline route check; physical traversal and target visibility unverified'
+        figure.suptitle(title+'\n'+subtitle, fontsize=12)
         legend = [Patch(facecolor=color, label=name) for color, name in zip(colors, ['Unknown', 'Free', 'Occupied'])]
         handles, _ = np.atleast_1d(axes)[-1].get_legend_handles_labels()
         figure.legend(handles=legend+handles, loc='lower center', ncol=3, fontsize=9)
-        figure.tight_layout(rect=(0, 0.12, 1, 0.9))
+        figure.tight_layout(rect=(0, 0.18 if route is not None else 0.12, 1, 0.9))
         figure.savefig(path, dpi=150)
     finally:
         plt.close(figure)

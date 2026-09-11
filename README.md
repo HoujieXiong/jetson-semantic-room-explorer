@@ -509,7 +509,7 @@ Deliverables:
 
 ### Phase 8: Exploration, Navigation, And Edge Optimization
 
-Status: `VERIFIED` for minimum offline object-search goal previews only.
+Status: `VERIFIED` for minimum offline object-search goals and route previews.
 
 The saved memory now connects to the frozen occupancy map through a read-only
 query and hash-verified map/pose identity. With a fixed 0.75–1.25 m stand-off
@@ -526,9 +526,19 @@ repeated chair decisions and rejection of incompatible pose identity. All
 JSON results and ordinary PNG overlays need no WebGL. See
 [commands, previews and evidence](docs/search-goal-preview.md).
 
-These checks do not establish a route, visibility, current localization, robot
-dimensions or physical traversability. Offline route validation from an explicit
-start is next; frontier exploration, Nav2 and edge optimization remain planned.
+Offline route validation is now verified with explicit start provenance. All
+48 recorded camera positions project into unknown cells, so camera node 1 is
+refused as a start. An explicitly simulated start `[1.65, 0.08366]` m reaches
+both chair goals through 22 grid cells over 1.05 m. Whole-segment map clearance
+is 0.257391 m; an independent continuous lower bound is 0.256141 m. All 32
+goal/route tests pass, eight route CLI cases match their expected outcomes,
+and an original goal-preview regression is unchanged. See
+[route commands, images and evidence](docs/search-route-preview.md).
+
+These are offline grid checks. Physical footprint, floor/map accuracy, target
+visibility, current localization and traversability remain unverified. The next
+step is an offline frontier-search fallback; Nav2 and edge optimization remain
+planned.
 
 Goals:
 
@@ -617,7 +627,8 @@ jetson-semantic-room-explorer/
 - [ ] Continuous tracking and room-map quality acceptance
 - [X] Minimum offline semantic object memory and reopened queries verified
 - [X] Minimum offline object-search goal previews and explicit no-goal outcomes verified
-- [ ] Offline route validation and physical navigation acceptance
+- [X] Offline route validation with an explicit simulated start and camera-start refusal
+- [ ] Frontier-search fallback and physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented
 

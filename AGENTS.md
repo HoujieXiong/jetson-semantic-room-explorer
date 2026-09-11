@@ -1,6 +1,6 @@
 # Jetson Semantic Room Explorer: Codex Project Playbook
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 This file is the canonical execution plan, living handoff, and operating contract
 for Codex sessions working in this repository. It is intentionally kept at the
@@ -414,68 +414,91 @@ PNG overlays were inspected. Route, visibility, current localization, physical
 footprint and traversability remain unverified. See `docs/search-goal-preview.md`
 and `data/outputs/search_goal/m9_20260910/integration.json`.
 
+### 4.9 Offline Route Validation
+
+Status: `VERIFIED` for minimum offline routing with explicit start provenance.
+
+All 48 recorded camera translations project into unknown grid cells; node 1
+is refused as an invalid start without snapping. The explicit simulated start
+[1.65,0.08366] m reaches both saved chair goals over 1.05 m / 22 grid cells.
+Minimum segment clearance is approximately 0.257391 m; an independent continuous
+certificate gives 0.256141 m against the assumed 0.25 m requirement. All 32
+goal/route tests pass, eight route CLI cases match expected outcomes, and the
+original goal-preview regression is unchanged. Inputs remain byte-identical.
+Physical navigation, floor/map accuracy and current localization remain
+unverified. See `docs/search-route-preview.md` and
+`data/outputs/search_route/m9_20260911/integration.json`.
+
 ## 5. Current Next Task
 
-Milestone: **M9 minimum offline route-to-goal validation**.
+Milestone: **M10 minimum offline frontier-search fallback**.
 
-The user prioritized completing the pipeline before improving components.
-Minimum camera, odometry, mapping, perception, persistent memory and cell-only
-search-goal preview interfaces now have measured evidence. Connect a preview
-goal to an explicit start and offline grid route next. M7/M8 model upgrades,
-M10 frontier exploration and physical navigation remain planned. Safe local work
-and GitHub progress updates remain authorized. Ask before downloading newly
-required components; all dependencies used so far are already present.
+The user prioritizes completing the pipeline before tuning individual components.
+Minimum camera, mapping, perception, memory, object-goal and offline route
+interfaces now have measured evidence. Connect the missing-target/no-object-goal
+outcome to a geometric exploration proposal next. M7/M8 model upgrades, live
+navigation and optimization remain planned. Safe local work and GitHub progress
+updates remain authorized. Ask before downloading newly required components.
 
-Recover `docs/search-goal-preview.md`, `scripts/preview_search_goal.py`,
-`data/outputs/search_goal/m9_20260910/integration.json` and the per-label
-`preview.json` files. Reuse the read-only scene-memory query and frozen
-`data/outputs/rtabmap_slam/mapping_02/` occupancy export, map and pose hashes.
-Memory remains `data/outputs/scene_memory/m6_20260910/memory.db`: nine
-provisional objects, including unresolved chair identity and likely class errors.
-The targets are sampled surface means, not cuboid centers or measured floor poses.
+Recover `docs/search-route-preview.md`, `scripts/preview_search_route.py`,
+`data/outputs/search_route/m9_20260911/preflight.json`, `integration.json`, and
+`simulated_chair/route.json`. Reuse the existing frozen `mapping_02` occupancy
+export, read-only M6 memory and M9 goal/route code. All map/pose/memory identities
+must remain consistent. The initial verifier's floating-point assertion failure
+is preserved separately; the corrected independent audit passes on the same CLI
+artifacts without changing route code.
 
-The 222x138 grid at 0.05 m/cell has only 1122 free cells and 168 passing the
-assumed 0.25 m conservative clearance. The two chair IDs select [114,84], map
-x/y [1.15,0.63366] m; both have 94 passing cells in their 0.75–1.25 m stand-off
-bands. Refrigerator has no free cell in its band, sink has no clearance-passing
-cell, and backpack is absent from memory. Preserve these measured no-goal cases;
-do not relax clearance or treat unknown cells as free to force success.
+The grid has 1122 free cells in 76 four-connected components. Only 168 cells
+pass the assumed 0.25 m conservative clearance, all in one component. All 48
+recorded camera translations project into unknown cells; they are not valid
+starts under this grid policy. Camera node 1 is explicitly refused. The simulated
+fixture [1.65,0.08366] m, selected from the clearance mask, reaches the two chair
+goals at [1.15,0.63366] m through 22 cells over 1.05 m. This is not current robot
+localization. Never silently snap a recorded/invalid start into the free area.
+
+Refrigerator has no free cell in its stand-off band, sink has no sufficiently
+clear goal cell, and backpack is absent from memory. Preserve those outcomes
+and provisional object evidence; an exploration proposal is not an object goal
+or evidence that the object has been found. M5 likely class errors, unresolved
+chair identity, partial tracking and unknown floor/map accuracy remain.
 
 Required sequence:
 
-1. Inspect saved poses and grid connectivity before choosing a start. A camera
-   pose is not automatically a robot-base pose, and no current robot location or
-   measured footprint exists. Require an explicit start with recorded provenance.
-   A free-cell test start may be used only when clearly labeled as a simulated
-   planning fixture; never present it as measured localization or silently snap
-   an invalid start into free space.
-2. Reuse the existing map decoding, coordinate/clearance policy and identity
-   checks. Add the smallest bounded offline route check needed for the candidate
-   goal, with unknown/occupied/outside cells blocked and explicit movement rules.
-   Check segment clearance as well as endpoints; prevent diagonal corner cutting.
-3. Save structured start/goal identity, path/cost and a map overlay, or an explicit
-   no-route/invalid-start result. Preserve the preceding object's evidence and
-   no-goal status. Keep viewpoint selection distinct from route feasibility.
-4. Test known paths, disconnected regions, invalid starts/goals, boundaries and
-   obstacle corners. Run the actual saved map through the check with unchanged
-   input hashes and report which conditions were measured versus simulated.
+1. Inspect free/unknown boundaries and their connectivity on the actual export.
+   Reuse map decoding and the existing start-provenance contract; keep any test
+   start explicitly simulated. Do not rerun mapping or alter occupancy values.
+2. Define the smallest geometric frontier baseline: free cells bordering unknown
+   space, with explicit neighbor and grouping rules. A boundary cell is not
+   automatically a valid observation goal because it may fail clearance.
+3. Propose a clearance-valid observation cell for an inspectable frontier and
+   check its route from the explicit start using the existing path code. Record
+   any new stand-off/visibility assumptions; do not claim measured information
+   gain. If the map cannot support a usable proposal, return an evidenced
+   no-frontier/no-route result rather than weakening the clearance policy.
+4. Connect an existing missing-target/no-goal query to the separate exploration
+   result, retaining source identity and the reason for the fallback. Save JSON
+   and a PNG showing unknown space, frontier, start, candidate and any checked
+   route. Keep ranking minimal and deterministic before adding semantic priors.
+5. Test known frontier boundaries, occupied/outside cells, disconnected regions,
+   clearance and invalid starts, then run the actual frozen map and preserve
+   input hashes. Distinguish measured map computations from simulated starts
+   and unverified physical behavior.
 
-Acceptance: an inspectable offline route or evidenced refusal links an explicit
-start to the existing goal interface, with checked grid geometry. This does not
-establish physical navigation, target visibility, current localization or a real
-robot footprint. No new capture, replay, Nav2 command or robot motion is needed.
-Do not expand this step into frontier scoring, model upgrades or mapping tuning.
+Acceptance: an inspectable offline exploration proposal or evidenced refusal
+continues the search interface when an object goal is unavailable. This does
+not establish active sensing, physical navigation or a real robot footprint.
+No new capture, ROS replay, Nav2 command, model download or robot motion is
+needed. Do not expand into perception upgrades, map tuning or throughput work.
 
-Tracking gaps, unconfirmed loop detections and unknown map/floor accuracy remain.
-Preserve the old mapping harness's late CLI-query `INCOMPLETE` history; direct
-reopening checks passed separately. The native Open3D colored-cloud viewer was
-accepted by the user; do not revisit it. The older M3 text in `prompt.md` stays
-unchanged because its capture-quality conditions were not fully verified; the
-newer offline/pipeline direction supersedes it. Keep all room evidence local
-and ignored.
+Preserve the historical mapping harness's late CLI-query `INCOMPLETE` record;
+direct reopening checks passed separately. The native Open3D point-cloud viewer
+was accepted by the user; do not revisit it. The older M3 task in `prompt.md`
+remains unchanged because capture-quality conditions were not fully verified;
+the newer offline/pipeline direction supersedes it. Keep all room evidence
+local and ignored.
 
-Learning checkpoint: a free goal cell does not establish a reachable route;
-a route needs an explicit start and checks along the entire path.
+Learning checkpoint: when memory cannot supply a usable object goal, exploration
+should propose where to observe unknown space while preserving what is unknown.
 
 ## 6. Target System Architecture
 
@@ -840,11 +863,13 @@ multi-view semantic fusion.
 
 ### M9: Object Search Interface
 
-Status: `VERIFIED` for minimum offline memory-to-goal previews only.
-Fixed stand-off/clearance assumptions, map/pose identity checks, per-object PNGs
-and explicit no-goal outcomes pass on the saved map. Route checks, cuboid-based
-geometry, live publication, continued exploration and physical navigation remain
-`PLANNED`. See `docs/search-goal-preview.md` and the M9 ledger entry.
+Status: `VERIFIED` for minimum offline memory-to-goal and route previews.
+Fixed stand-off/clearance assumptions, map/pose identity, explicit starts,
+whole-segment route checks, PNGs and no-goal/no-route outcomes pass on the saved
+map. The successful route uses an explicitly simulated start; recorded camera
+positions fall in unknown cells. Cuboid geometry, live publication, continued
+exploration and physical navigation remain `PLANNED`. See
+`docs/search-goal-preview.md`, `docs/search-route-preview.md` and the M9 ledger.
 
 Steps:
 
@@ -2346,6 +2371,112 @@ Next action:
 
 - Validate an offline grid route from an explicit, provenance-labeled start to
   an existing candidate goal, preserving invalid-start/no-route outcomes.
+
+### 2026-09-11: M9 Offline Route Validation From Explicit Starts
+
+Status: `VERIFIED` for minimum offline grid routes and recorded-start refusal.
+Physical navigation, current localization, target visibility and floor/map
+accuracy remain unverified.
+
+Changed:
+
+- Added `scripts/preview_search_route.py`, reusing the memory query, goal
+  selection, map decoding, conservative clearance and frozen identity checks.
+  The saved goal preview is revalidated against memory and the actual export
+  before its decisions can be consumed by the planner.
+- Added 16 route/start tests and `docs/search-route-preview.md`. Extended the
+  existing renderer with an optional explicit start/path overlay, linked the
+  preceding goal guide, and updated README and canonical state. No new
+  dependency or model was required; existing native Python/NumPy suffices.
+
+Verified on this Jetson:
+
+- The unchanged 222x138 occupancy grid has 1122 free cells in 76 four-connected
+  components. Its existing 0.25 m conservative clearance mask has 168 cells
+  in one component. All 48 frozen camera translations project into unknown
+  cells; none is a valid start under the current grid policy.
+- Camera node 1 retains map x/y [-0.002109,-0.03223] m, cell [91,71], and
+  original source time 1789080202178160000 ns. Its projected camera position,
+  full original translation/quaternion and pose-file hash remain recorded.
+  Both chair candidates return `INVALID_START: unknown_cell`, with no path
+  or cost. No recorded pose is snapped into the nearby free component.
+- The simulated fixture [1.65,0.08366] m was explicitly selected as the
+  lowest-y, then lowest-x clearance-passing cell, [124,73]. It is labeled
+  `simulated_grid_fixture` and has no fabricated observation timestamp or
+  robot-localization claim. Both chair IDs 2/3 reach the saved goal
+  [1.15,0.63366] m through 22 grid cells / 21 cardinal edges, length 1.05 m.
+  Each search expands 163 cells. IDs, supports, object means, source times
+  and the separate goal-facing yaw values remain in the source preview.
+- Breadth-first search uses fixed-order four-direction neighbors and equal
+  edge cost. Unknown/occupied/outside cells block clearance; there are no
+  diagonal moves or smoothing. The exact start point is retained, with an
+  explicit x-then-y connection to its cell center when needed. Each connection
+  and grid edge checks its entire segment against blocked cell squares and
+  the map boundary. Minimum segment clearance is 0.257391 m.
+- Independent checks use original PGM rows, free-cell membership, endpoint
+  coordinates, cardinal adjacency and metric length. Length meets the 1.05 m
+  Manhattan lower bound for this pair. Point-to-square distances sampled at
+  no more than 2.5 mm spacing, minus half the sampling interval using the
+  distance function's Lipschitz bound, certify at least 0.256141 m continuous
+  clearance. This exceeds the assumed 0.25 m but does not verify real space.
+- Eight fresh route CLI processes completed within a 45-second per-command
+  bound. Six normal runs cover the recorded start, simulated chair start and
+  repetition, plus refrigerator/sink/backpack no-goal propagation. Repeated
+  route decisions are identical apart from measured planning time. Two
+  deliberately altered preview copies (goal coordinate and pose-export hash)
+  fail with exit 1 / `INCOMPLETE`, producing no path or PNG.
+- The initial independent verifier used a chained comparison that canceled
+  its intended upper-bound floating-point tolerance. Its `INCOMPLETE` report
+  and traceback are retained. Correcting only that assertion and rechecking
+  the saved CLI artifacts passed; the route implementation stayed unchanged.
+- All 32 search tests pass: 16 original goal regressions and 16 new route/start
+  tests. They cover known shortest paths, a required detour, occupied/unknown
+  barriers, diagonal corners, segment interiors, boundaries, exact-start
+  connectors, zero-length paths, invalid endpoints, deterministic results and
+  timestamp/map provenance disagreement. A separate original goal-preview
+  CLI returns unchanged candidates/decisions after the renderer extension.
+- Input memory, map database, PGM/YAML/poses, mapping check/export manifest
+  and all four original goal reports remain byte-identical. Input hashes
+  are recorded in `integration.json`; database and export identities remain
+  those in the preceding M9 ledger. Generated PNGs decode and route/refusal
+  overlays were visually inspected.
+- Reviewed the complete seven-file diff for minimal scope, reused policy,
+  whole-segment geometry, source contracts, explicit failures and measured
+  claims. Script/test compilation and staged whitespace checks passed;
+  `final_check.json` records reviewed source identities and the goal regression.
+- Native runtime: Python 3.10.12, NumPy 1.26.4, OpenCV 4.11.0 on aarch64;
+  existing SciPy/Matplotlib/PyYAML provide reused grid/rendering operations.
+  The first two successful path searches took 307.954/307.605 ms. Across six
+  successful mixed route/refusal/render commands, operation-time
+  min/median/P95/max was 1236.469/2493.287/3353.786/3354.477 ms. Wall-time
+  min/median/P95/max was 2022.933/3300.157/4177.882/4179.149 ms, including
+  interpreter/dependency startup. These are functional measurements on the
+  frozen map, not steady-state performance or live navigation acceptance.
+
+Evidence:
+
+- `data/outputs/search_route/m9_20260911/`: `preflight.json`,
+  `integration.json`, `integration_initial.json`, `verify_routes.py`,
+  `verification.log`, `verification_initial.log`, `unit_tests.log`, `final_check.json`,
+  per-command logs, `camera_node_1/`, `simulated_chair/`,
+  `simulated_chair_repeat/`, `refrigerator/`, `sink/`, `backpack/`,
+  `changed_goal/`, `changed_identity/` and `goal_regression/` JSON/PNG outputs.
+  Deliberately changed preview copies and all room evidence remain ignored.
+
+Limits and learning:
+
+- Actual camera starts are invalid in this occupancy export. The simulated
+  path verifies the planning interface only; physical footprint, floor/map
+  accuracy, current localization, visibility, turning and traversability are
+  unverified. Partial tracking and provisional object identity remain unchanged.
+- A remembered location, an observation goal and a route from an explicit start
+  are separate outputs. Segment checks extend endpoint checks but do not turn
+  a frozen map or simulated start into verified robot navigation.
+
+Next action:
+
+- Add an offline geometric frontier-search fallback when memory lacks the
+  target or the object-goal preview cannot supply a usable observation goal.
 
 ## 16. End-Of-Session Handoff Template
 
