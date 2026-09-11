@@ -158,5 +158,6 @@ Generated room data stays local and ignored.
 The pipeline now distinguishes object location, observation goal and an offline
 route from an explicit start. Actual camera projections remain invalid starts
 on this export; physical footprint, floor/map accuracy, target visibility,
-turn feasibility, current localization and Nav2 remain unverified. Next: add an
-offline frontier-search preview for missing targets or unavailable object goals.
+turn feasibility, current localization and Nav2 remain unverified. The subsequent
+[offline frontier fallback](frontier-search-preview.md) now uses these route
+checks for missing targets or unavailable object goals.

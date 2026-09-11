@@ -509,7 +509,7 @@ Deliverables:
 
 ### Phase 8: Exploration, Navigation, And Edge Optimization
 
-Status: `VERIFIED` for minimum offline object-search goals and route previews.
+Status: `VERIFIED` for minimum offline object goals, routes and frontier fallback.
 
 The saved memory now connects to the frozen occupancy map through a read-only
 query and hash-verified map/pose identity. With a fixed 0.75–1.25 m stand-off
@@ -535,10 +535,21 @@ goal/route tests pass, eight route CLI cases match their expected outcomes,
 and an original goal-preview regression is unchanged. See
 [route commands, images and evidence](docs/search-route-preview.md).
 
-These are offline grid checks. Physical footprint, floor/map accuracy, target
-visibility, current localization and traversability remain unverified. The next
-step is an offline frontier-search fallback; Nav2 and edge optimization remain
-planned.
+The offline frontier fallback is also verified. The frozen map has 102
+free/unknown boundary cells in 70 groups; the fixed clearance and cardinal-view
+policy produces 123 viewing candidates at 115 goal cells. Missing `backpack`
+and unavailable refrigerator/sink goals retain their reasons while producing
+the same geometric observation proposal from the same simulated start. One
+fixture proposes looking toward unknown space in place; a second requires a
+5 cm checked route. An available chair goal suppresses fallback, and the recorded
+camera start remains invalid. All 48 goal/route/frontier tests and nine frontier
+CLI cases match expected outcomes; original goal/route regressions are unchanged.
+See [frontier commands, images and evidence](docs/frontier-search-preview.md).
+
+These are offline grid checks. Physical footprint, floor/map accuracy, sensor
+visibility, current localization and traversability remain unverified. No new
+coverage or observation was measured. The next step is a single-command offline
+search demo; Nav2 and edge optimization remain planned.
 
 Goals:
 
@@ -628,7 +639,8 @@ jetson-semantic-room-explorer/
 - [X] Minimum offline semantic object memory and reopened queries verified
 - [X] Minimum offline object-search goal previews and explicit no-goal outcomes verified
 - [X] Offline route validation with an explicit simulated start and camera-start refusal
-- [ ] Frontier-search fallback and physical navigation acceptance
+- [X] Minimum offline frontier-search fallback with explicit simulated starts
+- [ ] Single-command offline search demo and physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete
 - [ ] Open-vocabulary semantic query implemented
 

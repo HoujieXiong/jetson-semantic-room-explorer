@@ -13,6 +13,9 @@ from preview_search_goal import POLICY, load_grid, render_overlay, select_goal
 from scene_memory import query
 
 
+CARDINAL_DIRECTIONS = ((-1, 0), (1, 0), (0, -1), (0, 1))
+
+
 def segment_clearance(grid, blocked_centers, first, last):
     """Exact planar distance from an axis-aligned segment to blocked cell squares."""
     first, last = np.asarray(first, dtype=float), np.asarray(last, dtype=float)
@@ -92,7 +95,8 @@ def plan_route(grid, start_xy, goal_xy, clearance):
                               min_segment_clearance_m=min(distances) if distances else result['start_check']['point_clearance_m'])
                 return result
             x, y = cell
-            for neighbor in ((x-1, y), (x+1, y), (x, y-1), (x, y+1)):
+            for dx, dy in CARDINAL_DIRECTIONS:
+                neighbor = (x+dx, y+dy)
                 if not grid.contains(neighbor) or neighbor in parents or not allowed[neighbor[1], neighbor[0]]:
                     continue
                 distance = segment_clearance(grid, blocked, grid.center_xy(cell), grid.center_xy(neighbor))

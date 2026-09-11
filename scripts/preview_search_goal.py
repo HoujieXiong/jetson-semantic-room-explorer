@@ -135,22 +135,33 @@ def select_goal(grid, target, clearance):
     return {**result, 'status': 'PREVIEW_CANDIDATE', 'goal': goal}, eligible
 
 
-def render_overlay(grid, label, obj, decision, eligible, path, route=None):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
+def draw_occupancy(ax, grid):
+    """Draw the shared metric occupancy backdrop and return its legend entries."""
     from matplotlib.colors import ListedColormap
-    from matplotlib.patches import Circle, Patch
+    from matplotlib.patches import Patch
 
     colors = ['#cbd0d6', '#fafafa', '#39424e']
     display = np.where(grid.cells == -1, 0, np.where(grid.cells == 0, 1, 2))
     lower = grid.origin_xy_m
     upper = lower+np.array(grid.cells.shape[::-1])*grid.resolution_m
+    ax.imshow(display, origin='lower', cmap=ListedColormap(colors), vmin=0, vmax=2,
+              extent=[lower[0], upper[0], lower[1], upper[1]], interpolation='nearest')
+    ax.set_xlabel('map x (m)')
+    ax.set_ylabel('map y (m)')
+    ax.set_aspect('equal')
+    return [Patch(facecolor=color, label=name) for color, name in zip(colors, ['Unknown', 'Free', 'Occupied'])]
+
+
+def render_overlay(grid, label, obj, decision, eligible, path, route=None):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle
+
     figure, axes = plt.subplots(1, 2 if obj else 1, figsize=(12, 5.6) if obj else (8, 5.6))
     try:
         for index, ax in enumerate(np.atleast_1d(axes)):
-            ax.imshow(display, origin='lower', cmap=ListedColormap(colors), vmin=0, vmax=2,
-                      extent=[lower[0], upper[0], lower[1], upper[1]], interpolation='nearest')
+            legend = draw_occupancy(ax, grid)
             if obj:
                 target = np.array(obj['map_point_m'][:2])
                 rows, cols = np.nonzero(eligible)
@@ -179,9 +190,6 @@ def render_overlay(grid, label, obj, decision, eligible, path, route=None):
                 if index == 1:
                     ax.set_xlim(min(ax.get_xlim()[0], start[0]-.2), max(ax.get_xlim()[1], start[0]+.2))
                     ax.set_ylim(min(ax.get_ylim()[0], start[1]-.2), max(ax.get_ylim()[1], start[1]+.2))
-            ax.set_xlabel('map x (m)')
-            ax.set_ylabel('map y (m)')
-            ax.set_aspect('equal')
             ax.set_title('Full occupancy export' if index == 0 else 'Target detail')
         title = f'{label}: not present in saved memory' if obj is None else f'Object {obj["object_id"]}: {obj["label"]} | '+(
             'cell-only goal preview' if decision['goal'] else 'No goal: '+decision['reason'].replace('_', ' '))
@@ -193,7 +201,6 @@ def render_overlay(grid, label, obj, decision, eligible, path, route=None):
                 title += ': '+route['reason'].replace('_', ' ')
             subtitle = 'Offline route check; physical traversal and target visibility unverified'
         figure.suptitle(title+'\n'+subtitle, fontsize=12)
-        legend = [Patch(facecolor=color, label=name) for color, name in zip(colors, ['Unknown', 'Free', 'Occupied'])]
         handles, _ = np.atleast_1d(axes)[-1].get_legend_handles_labels()
         figure.legend(handles=legend+handles, loc='lower center', ncol=3, fontsize=9)
         figure.tight_layout(rect=(0, 0.18 if route is not None else 0.12, 1, 0.9))

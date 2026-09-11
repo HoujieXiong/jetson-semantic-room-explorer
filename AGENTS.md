@@ -429,76 +429,96 @@ Physical navigation, floor/map accuracy and current localization remain
 unverified. See `docs/search-route-preview.md` and
 `data/outputs/search_route/m9_20260911/integration.json`.
 
+### 4.10 Offline Frontier Search Fallback
+
+Status: `VERIFIED` for minimum geometric exploration proposals with explicit
+simulated starts and unchanged source evidence.
+
+The frozen map has 102 free/unknown frontier cells in 70 four-connected groups.
+None is itself a clearance-valid goal. The fixed 0.30–0.75 m cardinal-view
+policy produces 123 rays at 115 observation cells. Backpack/refrigerator/sink
+no-goal outcomes retain their reasons while proposing the same in-place -Y view
+from the original simulated start. A second simulated start exercises a 0.05 m
+route to a -X view. Chair suppresses fallback; camera node 1 remains invalid.
+All 48 search tests and nine frontier CLI cases match expected outcomes, with
+unchanged original goal/route regressions and input hashes. No observation,
+new coverage, physical visibility or navigation is verified. See
+`docs/frontier-search-preview.md` and
+`data/outputs/frontier_search/m10_20260911/integration.json`.
+
 ## 5. Current Next Task
 
-Milestone: **M10 minimum offline frontier-search fallback**.
+Milestone: **M9/M10 single-command offline search demonstration**.
 
-The user prioritizes completing the pipeline before tuning individual components.
-Minimum camera, mapping, perception, memory, object-goal and offline route
-interfaces now have measured evidence. Connect the missing-target/no-object-goal
-outcome to a geometric exploration proposal next. M7/M8 model upgrades, live
-navigation and optimization remain planned. Safe local work and GitHub progress
-updates remain authorized. Ask before downloading newly required components.
+The user prioritizes the complete pipeline before component tuning. Minimum
+camera, mapping, perception, memory, object-goal, route and geometric frontier
+interfaces have measured evidence. Connect the existing search stages into one
+reproducible offline command and one inspectable decision report. M7/M8 model
+upgrades, live sensor integration, physical navigation and optimization remain
+planned. Safe local work and GitHub progress updates remain authorized. Ask
+before downloading newly required components; the current dependencies are local.
 
-Recover `docs/search-route-preview.md`, `scripts/preview_search_route.py`,
-`data/outputs/search_route/m9_20260911/preflight.json`, `integration.json`, and
-`simulated_chair/route.json`. Reuse the existing frozen `mapping_02` occupancy
-export, read-only M6 memory and M9 goal/route code. All map/pose/memory identities
-must remain consistent. The initial verifier's floating-point assertion failure
-is preserved separately; the corrected independent audit passes on the same CLI
-artifacts without changing route code.
+Recover `docs/frontier-search-preview.md`, the three `preview_*` search scripts,
+`data/outputs/frontier_search/m10_20260911/integration.json` and its per-query
+outputs. Reuse the read-only memory at
+`data/outputs/scene_memory/m6_20260910/memory.db`, the frozen `mapping_02` map
+and existing goal/route/frontier functions. Do not rebuild mapping, rerun capture
+or perception, or replace these measured artifacts just to simplify the demo.
 
-The grid has 1122 free cells in 76 four-connected components. Only 168 cells
-pass the assumed 0.25 m conservative clearance, all in one component. All 48
-recorded camera translations project into unknown cells; they are not valid
-starts under this grid policy. Camera node 1 is explicitly refused. The simulated
-fixture [1.65,0.08366] m, selected from the clearance mask, reaches the two chair
-goals at [1.15,0.63366] m through 22 cells over 1.05 m. This is not current robot
-localization. Never silently snap a recorded/invalid start into the free area.
+Verified behavior to preserve:
 
-Refrigerator has no free cell in its stand-off band, sink has no sufficiently
-clear goal cell, and backpack is absent from memory. Preserve those outcomes
-and provisional object evidence; an exploration proposal is not an object goal
-or evidence that the object has been found. M5 likely class errors, unresolved
-chair identity, partial tracking and unknown floor/map accuracy remain.
+- The 222x138 grid has 1122 free cells, 168 passing the assumed 0.25 m
+  conservative clearance. All 48 recorded camera positions project into unknown
+  cells. Node 1 is refused; it must never be silently relocated into free space.
+- Chair has two unresolved provisional candidates with a shared goal at
+  [1.15,0.63366] m. The explicit simulated start [1.65,0.08366] m reaches them
+  over 1.05 m / 22 cells. Available object goals suppress frontier fallback.
+- Backpack is absent; refrigerator has no free stand-off cell; sink has no
+  sufficiently clear goal. Their reasons remain intact when exploration is
+  proposed. The map has 102 frontier cells in 70 groups and 123 cardinal-view
+  candidates at 115 goal cells under the fixed 0.30–0.75 m frontier stand-off.
+- From [1.65,0.08366] m, frontier group 39 yields an in-place observation
+  proposal toward -Y. From the second explicit simulated fixture [1.05,0.13366]
+  m, group 49 requires a 0.05 m route and a -X viewing direction. Neither start
+  is current localization, and no observation/new coverage has been measured.
 
 Required sequence:
 
-1. Inspect free/unknown boundaries and their connectivity on the actual export.
-   Reuse map decoding and the existing start-provenance contract; keep any test
-   start explicitly simulated. Do not rerun mapping or alter occupancy values.
-2. Define the smallest geometric frontier baseline: free cells bordering unknown
-   space, with explicit neighbor and grouping rules. A boundary cell is not
-   automatically a valid observation goal because it may fail clearance.
-3. Propose a clearance-valid observation cell for an inspectable frontier and
-   check its route from the explicit start using the existing path code. Record
-   any new stand-off/visibility assumptions; do not claim measured information
-   gain. If the map cannot support a usable proposal, return an evidenced
-   no-frontier/no-route result rather than weakening the clearance policy.
-4. Connect an existing missing-target/no-goal query to the separate exploration
-   result, retaining source identity and the reason for the fallback. Save JSON
-   and a PNG showing unknown space, frontier, start, candidate and any checked
-   route. Keep ranking minimal and deterministic before adding semantic priors.
-5. Test known frontier boundaries, occupied/outside cells, disconnected regions,
-   clearance and invalid starts, then run the actual frozen map and preserve
-   input hashes. Distinguish measured map computations from simulated starts
-   and unverified physical behavior.
+1. Inspect existing CLI and function contracts before adding a thin orchestration
+   entry point. Require memory, frozen map, query label and an explicit recorded
+   or simulated start; do not silently choose a favorable start or target.
+2. Generate the existing object-goal preview from memory. If it supplies a goal,
+   run the existing route check and retain all candidate outcomes. If it has no
+   object goal, run the existing frontier fallback with the same start and
+   identities. Preserve invalid-start/no-route/no-frontier outcomes and source
+   errors; do not bypass them by selecting another stage.
+3. Save a small top-level report explaining which branch ran, the query's original
+   evidence, final outcome and paths to existing JSON/PNG stage artifacts. Keep
+   proposal generation distinct from observation execution and physical motion.
+   Reuse the current visual outputs; no new viewer or general workflow framework
+   is needed.
+4. Test branch selection and error propagation, then run chair, backpack and a
+   known no-goal label from the same explicit simulated start. Include the
+   recorded-camera refusal and source-identity failure, verify unchanged input
+   hashes, and leave a single documented command the user can reproduce.
 
-Acceptance: an inspectable offline exploration proposal or evidenced refusal
-continues the search interface when an object goal is unavailable. This does
-not establish active sensing, physical navigation or a real robot footprint.
-No new capture, ROS replay, Nav2 command, model download or robot motion is
-needed. Do not expand into perception upgrades, map tuning or throughput work.
+Acceptance: one command produces a source-associated offline object route or
+exploration proposal, or an explicit refusal, with an inspectable summary and
+stage evidence. This joins already verified frozen-data interfaces; it does not
+claim a live camera-to-motion pipeline, physical autonomy, measured information
+gain, or improved object/map accuracy. No new capture, ROS replay, GPU/model
+work, Nav2 command or robot motion is needed.
 
-Preserve the historical mapping harness's late CLI-query `INCOMPLETE` record;
-direct reopening checks passed separately. The native Open3D point-cloud viewer
-was accepted by the user; do not revisit it. The older M3 task in `prompt.md`
-remains unchanged because capture-quality conditions were not fully verified;
-the newer offline/pipeline direction supersedes it. Keep all room evidence
-local and ignored.
+Keep partial tracking, likely class errors, unresolved chair identity and unknown
+floor/map accuracy explicit. Preserve the historical M4 late CLI-query and M9
+independent-verifier failure records; later direct checks passed separately.
+The native Open3D viewer remains accepted. The older M3 task in `prompt.md`
+stays unchanged because capture-quality conditions were not fully verified;
+the newer offline/pipeline direction supersedes it. Keep room evidence local
+and ignored.
 
-Learning checkpoint: when memory cannot supply a usable object goal, exploration
-should propose where to observe unknown space while preserving what is unknown.
+Learning checkpoint: a useful search interface must expose a complete decision
+and its evidence, including why it chose an object route, exploration or refusal.
 
 ## 6. Target System Architecture
 
@@ -883,7 +903,13 @@ Learning goal: grounding semantic results into actionable robot goals.
 
 ### M10: Exploration And Navigation
 
-Status: `PLANNED`, mobile base dependent for physical validation
+Status: `VERIFIED` for minimum offline geometric frontier fallback only.
+Free/unknown boundaries, restricted cardinal viewing rays, explicit start
+validation and reused route checks pass on the frozen map. Starts are simulated
+for successful proposals; recorded camera starts remain invalid. Active sensing,
+measured coverage/information gain, semantic frontier ranking and Nav2 remain
+`PLANNED`, mobile base dependent for physical validation. See
+`docs/frontier-search-preview.md` and the M10 ledger entry.
 
 Steps:
 
@@ -2477,6 +2503,115 @@ Next action:
 
 - Add an offline geometric frontier-search fallback when memory lacks the
   target or the object-goal preview cannot supply a usable observation goal.
+
+### 2026-09-11: M10 Offline Geometric Frontier Search Fallback
+
+Status: `VERIFIED` for minimum offline exploration proposals/refusals after
+missing-target or unavailable-object-goal outcomes. No observation, new coverage,
+physical visibility or navigation acceptance is claimed.
+
+Changed:
+
+- Added `scripts/preview_frontier_search.py`, reusing frozen goal/memory/export
+  validation, explicit recorded/simulated starts and existing route checks.
+  The original query candidates and no-goal reasons remain in the output;
+  geometric exploration is a separate proposal, not a fabricated object location.
+- Added 16 frontier tests and `docs/frontier-search-preview.md`. Extracted the
+  shared occupancy backdrop and cardinal directions for their new real callers,
+  without changing the previous goal or route policies. Updated the route guide,
+  README and canonical current state. No dependency or model was added.
+
+Verified on this Jetson:
+
+- The frozen map contains 102 free cells with in-map cardinal unknown neighbors,
+  forming 70 four-connected frontier groups. Independent queue/set grouping
+  from the original PGM reproduces every cell, group and deterministic ID.
+  Occupied/outside/diagonal-only adjacency does not create a frontier.
+- None of the frontier cells passes the preceding 0.25 m clearance policy.
+  The existing 168 clearance-passing free cells produce 123 cardinal viewing
+  rays at 115 distinct observation cells with the initial 0.30–0.75 m distance
+  to the frontier cell center. Rays remain in free cells through the frontier;
+  the next cell is unknown, and any earlier unknown/occupied/outside cell stops
+  the ray. This is an explicit zero-width planar visibility assumption, not a
+  calibrated camera field-of-view or measured information gain.
+- Candidates rank by straight-line start displacement, frontier ID, goal y/x
+  and frontier y/x. The first route-valid candidate is returned, with any route
+  rejections retained. Ranking does not optimize global path cost or semantic
+  relevance. No object goal or clearance rule was relaxed to produce a proposal.
+- The original explicit M9 simulated start [1.65,0.08366] m selects its own
+  cell [124,73], viewing group 39 at frontier [124,64] and first unknown
+  [124,63]. Ten free ray cells span 0.45 m to the frontier; yaw is -pi/2.
+  Route length is approximately 5.13e-16 m from floating-point cell-center
+  representation, effectively an in-place observation proposal. Start heading
+  is unknown; no measured turn or physical movement is inferred.
+- A second explicit simulated fixture [1.05,0.13366] m, cell [112,74], was
+  selected as the first clearance-valid cell in y/x order with no viewing
+  candidate of its own, to exercise routing. It reaches [1.05,0.18366] m,
+  cell [112,75], over 0.05 m and faces -X (yaw pi) toward frontier group 49,
+  cell [106,75], with unknown neighbor [105,75]. Seven free ray cells span
+  0.30 m to this frontier. Both selections need one route attempt.
+- Selected ray cells, first unknown neighbors, cardinal direction, metric goal
+  coordinates/stand-off and route endpoints/free-cell membership match original
+  PGM evidence. Exact route clearances are 0.257391/0.275000 m for the two
+  fixtures. Independent point-to-square sampling at <=2.5 mm spacing, minus
+  half the interval to certify unsampled positions, yields continuous lower
+  bounds approximately 0.257391/0.273810 m, both above 0.25 m.
+- Nine fresh frontier CLI processes completed within the 45-second per-command
+  limit. Seven normal runs cover backpack, refrigerator, sink, repeated
+  backpack, the second start, camera node 1 and chair. The first three preserve
+  their distinct absent-target/no-free-cell/insufficient-clearance reasons while
+  returning the same geometry-only proposal from the same start. Repeated
+  exploration decisions are identical apart from timing.
+- Camera node 1 remains `INVALID_START: unknown_cell`, with its original
+  [-0.002109,-0.03223] m position and no goal. Chair returns
+  `NOT_NEEDED: object_goal_available`, preserving both provisional candidates.
+  Two deliberately altered source-preview copies, with a changed pose-export
+  hash or reduced source clearance, fail with exit 1 / `INCOMPLETE`, producing
+  no exploration goal or PNG. Normal decisions/refusals exit zero.
+- All 48 search tests pass: 16 frontier tests and the preceding 32 goal/route
+  regressions. Coverage includes known boundaries, diagonal/outside/occupied
+  handling, first-unknown and obstacle occlusion, range/clearance limits,
+  absent/tiny frontiers, disconnected viewing regions, invalid starts and
+  deterministic ties. Separate original goal and route CLI regressions return
+  unchanged decisions after the shared backdrop/direction edits.
+- Input memory, map database, mapping check/export manifest, PGM/YAML/poses
+  and all four source goal previews remain byte-identical. Runtime source hashes
+  were recorded before the CLI runs. All generated PNGs decode, and both
+  exploration proposal overlays were visually inspected. Room outputs stay local.
+- Reviewed the complete eight-file diff. Python compilation and staged whitespace
+  checks pass. `final_check.json` ties the staged source hashes to the verified
+  runtime, confirms unchanged input hashes and records the ignored evidence paths.
+- Runtime: Python 3.10.12, NumPy 1.26.4, OpenCV 4.11.0, SciPy 1.15.3 on
+  aarch64, with existing Matplotlib/PyYAML. Seven successful mixed frontier/
+  refusal/render commands have operation-time min/median/P95/max
+  1264.754/1783.776/1827.173/1836.712 ms. Wall-time min/median/P95/max is
+  2071.637/2574.809/2623.049/2623.705 ms. Hashing and rendering are included;
+  wall time also includes dependency startup. These are functional measurements,
+  not a sustained exploration or scaling benchmark.
+
+Evidence:
+
+- `data/outputs/frontier_search/m10_20260911/`: `integration.json`,
+  `verify_frontiers.py`, `verification.log`, `unit_tests.log`, `final_check.json`, per-command logs,
+  and JSON/PNG outputs in `backpack`, `refrigerator`, `sink`, `backpack_repeat`,
+  `backpack_move`, `camera_node_1`, `chair`, `changed_identity`,
+  `changed_policy`, `goal_regression` and `route_regression`. Altered source
+  previews and all generated room evidence remain ignored.
+
+Limits and learning:
+
+- Actual camera starts still fall in unknown cells. Simulated starts and planar
+  rays do not establish current localization, physical clearance, camera
+  visibility, new observations or coverage. Tracking gaps, floor/map accuracy
+  and provisional semantic identity remain unchanged.
+- When object memory cannot supply a usable goal, a separate geometric proposal
+  can specify where to look while preserving what is unknown. The same proposal
+  for several labels is expected here; semantic exploration is not implemented.
+
+Next action:
+
+- Join the existing goal, route and frontier functions in one reproducible
+  offline search-demo command with a single inspectable decision report.
 
 ## 16. End-Of-Session Handoff Template
 
