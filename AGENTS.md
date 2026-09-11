@@ -391,6 +391,14 @@ run harness is still marked `INCOMPLETE` for a late CLI parameter-query failure;
 the measurement passed, and direct parameter/map services passed on reopening.
 Do not rerun odometry merely to clear that preserved historical status.
 
+The user's subsequent colored point-cloud request is also verified: 48 original
+mapped RGB-D frames are extracted with source/depth checks, and a 447905-point
+color cloud plus an offline rotatable viewer are saved under
+`data/outputs/rtabmap_slam/colored_cloud_20260910/`. Reuse `frames/frames.json`
+and the extraction/projection helpers for M5 where appropriate. These use frozen
+final poses, including node 1; that node's earlier missing online TF remains
+recorded. This follow-up does not improve or re-estimate the trajectory.
+
 Use the original color RGB-D bag for perception: the odometry bundle/database
 images are grayscale. Keep ROS extraction in the isolated system-Python/OpenCV
 4.5d environment and YOLO in its existing native virtual environment. Inspect
@@ -1882,6 +1890,75 @@ Next action:
 - Run YOLOv8n on an original color frame with a valid mapped node association,
   combine its detections with depth, and save the first camera/map-frame 3D object
   observation using the frozen final map pose.
+
+### 2026-09-10: Dense Colored Point Cloud With Frozen Map Poses
+
+Status: `VERIFIED` for color point-cloud fusion, source association and offline
+interactive viewing. Geometric accuracy and continuous tracking remain unverified.
+
+Changed:
+
+- Followed the user's explicit choice to fuse denser color geometry with existing
+  map poses. Added system-ROS frame extraction and native Open3D/Plotly fusion
+  scripts, nine focused tests, and reproduction/viewing documentation.
+- Reused installed Open3D 0.18.0, Plotly 6.9.0 and Chromium 152. No downloads,
+  system installation, camera activation, new recording or odometry run.
+- Kept all 48 final optimized optical-camera poses fixed. Generated a full PLY
+  and self-contained HTML, with a desktop link named `Room point cloud.html`.
+
+Verified:
+
+- All four source RGB-D/CameraInfo topics reproduce 1411 messages and exact
+  reference hashes. Selected image/CameraInfo stamps, registered 1280x720 grids,
+  calibration, RGB8 channels and uint16 millimeter depth checks pass. Node IDs
+  link frozen poses to the original aggregate source stamps; no rounded-text
+  timestamp equality or historical online TF is used for projection.
+- All 48 selected depth images match their database exports: 44236800 identical
+  pixels, including invalid zeros. Original database and pose-export hashes pass.
+- Pixel stride 2 and a 5 m depth limit yield 7191144 valid samples. Open3D
+  back-projection, fixed-pose transforms and 2 cm voxel averaging yield 447905
+  points; 97.72% have unequal RGB channels. No surface completion or ICP ran.
+- The 12093644-byte PLY reads back with exact geometry and color differences
+  bounded by half an 8-bit level. The cloud has 9.79 times the previous coarse
+  export's point count. Coarse-to-new nearest distances are median 8.62 mm,
+  P95 13.56 mm and maximum 30.75 mm; this is consistency, not physical accuracy.
+- Extraction exited 0 in 38.69 s with maximum RSS 184748 KiB. Reconstruction,
+  PLY checks and HTML generation exited 0 in 18.77 s with maximum RSS 613208 KiB;
+  voxel fusion took 1.76 s. These are single offline runs, not a live benchmark.
+- Nine known geometry/association/failure tests passed in 0.021 s. Tests cover
+  millimeters, optical axes, RGB channel order, a known rotated/translated point,
+  sampling origin, invalid/range-limited depth, invalid poses and grid mismatch.
+  Final review tightened ambiguous-stamp rejection; all 192 saved selected
+  image/CameraInfo associations were rechecked against the final helper.
+- Chromium rendered the standalone page with 180000 sampled cloud points and
+  48 camera markers. Actual mouse-drag rotation and wheel zoom changed the camera;
+  no external page resource requests or severe browser errors were recorded.
+  Screenshots were visually inspected. Automation used software WebGL, without
+  measuring attached-display frame rate.
+- Final database hash remained unchanged and no temporary browser processes
+  remained. Python syntax and whitespace checks passed; full diff reviewed.
+
+Limits and evidence:
+
+- The denser color view still shows overlapping surfaces and holes. Existing
+  trajectory errors, tracking gaps and partial coverage remain. The first node
+  uses its final optimized camera pose; earlier missing online TF is not erased.
+- Initial timing wrapper failed before extraction because `/usr/bin/time` was
+  absent. Reused Python process timing/resource measurement successfully. A direct
+  Chromium binary inspection encountered the host/Snap glibc mismatch; its
+  installed Snap launcher worked. No new dependency was required for either.
+- `data/outputs/rtabmap_slam/colored_cloud_20260910/` retains the original timing
+  failure, successful extraction/reconstruction logs and process measurements,
+  full frame/source provenance, cloud comparison, unit tests, HTML/PLY and browser
+  evidence. Room data and temporary browser artifacts remain local and ignored.
+- Learning: depth plus intrinsics defines each local point cloud; map poses place
+  those clouds together, and RGB supplies color. Denser geometry preserves the
+  errors in those poses rather than independently correcting them.
+
+Next action:
+
+- Use an extracted original RGB-D frame and its frozen camera pose to produce
+  the first YOLO camera/map-frame 3D object observation (M5).
 
 ## 16. End-Of-Session Handoff Template
 

@@ -363,10 +363,19 @@ have not been independently confirmed. A late CLI metadata-query failure is
 preserved separately and was resolved through direct service checks on reopening.
 See [mapping setup, artifacts and limits](docs/rtabmap-mapping.md).
 
+An additional color reconstruction fuses 48 original RGB-D frames using these
+fixed poses into 447905 points at 2 cm voxel size, with a full colored PLY and
+an offline rotatable HTML viewer (180000 points displayed). All selected depth
+pixels match the stored node images, nine geometry/failure tests pass, and
+Chromium mouse rotation/zoom were verified. This makes the partial map easier
+to inspect; tracking gaps and overlapping surfaces remain. See the
+[colored point-cloud follow-up](docs/rtabmap-mapping.md#dense-colored-point-cloud-follow-up-2026-09-10).
+
 The current priority is to connect the pipeline before further component tuning.
 Next is YOLO plus depth object observations using original color frames and the
 saved map poses. The odometry bundle/database image and geometric cloud are
-grayscale; the original RGB recording remains available for perception.
+grayscale in the original RTAB-Map export; the original RGB recording remains
+available for perception and the new colored reconstruction.
 
 Goals:
 

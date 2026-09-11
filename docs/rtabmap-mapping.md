@@ -251,3 +251,95 @@ Next: use original color RGB-D frames associated with valid mapped node IDs to
 run YOLOv8n and produce the first camera-frame and map-frame 3D object observation.
 For an offline result, identify the frozen optimized graph/database used and join
 poses by node ID; rounded pose-text timestamps are not original nanoseconds.
+
+## Dense Colored Point-Cloud Follow-Up, 2026-09-10
+
+The user requested denser color fusion with the existing map poses and a
+rotatable viewer. This follow-up reuses the 48 frozen optimized optical-camera
+poses and original RGB-D recording. It does not estimate another trajectory.
+Open3D 0.18.0 and Plotly 6.9.0 were already available in the native virtual
+environment; no dependency download or system installation was needed.
+
+`scripts/extract_mapped_rgbd.py` runs in system ROS Python. It joins exported
+poses to database node IDs and original integer source stamps, verifies the
+database/pose hashes, then extracts same-grid RGB8 and uint16 millimeter depth.
+All four full source topic hashes/counts must match the original bag report.
+Each selected image must have matching timestamped CameraInfo and the selected
+pair must reproduce the mapped aggregate timestamp within the existing 5 ms
+RGB/depth bound. Every selected depth image is compared pixel-for-pixel with
+the database export. Unmatched or duplicate selected inputs fail explicitly.
+
+`scripts/rebuild_colored_cloud.py` runs separately in the native environment.
+It uses Open3D's RGB-D back-projection with `depth_scale=1000`, preserves RGB
+channels, applies each frozen map-from-optical-camera transform, and averages
+points/colors in 2 cm voxels. Pixel stride 2 samples the original image grid
+without resizing; valid depth is positive and below 5 m. Invalid zeros remain
+excluded. There is no ICP, pose refinement, surface meshing or hole filling.
+The first node is included using its final optimized pose; this does not change
+the earlier record that its online source-time map TF was unavailable.
+
+Run from the repository root, using a **new** output root:
+
+```bash
+source scripts/rtabmap_odom_env.bash
+/usr/bin/python3 scripts/extract_mapped_rgbd.py \
+  --bag data/outputs/femto_ros2/room_walk_20260910T223548Z/room_walk_02 \
+  --reference data/outputs/femto_ros2/room_walk_20260910T223548Z/room_walk_02_bag.json \
+  --mapping-run data/outputs/rtabmap_slam/mapping_02 \
+  --output data/outputs/rtabmap_slam/NEW_COLOR_RUN/frames
+```
+
+In a fresh terminal without ROS overlays:
+
+```bash
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python \
+  scripts/rebuild_colored_cloud.py \
+  --frames data/outputs/rtabmap_slam/NEW_COLOR_RUN/frames/frames.json \
+  --output data/outputs/rtabmap_slam/NEW_COLOR_RUN/map
+```
+
+Measured on this Jetson:
+
+| Check | Result |
+| --- | --- |
+| Original mapped RGB-D pairs | 48; all four topics reproduce 1411 messages and full reference hashes |
+| Depth pixels equal to stored node images | 44236800 / 44236800 |
+| Valid projected samples / fused points | 7191144 / 447905 |
+| Full colored PLY | 12093644 bytes; geometry reads back exactly, color within half an 8-bit level |
+| Points with unequal RGB channels | 97.72% |
+| Point-count ratio to prior coarse gray export | 9.79x; both sampling stride and voxel size changed |
+| Browser display | 180000 sampled points plus 48 camera markers; full cloud retained in PLY |
+| Extraction wall time / maximum RSS | 38.69 s / 184748 KiB |
+| Fusion, writing and HTML generation wall time / maximum RSS | 18.77 s / 613208 KiB |
+| Voxel fusion alone | 1.76 s |
+| Known geometry and failure tests | 9 passed |
+
+The previous coarse cloud's nearest distances to the new cloud are median
+8.62 mm, P95 13.56 mm, maximum 30.75 mm. This checks consistency with the same
+estimated map; it does not measure physical accuracy. Visible overlapping
+surfaces, missing coverage and depth holes remain. More points do not establish
+better localization or a complete room reconstruction.
+
+The self-contained HTML was opened in installed Chromium 152 using a temporary
+profile. WebGL rendering, actual mouse-drag rotation and wheel zoom passed;
+the page made no HTTP(S) resource requests and logged no severe browser errors.
+The screenshots were inspected. Rendering used software WebGL for automation;
+interactive frame rate on the attached display was not benchmarked.
+
+Evidence is local and ignored under
+`data/outputs/rtabmap_slam/colored_cloud_20260910/`: extracted frames and
+`frames.json`, `map/reconstruction.json`, `room_colored.ply` / `.html` in `map/`,
+browser screenshots/checks, process measurements, comparison and unit-test log.
+On this Jetson, double-click **Room point cloud.html** on the desktop, or open
+the HTML in Chromium. Drag to rotate, scroll to zoom, and use the home icon
+to reset the view. The desktop entry is a link to the ignored local artifact.
+
+Focused verification uses the native environment:
+
+```bash
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python \
+  -m unittest discover -s tests/mapping -v
+```
+
+The existing M5 next action remains: produce a first RGB-D object observation
+in camera and map coordinates using the original color and frozen pose provenance.
