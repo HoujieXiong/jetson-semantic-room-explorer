@@ -546,72 +546,58 @@ import is byte-identical. All 27 mapping and 29 memory tests pass. See
 `data/outputs/femto_ros2/measured_line_20260915T224455Z/`, and
 `data/outputs/concurrent_rgbd/line_20260915/integration.json`.
 
+### 4.17 ROS 2 Goal And Path Preview Publication
+
+Status: `VERIFIED` for bounded frozen-data publication to independent subscribers.
+
+The publisher reuses the existing search stages and publishes decision JSON,
+metric map goals and checked paths on dedicated preview topics. One hundred
+search tests pass. Real separate-process trials verify bottle object 8's 0.05 m
+route, a zero-translation backpack frontier, recorded-camera refusal with no
+pose/path, and an explicit missing-subscriber timeout. All contexts close and
+source hashes remain unchanged. An initial executor/context error is preserved
+and corrected. See `docs/ros-search-preview.md` and
+`data/outputs/search_publication/validation_20260915/attempt_02/integration.json`.
+This does not establish live localization, physical accuracy or navigation.
+
 ## 5. Current Next Task
 
-Milestone: **M4 controlled measured-motion data and tracking/scale evaluation**.
+Milestone: **Complete the pipeline interfaces and M8 open-vocabulary memory**.
 
-Status: `PLANNED` for precise physical-reference acceptance. The estimated-distance
-trial below is verified as a functional capture/pipeline check, not scale accuracy.
+Status: ROS 2 preview publication is `VERIFIED`; MobileCLIP-backed persistent
+text queries remain `PLANNED`. The official S0 GPU smoke test is measured locally.
 
-The concurrent run and its own final map-to-memory/search acceptance are now
-verified and recorded below. The user requested continued autonomous work until
-human feedback or data collection is needed. This next check needs the user to
-measure a short translation path and move the camera; existing footage has no
-precise displacement reference and includes fast turns/handling. Do not request
-another whole-room loop. Keep authorized safe work and GitHub updates moving
-once the reference and operator readiness are available; ask before downloading
-newly needed components.
-
-Update after the 2026-09-15 trial: the operator was ready and a new recording
-completed, but explicitly supplied an estimated distance and reported additional
-motion. Source checks, tracking, map/memory/search and a playable video are now
-verified. The main outstanding acceptance condition is a measured physical
-reference with fixed endpoints. Preserve the new motion evidence and do not
-reinterpret its planned hold windows as actual stationary ground truth. Keep
-this milestone pending until that reference is available; do not request another
-unmeasured whole-room loop or repeat completed software checks without cause.
-
-Read `docs/straight-line-capture.md`, `docs/finalize-concurrent-memory.md`, `docs/camera-ros2.md`,
-`docs/rtabmap-odometry.md`, the bounded local recorder
-`data/outputs/femto_ros2/measured_line_20260915T224455Z/run_check.py`, and the existing
-sensor/odometry/concurrent checkers. Preserve all prior bags, maps and memories.
+The user explicitly requested pipeline-first work on 2026-09-15 and deferred
+physical scale/return-error refinement. Do not gate software integration on a
+new measured-motion capture. Preserve the estimated-distance trial and its
+limitations; deferring accuracy does not establish physical accuracy. The user
+also authorized downloading official MobileCLIP-S0 weights and required
+inference dependencies in a separate environment.
 
 Required sequence:
 
-1. Obtain operator readiness, actual spacing/measurement uncertainty of two
-   marks about 1 m apart, camera reference point/height and a cable-safe path.
-   Prefer a slow lateral translation while keeping the camera level and heading
-   fixed. Confirm that the scene has usable texture and depth. Explain the
-   proposed sequence and verification in Chinese before any changes/capture.
-2. Use a fresh evidence directory and the existing 60-second bounded recorder.
-   Proposed sequence: 5 s still, 15 s outbound, 5 s still, 15 s return, 20 s still.
-   Give movement cues only after recording is confirmed started; keep the camera
-   still until recording closes. Record actual movement/handling deviations.
-   Check local camera availability, disk space, process ownership and stream
-   contract before the trial; do not move equipment automatically.
-3. Predeclare stationary windows and evaluation criteria using the actual
-   reference precision. Verify recorded/replayed source hashes, timestamps,
-   calibration/depth units and clean shutdown. Replay the same baseline and
-   report tracked/lost/dropped intervals, stationary drift, endpoint displacement
-   error and return error. Preserve failed results rather than tuning the
-   acceptance criteria after seeing them.
-4. Once the data is usable, run the existing mapping/perception/finalization/
-   memory/search sequence on that new bag. Review images and map/floor coverage
-   before making physical claims. Do not treat unknown camera-start cells alone
-   as proof of wrong floor alignment, or use simulated routes as navigation proof.
-5. Make only changes required by observed failures or this measurement boundary.
-   Run focused checks, inspect the complete diff, update evidence and push the
-   verified checkpoint. Continue without additional permission for authorized
-   software work; pause only when a specific missing reference or human action
-   prevents the next acceptance check.
+1. Reuse the checked memory/map/search stages to publish bounded ROS 2 preview
+   decisions, target poses and paths. Retain no-route outcomes and simulated-start
+   provenance. Verify actual subscriber messages and cleanup without a mobile base.
+2. In an isolated environment, run the official MobileCLIP-S0 encoder on existing
+   object crops. Preserve source association and model identity, measure Jetson
+   latency/memory, and leave the existing camera/SLAM/GPU baseline environment intact.
+3. Persist per-observation semantic vectors, fuse supporting views, and rank
+   remembered objects for a documented text-query set. Keep semantic similarity
+   separate from geometric support; include synonyms, attributes and absent targets.
+4. Connect accepted semantic query candidates to the existing search interface.
+   Preserve ambiguous/unknown outcomes; do not reinterpret ranking as proof that
+   an object exists. Run focused tests and actual saved-data integration, review
+   the complete diff, update measured evidence, and push verified checkpoints.
 
-Acceptance: one source-verified controlled recording with explicit human
-reference and a reproducible tracking/scale report. Keep measurement completion
-separate from passing geometric-quality thresholds. Do not claim full room-map
-accuracy, instance identity, real-time acceptance or navigation from this trial.
+Continue safe authorized work autonomously. CuTR feasibility, causal online
+memory/search, real-time throughput, quality evaluation and physical navigation
+remain separate outstanding work; do not call the full project complete based on
+this saved-data integration. Ask only when missing input or equipment prevents the
+next concrete check. No new camera recording is needed for the steps above.
 
-Learning checkpoint: correct source-time arithmetic and consistent map versions
-are necessary, but only a physical reference can measure physical scale error.
+Learning checkpoint: source-grounded geometry, persistent semantics and an
+explicit query-to-goal interface are separate contracts in the complete pipeline.
 
 ## 6. Target System Architecture
 
@@ -981,7 +967,8 @@ including the single-command goal/route/frontier composition.
 Fixed stand-off/clearance assumptions, map/pose identity, explicit starts,
 whole-segment route checks, PNGs and no-goal/no-route outcomes pass on the saved
 map. The successful route uses an explicitly simulated start; recorded camera
-positions fall in unknown cells. Cuboid geometry, live publication, continued
+positions fall in unknown cells. Bounded ROS 2 preview publication is also `VERIFIED`; see
+`docs/ros-search-preview.md`. Cuboid geometry, causal live decisions, continued
 exploration and physical navigation remain `PLANNED`. See
 `docs/search-goal-preview.md`, `docs/search-route-preview.md` and the M9 ledger.
 
@@ -3330,6 +3317,39 @@ Next action:
 - Prepare ruler-measured camera positions and fixed endpoint holds for the
   outstanding physical scale/drift acceptance, with operator readiness before
   any further capture.
+
+### 2026-09-15: Pipeline-First Direction And ROS Preview Interface
+
+Milestone: M9 dry-run goal publication. Status: `VERIFIED`.
+
+The user explicitly deferred scale/return-error refinement and requested continued
+whole-pipeline integration. Precise physical accuracy remains unverified; it no
+longer gates software work. The user also authorized official MobileCLIP-S0
+weights and required inference dependencies in an isolated environment.
+
+Changed: added `scripts/publish_search_preview.py`, a bounded independent ROS
+receiver and eight focused tests. The publisher reuses all existing search
+policies, retains all outcomes, and publishes only the selected checked path and
+viewing goal. Missing routes emit only a decision; missing subscribers fail with
+zero publication. Sources, map units, explicit starts and publication/source time
+semantics remain visible. Added `docs/ros-search-preview.md` and public progress.
+
+Verified: `source /opt/ros/humble/setup.bash` followed by
+`OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest discover -s tests/search -v`
+passes 100 tests in 28.240 s. Real ROS localhost domain 54 tests receive two
+messages per applicable topic: bottle ID 8 (0.05 m path), backpack frontier (zero
+translation), and camera-node refusal (decision only). Every received path point,
+final goal and stamp matches its source evidence. A fourth case times out without
+subscribers, exits nonzero, and publishes zero messages. All four contexts close;
+original memory/map/poses hashes remain unchanged.
+
+Evidence: `data/outputs/search_publication/validation_20260915/`, particularly
+`unit_tests.log` and `attempt_02/integration.json`. The initial integration exposed
+an explicit-context/global-executor mismatch; its logs remain, and the publisher
+now owns an executor bound to its context. No camera or motor commands ran.
+
+Next action: persist and evaluate MobileCLIP crop embeddings and text queries,
+then connect semantic candidates to the existing preview pipeline.
 
 ## 16. End-Of-Session Handoff Template
 

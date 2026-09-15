@@ -20,6 +20,10 @@ and a separate map/memory/search result. Distance was estimated, so physical
 scale accuracy remains unverified. See the
 [capture results and playable video command](docs/straight-line-capture.md).
 
+ROS 2 goal/path preview publication is also verified against independent
+subscribers, including explicit refusal and timeout cases. See the
+[ROS preview commands](docs/ros-search-preview.md).
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
