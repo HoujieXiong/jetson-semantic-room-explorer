@@ -14,6 +14,12 @@ now feed a separate persistent memory and matching search preview; see the
 [measured finalization](docs/finalize-concurrent-memory.md). Live real-time
 operation and physical navigation remain unverified.
 
+A new forward/backward recording also passes the full pipeline: 899 RGB-D pairs,
+898 tracked odometry outputs with zero reported tracking losses at 0.25x replay,
+and a separate map/memory/search result. Distance was estimated, so physical
+scale accuracy remains unverified. See the
+[capture results and playable video command](docs/straight-line-capture.md).
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
@@ -602,8 +608,14 @@ uses the frontier fallback, and the recorded camera start is refused as unknown.
 All 29 memory/finalization tests pass. Original online poses/points are preserved
 beside final optimized coordinates. See the
 [commands, results and evidence](docs/finalize-concurrent-memory.md).
-The next step needs human help with a short camera translation between measured
-marks to assess tracking and physical scale. No new capture has started.
+
+A new forward/backward capture has now completed with an estimated 1 m distance.
+It produces 898 tracked outputs with zero reported losses at 0.25x replay, plus
+19 finalized nodes, 90 detections and 17 provisional memory records. A saved-graph
+membership check was corrected for an online endpoint absent from the final
+optimized map; old map memberships remain unchanged. Physical scale and drift
+acceptance still need measured positions and fixed endpoint holds. See the
+[new capture, validation and limitations](docs/straight-line-capture.md).
 
 Goals:
 
@@ -699,6 +711,7 @@ jetson-semantic-room-explorer/
 - [X] Single-command saved RGB-D-to-search demo: first offline pipeline MVP
 - [X] Bounded concurrent SLAM/perception and resources at 0.25x rosbag replay
 - [X] Concurrent observations finalized into their own frozen memory and search
+- [X] New forward/backward capture through the full pipeline; zero reported tracking losses at 0.25x
 - [ ] Real-time SLAM/perception and causal online memory/search acceptance
 - [ ] Physical navigation acceptance
 - [ ] CuTR Jetson/Femto feasibility benchmark complete

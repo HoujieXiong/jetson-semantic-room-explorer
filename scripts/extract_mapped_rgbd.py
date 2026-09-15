@@ -2,10 +2,14 @@
 
 import argparse
 from bisect import bisect_left, bisect_right
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
+import sqlite3
+import struct
 import time
+import zlib
 
 import numpy as np
 
@@ -25,6 +29,34 @@ def selected_stamp(stamp, source_stamps):
     if len(candidates) > 1:
         raise ValueError('Ambiguous mapped frame association')
     return candidates[0] if candidates else None
+
+
+def frozen_graph_ids(database, online_poses):
+    """Read saved IDs, rather than retaining an unsaved last online node.
+
+    RTAB-Map 0.23.7 Admin.opt_ids is a compressed CV_32SC1 row: zlib data
+    followed by int32 rows/columns/type. The installed upstream exporter reads
+    this same saved set with --opt 2. Other storage layouts fail explicitly.
+    """
+    with closing(sqlite3.connect(database.resolve().as_uri()+'?mode=ro', uri=True)) as connection:
+        version, blob = connection.execute('SELECT version,opt_ids FROM Admin').fetchone()
+    if version != '0.23.7' or not blob or len(blob) <= 12:
+        raise ValueError('Expected RTAB-Map 0.23.7 saved optimized node IDs')
+    rows, columns, kind = struct.unpack('<iii', blob[-12:])
+    if rows != 1 or columns <= 0 or kind != 4:
+        raise ValueError('Unsupported saved optimized ID matrix layout')
+    decoder = zlib.decompressobj()
+    try:
+        raw = decoder.decompress(blob[:-12], columns*4+1)
+    except zlib.error as error:
+        raise ValueError('Corrupt saved optimized node IDs') from error
+    if len(raw) != columns*4 or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
+        raise ValueError('Invalid saved optimized ID payload length or compression')
+    ids = np.frombuffer(raw, dtype='<i4').tolist()
+    graph_ids = {row['node_id'] for row in online_poses}
+    if len(set(ids)) != len(ids) or any(node <= 0 for node in ids) or not set(ids) <= graph_ids:
+        raise ValueError('Saved optimized IDs are duplicate, invalid or absent from the online graph')
+    return set(ids)
 
 
 def extract(bag, reference_path, mapping, output):
@@ -51,8 +83,9 @@ def extract(bag, reference_path, mapping, output):
         raise ValueError('Expected finite timestamp/translation/quaternion/node-ID poses')
     nodes = {row['node_id']: row for row in database['nodes']}
     graph_ids = {row['node_id'] for row in measurement['mapping']['graphs'][-1]['poses']}
-    if set(poses[:, 8]) != graph_ids or len(poses) != len(graph_ids):
-        raise ValueError('Camera poses do not match the final graph node IDs')
+    frozen_ids = frozen_graph_ids(mapping/'map.db', measurement['mapping']['graphs'][-1]['poses'])
+    if set(poses[:, 8]) != frozen_ids or len(poses) != len(frozen_ids):
+        raise ValueError('Camera poses do not match the saved optimized graph node IDs')
     tracked = {row['stamp_ns'] for row in measurement['odom_info'] if not row['lost']}
     rows = {}
     for pose in poses:
@@ -72,6 +105,7 @@ def extract(bag, reference_path, mapping, output):
     result = {'status': 'INCOMPLETE', 'frames': list(rows.values()), 'bag': str(bag),
               'mapping_run': str(mapping), 'database_sha256': database['database_sha256'],
               'camera_poses_sha256': expected_hash, 'reference_sha256': file_hash(reference_path),
+              'online_graph_nodes_not_in_frozen_map': sorted(graph_ids-frozen_ids),
               'pose_frame': 'map -> camera_color_optical_frame',
               'pose_provenance': 'Frozen final optimized camera poses, joined by node ID; not historical online TF.',
               'depth_unit': 'millimeter', 'invalid_depth': 0}

@@ -1,6 +1,6 @@
 # Jetson Semantic Room Explorer: Codex Project Playbook
 
-Last updated: 2026-09-11
+Last updated: 2026-09-15
 
 This file is the canonical execution plan, living handoff, and operating contract
 for Codex sessions working in this repository. It is intentionally kept at the
@@ -353,8 +353,9 @@ Moving RGB-D recording/replay: VERIFIED (93.88/94.49 s, 1402/1411 pairs)
 Controlled room-loop capture quality: NOT VERIFIED (end motion/blur remains)
 RTAB-Map offline odometry measurement: VERIFIED (sustained tracking loss recorded)
 Motion-prediction comparison: VERIFIED (earlier recovery; same 21.104 s turn failure)
+New forward/backward tracking: VERIFIED (898 tracked, zero lost at 0.25x; estimated distance)
 RTAB-Map minimum mapping integration: VERIFIED (database, export, source-time TF)
-Continuous tracking, geometric accuracy and navigation quality: PLANNED
+Whole-room continuous tracking, geometric accuracy and navigation quality: PLANNED
 ```
 
 `scripts/femto_mega_capture_once.py` captures 1280x720 MJPG color and 640x576
@@ -524,11 +525,33 @@ fallback and recorded-camera-start refusal. Duplicate import is byte-identical;
 No inference rerun or physical motion occurred. This is frozen post-run memory,
 not causal online search; physical geometry and identity remain unverified.
 
+### 4.16 New Forward/Backward Capture And Pipeline Replay
+
+Status: `VERIFIED` for new source data, reported tracking continuity at 0.25x,
+and its own frozen map/memory/search; physical scale and drift remain unverified.
+
+The 60.224-second bag has 899 synchronized pairs and no source-index gaps.
+Odometry produces 898 tracked outputs, zero lost outputs and one missing output.
+Perception processes 893 pairs with six explicit queue drops. All owned processes
+close cleanly. The operator estimated about 1 m and reported faster main movements
+and additional forward/backward adjustments. Maximum estimated displacement is
+1.016861 m; endpoint/hold differences are not isolated algorithm drift.
+The final map has 20 saved optimized poses, excluding online-only node 60.
+`extract_mapped_rgbd.py` now verifies saved database ID membership, preserving
+that exclusion; 48/64-node old maps still match their native exports. The new
+memory retains 90 observations from 19 nodes and 17 provisional records. Reopened
+queries, simulated search and recorded-camera-start refusal pass; duplicate
+import is byte-identical. All 27 mapping and 29 memory tests pass. See
+`docs/straight-line-capture.md`,
+`data/outputs/femto_ros2/measured_line_20260915T224455Z/`, and
+`data/outputs/concurrent_rgbd/line_20260915/integration.json`.
+
 ## 5. Current Next Task
 
 Milestone: **M4 controlled measured-motion data and tracking/scale evaluation**.
 
-Status: `PLANNED`; new physical reference data needs an available operator.
+Status: `PLANNED` for precise physical-reference acceptance. The estimated-distance
+trial below is verified as a functional capture/pipeline check, not scale accuracy.
 
 The concurrent run and its own final map-to-memory/search acceptance are now
 verified and recorded below. The user requested continued autonomous work until
@@ -537,11 +560,20 @@ measure a short translation path and move the camera; existing footage has no
 precise displacement reference and includes fast turns/handling. Do not request
 another whole-room loop. Keep authorized safe work and GitHub updates moving
 once the reference and operator readiness are available; ask before downloading
-newly needed components. No new recording has been started.
+newly needed components.
 
-Read `docs/finalize-concurrent-memory.md`, `docs/camera-ros2.md`,
+Update after the 2026-09-15 trial: the operator was ready and a new recording
+completed, but explicitly supplied an estimated distance and reported additional
+motion. Source checks, tracking, map/memory/search and a playable video are now
+verified. The main outstanding acceptance condition is a measured physical
+reference with fixed endpoints. Preserve the new motion evidence and do not
+reinterpret its planned hold windows as actual stationary ground truth. Keep
+this milestone pending until that reference is available; do not request another
+unmeasured whole-room loop or repeat completed software checks without cause.
+
+Read `docs/straight-line-capture.md`, `docs/finalize-concurrent-memory.md`, `docs/camera-ros2.md`,
 `docs/rtabmap-odometry.md`, the bounded local recorder
-`data/outputs/femto_ros2/room_walk_20260910T223548Z/run_check.py`, and the existing
+`data/outputs/femto_ros2/measured_line_20260915T224455Z/run_check.py`, and the existing
 sensor/odometry/concurrent checkers. Preserve all prior bags, maps and memories.
 
 Required sequence:
@@ -3179,6 +3211,125 @@ Next action:
   measured marks and back, using stationary endpoints and the existing bounded
   recorder, to evaluate tracking and scale. Await that human reference/readiness;
   no new capture has started and no whole-room loop is required.
+
+### 2026-09-15: Forward/Backward Capture, Tracking And Saved-Graph Boundary Fix
+
+Status: `VERIFIED` for new capture, slowed-replay tracking continuity and its own
+map/memory/search. Precise physical scale and stationary drift acceptance remain
+`PLANNED` because the operator supplied an estimate and additional motion.
+
+Conditions and capture:
+
+- Operator ready for filming; distance explicitly estimated as about 1 m, with
+  forward/backward motion and unchanged intended heading. Planned phases were
+  5/15/5/15/20 seconds for initial hold/outbound/far hold/return/final hold.
+  Post-capture feedback reports main movements of 2-3 seconds and extra small
+  forward/backward adjustments. Camera reference point/height, exact distance
+  and physical endpoint error were not measured. Plan and actual feedback remain
+  separate; cue timestamps do not measure chat delivery or human response.
+- USB 3 Femto Mega was present and about 24 GB disk space available. No existing
+  camera/SLAM process was found. Initial live preflight had nearby table/paper
+  obstruction and median depth coverage 1.84%. Operator repositioned; the second
+  preflight had clear room imagery and median valid depth 57.63%.
+- Reused the existing local recorder and unchanged 15 FPS camera configuration,
+  with a bounded preview gate, all-topic subscription check and timestamped cues.
+  RGB is 1280x720; native depth is 640x576, registered to 1280x720 with uint16
+  millimeter values. Driver, recorder and live checker exit 0 after capture.
+- New bag duration 60.224296496 s; 899 RGB-D pairs, no unmatched interior/boundary
+  pairs. Header skew median/max 4.319/4.941 ms; valid depth median 64.10%, range
+  51.71-68.05%. Every recorded CameraInfo header matches the SDK global timestamp;
+  both streams have zero SDK frame-index gaps and zero gaps above 1.5 periods.
+
+Replay and motion evidence:
+
+- Existing bounded concurrent baseline at 0.25x completes in 303.704 s total wall
+  time. All 899 source pairs arrive with exact hashes. Original pixels, depth units
+  and causal source-time TF pass independent verification. Perception, odometry,
+  mapping and player exit 0, owned tegrastats stops on SIGINT, with no forced kill
+  or remaining child PID. Brief local source inspection during playback means
+  resource logs are diagnostics, not an isolated performance comparison.
+- Odometry has 898 tracked outputs, zero lost outputs and one input without a
+  result. Processing median/P95 is 230.786/260.066 ms. This validates reported
+  tracking continuity for this recorded trajectory, not real-time performance.
+- Perception processes 893 pairs, explicitly drops six and has zero inference
+  failures. It accepts 887 online poses and refuses six: one unavailable source
+  odometry and five unavailable source map TFs. Full detections retain 3,558
+  accepted camera depth points, 896 depth rejections and 3,540 map points.
+- Original odometry's maximum displacement from its first pose is 1.016861 m.
+  Mean positions in predeclared start/far windows differ by 1.002561 m; this is
+  consistent with the operator estimate but not a scale-error measurement.
+  First/last poses differ by 0.159632 m and 5.735225 degrees. The planned 45-55 s
+  hold has a 0.266258 m maximum radius around its mean; source images, trajectory
+  and operator feedback show additional motion. These are pose variations, not
+  isolated algorithm drift or ground-truth return error. Planned windows are not
+  replaced with favorable intervals. Known translation/rotation cases and an
+  independent SciPy orientation comparison pass the analysis math checks.
+
+Observed failure and smallest fix:
+
+- The first export check fails because final online graph membership (21 nodes)
+  differs from saved optimized membership (20 nodes). Database `Admin.opt_ids`
+  and native `rtabmap-export --opt 2` both exclude node 60. All other exported
+  poses match the corresponding final online graph values within the original
+  tolerance. The failed check/log and original source reports are preserved.
+- `scripts/extract_mapped_rgbd.py` reads the saved ID set from the read-only
+  database and checks the pinned 0.23.7 compressed matrix layout, compression
+  integrity, positive unique IDs and online-graph membership. Export IDs must
+  exactly match that set. The manifest explicitly lists online-only node 60.
+  The local export checker reuses the helper and retains geometry/pose/hash checks.
+- Six new cases test the observed endpoint mismatch, identical sets, bad IDs,
+  unsupported formats, corrupted/truncated/extra payload and missing-file behavior.
+  `tests/mapping`: 27 pass in 0.217 s; `tests/memory`: 29 pass in 0.567 s, both
+  with `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python -m unittest
+  discover -s ... -v`. Native export membership agrees on old maps with 48/64
+  nodes and the new map with 20; all three database hashes remain unchanged.
+
+New map, memory, search and viewing:
+
+- Database integrity passes with 60 stored nodes. Export has 20 saved camera/
+  robot poses, 25,528 grayscale points and a 145 x 112 grid at 0.05 m: 1,486 free,
+  3,600 occupied and 11,154 unknown cells. All 18,432,000 exported depth pixels
+  equal original RGB-D source pixels. Node 60 is excluded before frame extraction.
+- Finalization takes 6.891 s, selecting 19 nodes and excluding node 1's unavailable
+  original online map TF. It preserves 90 detections (63 depth accepted, 27
+  rejected), including online/final pose distinctions, without inference rerun.
+  SQLite import takes 58.695 ms: 17 provisional records and 63 supports, comprising
+  17 new records and 46 matches. Reopened SQL evidence/integrity and independent
+  point checks pass; duplicate import adds zero frames and preserves memory bytes.
+- Simulated start [3.05,-1.1257] m has 0.328650 m conservative clearance; 97 cells
+  pass the assumed 0.25 m requirement. Bottle IDs/supports are 17/1, 8/7, 7/5:
+  ID 8 has a 0.05 m preview route, ID 17 lacks clearance and ID 7 is disconnected.
+  Chair/backpack are absent from memory and yield geometric frontier previews at
+  the current simulated cell (zero translation). All 20 camera projections remain
+  unknown; node 1 is refused. No new coverage, physical visibility or navigation
+  is established. All 16 search PNGs decode; representative images were inspected.
+- Viewing export retains 899 frames and source-time captions; MP4 duration is
+  60.218616 s. VP8/WebM retains all frames with maximum 0.500 ms timestamp
+  quantization and passes installed GStreamer decoding, exit 0. No decoder was
+  installed. Source contact sheet, original odometry plot and map were inspected.
+
+Evidence and limits:
+
+- `data/outputs/femto_ros2/measured_line_20260915T224455Z/`: original bag,
+  plan/feedback, both preflights, capture/cue/configuration/timestamp reports,
+  source contract/timing, images and `video_review/line_01_review.webm`.
+- `data/outputs/concurrent_rgbd/line_20260915/`: replay reports/snapshots,
+  initial failed and corrected export checks, `motion_summary.json/png`,
+  `frozen_ids_regression.json`, focused test logs, extracted frames, observations,
+  memory, search reports and `integration.json` / `final_check.json`.
+- New `docs/straight-line-capture.md` records commands and measured results.
+  No dependencies, camera policies, inference settings or earlier artifacts were
+  changed. Room data, weights and generated outputs remain local and ignored.
+- This trial strengthens the functional pipeline evidence. Reported tracking
+  continuity does not establish physical accuracy; operator motion cannot be
+  separated from estimator drift without a controlled reference. The current
+  physical-reference milestone remains pending rather than being marked complete.
+
+Next action:
+
+- Prepare ruler-measured camera positions and fixed endpoint holds for the
+  outstanding physical scale/drift acceptance, with operator readiness before
+  any further capture.
 
 ## 16. End-Of-Session Handoff Template
 
