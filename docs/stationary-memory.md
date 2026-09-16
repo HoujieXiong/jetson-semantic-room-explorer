@@ -123,16 +123,20 @@ All baseline queries have zero semantic support and publish only
 
 | Actual query | Eligible frames / supports | Top cosine | Semantic result | Route result | CLI seconds |
 | --- | ---: | ---: | --- | --- | ---: |
-| `a fridge` | 13 / 7 | 0.272788 | Selects the apparent trash-bin/cabinet crop | NO_ROUTE | 30.240 |
-| `a trash can` | 22 / 15 | 0.280325 | Selects the apparent trash-bin/cabinet crop | NO_ROUTE | 19.949 |
+| `a fridge` | 13 / 7 | 0.272788 | Wrong crop, rejected by operator | NO_ROUTE | 30.240 |
+| `a trash can` | 22 / 15 | 0.280325 | Same wrong region, rejected by operator | NO_ROUTE | 19.949 |
 | `a bowl` | 33 / 24 | 0.157531 | No candidate above 0.25 | INVALID_START | 17.533 |
 
-The first two queries select the same provisional object, whose detector label
-is `refrigerator`. The fridge query is a visual false selection. The trash query
-appears relevant but its crop includes substantial cabinet background; operator
-identity review is pending. The bowl is visible in the full frame, but had no
-eligible matching candidate at query time. A later bowl record does not validate
-the earlier query.
+On 2026-09-16, the operator rejected all three displayed crops as the same wrong
+region. The earlier assistant assessment that the trash crop appeared relevant
+is withdrawn. Each original query prefix has exactly one rankable object, labeled
+`refrigerator`; the three images are different source frames of that same region
+(nodes 14, 9 and 21, with crop bounds differing by only 1–2 pixels). This is not
+three targets or a file-loading mix-up. Fridge and trash queries falsely select
+that record. The bowl query selects nothing, but the earlier review still showed
+its highest-ranked rejected crop prominently. No successful target retrieval is
+established by these three cases. A later bowl record does not validate the
+earlier query. Exact positive target boxes have not been supplied by the operator.
 
 The actual central fridge is detected in the example source frame at confidence
 0.942. Its depth ROI has only 838/11,076 valid pixels (7.57%); the remaining pixels
@@ -149,16 +153,18 @@ and 1.978 seconds, below the unchanged 10-second limit. The unchanged 0.25 m
 clearance and route gates remain enforced. Reopening later correctly refuses
 stale map evidence while retaining the semantic snapshot.
 
-Open the self-contained review on the Jetson display when ready:
+The corrected self-contained review records that feedback and distinguishes
+unconfirmed selected candidates from collapsed rejected diagnostic images:
 
 ```bash
-xdg-open data/outputs/stationary_memory/steady_20260916/retained_01/review.html
+xdg-open data/outputs/stationary_memory/steady_20260916/operator_review_20260916/review.html
 ```
 
-It embeds original RGB images, exact source crops, measured scores and occupancy
-preview; no WebGL, video decoder, server or external assets are required. Original
-source and crop pixels/hashes are checked by `build_review.py`; desktop browser
-rendering and operator labels are not yet verified. Images remain local/private.
+It embeds an original full RGB frame, source crops and measured scores without
+WebGL, video codecs or external assets. The earlier `retained_01/review.html` and
+its image/hash reports remain unchanged as historical evidence. Images stay
+local/private. The operator's negative labels are recorded; the revised desktop
+rendering has not been operator-reviewed.
 
 ## Verification and next action
 
@@ -172,14 +178,29 @@ occupancy even when the route is refused. Reopening preserves current and prior
 journal results and bytes. `comparison.json` confirms the original live bag and
 metadata are unchanged. All owned processes exited without forced termination
 or leftovers; the camera was never opened. No Python runtime code changed in
-this step; this configuration is verified by actual native A/B runs and parameter
-dumps rather than a test that repeats YAML values.
+the retention experiment; its configuration is verified by native A/B runs and
+parameter dumps rather than a test that repeats YAML values.
 
 Changed journal SHA-256:
 `d528f06677b9f5637503c0d926e4810293a41103bca829907ad074a6b62e51d2`.
 The prior semantic journal remains
 `23991ad903fb09ee9567035bba2e4e0ef74eae976673c5f6295909c214a294ec`.
 
-Next: have the operator review the three queries and original crops, then record
-confirmed target labels before selecting a retrieval-quality change. No new
-recording is needed for that review.
+The 2026-09-16 correction changes only review presentation: the online caller
+passes the recorded selected IDs to `write_query_review`. Selected records are
+unconfirmed candidates; an empty selection shows no result image, with rejected
+rankings in a closed diagnostic section. Ranking-only offline callers retain
+their ranking-only meaning. Scores, thresholds, proposals, depth, memory and
+planning decisions are unchanged. This is not a recognition fix.
+
+All 13 semantic math/persistence/review tests and 39 online-memory/semantic/search
+tests pass. The local `operator_review_20260916/freeze_review.py` copies each
+original query prefix without future events, reopens it with the saved text
+vector, and matches the complete semantic result, geometry and planning evidence.
+It checks source crop pixels/hashes, the actual selected/unselected presentation
+and unchanged original artifacts. `operator_review.json` freezes the operator
+message, three negative cases, source identities, scores and hashes. No fresh
+model inference, camera capture or ROS publication was needed for this correction.
+
+Next: audit proposal coverage and depth rejection at these frozen query prefixes
+to choose a retrieval fix; keep these three operator-rejected crops as failures.

@@ -1,6 +1,7 @@
 """Known crop pixels, semantic fusion/ranking and persistent evidence boundaries."""
 
 from contextlib import closing
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -9,9 +10,10 @@ import tempfile
 import unittest
 
 import numpy as np
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))
-from semantic_memory import crop_rgb, rank_objects, read_index, unit_vector, write_index
+from semantic_memory import crop_rgb, rank_objects, read_index, unit_vector, write_index, write_query_review
 from run_semantic_search import select_candidates
 
 
@@ -67,6 +69,50 @@ class SemanticMathTests(unittest.TestCase):
         self.assertEqual(select_candidates([]), [])
         with self.assertRaises(ValueError):
             select_candidates([{'object_id': 1, 'cosine_similarity': float('nan')}])
+
+
+class SemanticReviewTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name)
+        crop = self.root/'crop.png'
+        Image.fromarray(np.zeros((2, 2, 3), dtype=np.uint8)).save(crop)
+        self.candidate = {'object_id': 1, 'cosine_similarity': .157531,
+                          'detector_label': 'refrigerator',
+                          'best_view': {'crop': crop.name, 'crop_sha256': hashlib.sha256(crop.read_bytes()).hexdigest()}}
+        self.output = self.root/'review.html'
+
+    def test_no_selection_has_no_result_image_but_keeps_closed_diagnostics(self):
+        write_query_review([{'text': 'a bowl', 'ranking': [self.candidate], 'selected_object_ids': []}],
+                           self.root, self.output, 'Unconfirmed identity')
+        visible, diagnostic = self.output.read_text().split('<details>')
+        self.assertIn('No candidate selected', visible)
+        self.assertNotIn('<img ', visible)
+        self.assertIn('Not selected', diagnostic)
+        self.assertIn('<img ', diagnostic)
+        self.assertNotIn('<details open', self.output.read_text())
+
+    def test_reported_selection_is_unconfirmed_and_not_recomputed_from_score(self):
+        write_query_review([{'text': 'a fridge', 'ranking': [self.candidate], 'selected_object_ids': [1]}],
+                           self.root, self.output, 'Unconfirmed identity')
+        page = self.output.read_text()
+        self.assertIn('Unconfirmed candidates', page)
+        self.assertEqual(page.count('<img '), 1)
+        self.assertNotIn('<details>', page)
+
+    def test_ranking_only_keeps_its_meaning_and_changed_diagnostic_crop_fails(self):
+        row = {'text': '<bowl>', 'ranking': [self.candidate]}
+        write_query_review([row], self.root, self.output, 'Unconfirmed identity')
+        self.assertIn('no selection decision supplied', self.output.read_text())
+        self.assertIn('&lt;bowl&gt;', self.output.read_text())
+        row['selected_object_ids'] = [2]
+        with self.assertRaisesRegex(ValueError, 'absent from its ranking'):
+            write_query_review([row], self.root, self.output, '')
+        row['selected_object_ids'] = []
+        (self.root/'crop.png').write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'crop changed'):
+            write_query_review([row], self.root, self.output, '')
 
 
 class SemanticPersistenceTests(unittest.TestCase):

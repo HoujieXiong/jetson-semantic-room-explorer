@@ -1,6 +1,6 @@
 # Jetson Semantic Room Explorer: Codex Project Playbook
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 This file is the canonical execution plan, living handoff, and operating contract
 for Codex sessions working in this repository. It is intentionally kept at the
@@ -684,40 +684,42 @@ nodes increase from 1 to 64; final eligible memory increases from zero to 44 fra
 source-time TF, crop/vector/graph/grid checks, independent ROS decisions and
 old/new journal reopening pass. The camera remained closed.
 
-Three actual text queries complete during playback. Trash and fridge phrases
-both select the apparent trash-bin crop; the bowl phrase has no passing candidate.
+Three actual text queries complete during playback. On 2026-09-16 the operator
+rejected all three displayed crops as the same wrong region. Trash and fridge
+phrases both falsely select it; the bowl phrase has no passing candidate.
 The true fridge has insufficient valid depth. All three routes refuse an unknown
 camera start and send no goal/path. One complete received message group remains
 unmatched by perception; it is reported. This restores graph/observation
 association, not retrieval accuracy or live throughput. The 600-node consumer
 limit makes this a bounded configuration, not a continuous deployment policy.
 See `docs/stationary-memory.md` and
-`data/outputs/stationary_memory/steady_20260916/retained_01/review.html`.
+`data/outputs/stationary_memory/steady_20260916/operator_review_20260916/review.html`.
 
 ## 5. Current Next Task
 
 Milestone: **Operator-reviewed retrieval cases from the stationary recording**.
 
-Status: `PLANNED`. The graph-retention comparison is verified and recorded in
-Section 4.24 and the Progress Ledger. The user is asleep and authorized safe
-saved-data work and GitHub pushes. Keep the camera closed until new operator
-readiness; never issue navigation commands. No new recording is needed for the
-next review.
+Status: operator negative-case recording and corrected review presentation are
+`VERIFIED`; retrieval improvement remains `PLANNED`. The operator returned on
+2026-09-16 and rejected all three displayed query crops. Do not ask them to repeat
+that review or count the trash candidate as correct. Safe saved-data work and
+GitHub pushes remain authorized. Keep the camera closed until new operator
+readiness; never issue navigation commands. No new recording is currently needed.
 
 Required observable result:
 
-1. When the operator returns, open
-   `data/outputs/stationary_memory/steady_20260916/retained_01/review.html` and
-   confirm the intended targets and whether the three actual query crops match.
-   Record operator labels separately from model labels and assistant judgments.
-2. Freeze those query prefixes, original RGB/depth/crops, expected target labels
-   and measured failure reasons as the comparison cases before changing retrieval.
-   The present fridge query selects a trash-bin/cabinet proposal; the true fridge
-   is detected in RGB but fails depth. The bowl query has no passing candidate at
-   its original prefix; later bowl/sink labels overlap. Do not treat provisional
-   record counts or later observations as earlier retrieval success.
-3. Based on confirmed cases, choose one minimal saved-data improvement and state
-   its acceptance result before editing. Reuse the current geometry and retrieval
+1. Use the frozen negative cases in
+   `data/outputs/stationary_memory/steady_20260916/operator_review_20260916/`.
+   `operator_review.json` records zero accepted displayed crops, with the exact
+   user message, query prefixes, source identities and hashes. Separate these
+   operator judgments from detector labels and prior assistant visual judgments.
+2. Audit detector proposal coverage and depth rejection at those original
+   prefixes. Each has only one rankable object. The true fridge is detected in
+   RGB but fails depth; the bowl query has no passing candidate at its prefix.
+   Later bowl/sink labels overlap. Positive target boxes are not yet annotated;
+   do not invent operator annotations or count later observations as past success.
+3. Based on those cases, choose one minimal saved-data retrieval improvement and
+   state its acceptance result before editing. Reuse the current geometry and retrieval
    code. Do not guess a depth through holes, lower thresholds to pass this scene,
    merge records solely by label similarity or insert future graph/pose evidence.
 4. Preserve unknown-start, freshness, clearance and route refusals. The new
@@ -728,7 +730,7 @@ Required observable result:
    complete diff, and record only measured outcomes before publishing a checkpoint.
 
 Starting points: `docs/stationary-memory.md`, its local `comparison.json` and
-`retained_01/visual_review.json`, `scripts/online_semantic_memory.py`,
+`operator_review_20260916/operator_review.json`, `scripts/online_semantic_memory.py`,
 `scripts/online_scene_memory.py`, and `scripts/rgbd_geometry.py`.
 
 Learning checkpoint: graph retention restores the ability to query observations;
@@ -4069,6 +4071,52 @@ identity and safe route are separate acceptance conditions.
 
 Next action: operator review of the three query images and intended targets,
 using the saved review page; no new recording is needed for this review.
+
+### 2026-09-16: Operator Rejects Repeated Query Crops; Review Corrected
+
+Status: `VERIFIED` for recording negative cases, reproducing original prefixes
+and correcting review presentation. Recognition remains failed on these cases.
+
+The operator reports that the fridge, bowl and trash-can review crops all show
+the same wrong region. Zero of the three displayed crops is accepted. Withdraw
+the prior assistant assessment that the trash crop appeared relevant. This
+feedback does not invalidate the measured graph retention or source provenance;
+those checks did not establish semantic identity.
+
+Original prefixes 356/612/932 each contain one rankable object, ID 1, detector
+label refrigerator. Best views come from nodes 14/9/21 at bounds
+[431,312,594,705], [431,313,594,706], [430,313,593,705]. Source PNGs and pixel hashes
+match the original frames; the similar crops are actual query results, not a
+display file mix-up. Fridge/trash queries falsely select the record at
+0.272788/0.280325. Bowl selects no candidate at 0.157531, but its highest rejected
+crop was still displayed prominently. No successful retrieval is demonstrated.
+
+Changed: `scripts/online_semantic_memory.py` passes the recorded selected IDs to
+the existing reviewer in `scripts/semantic_memory.py`. Selected records are
+unconfirmed candidates; no selection has no result image, and rejected crops
+are kept in closed diagnostic details. Offline ranking-only callers retain that
+meaning. No threshold, embedding, proposal, depth, association or route change.
+Tests extend `tests/memory/test_semantic_memory.py`; README and
+`docs/stationary-memory.md` correct the prior assessment.
+
+Verification: 13 semantic math/persistence/review tests and 39 online-memory/
+semantic/search tests pass. Local
+`data/outputs/stationary_memory/steady_20260916/operator_review_20260916/`
+contains the exact feedback, frozen query JSON/crops/source frames, three copied
+journal prefixes and `freeze_review.py`. Each prefix reopens identically with
+its saved text vector, including full semantic results, geometry and planning
+evidence. Actual selected/unselected page output and original crop pixels/hashes
+are checked. All original journals, reports and old review artifacts remain
+byte-identical. New `review.html` records the operator correction; no camera,
+GPU inference or ROS publication was needed. Desktop rendering of this revision
+has not been operator-reviewed. Private images remain ignored.
+
+Limit: this fixes the report, not recognition. The three negative labels do not
+provide precise positive target boxes. The central fridge's missing depth and
+the single-object candidate pool remain substantive failures.
+
+Next action: audit proposal coverage and depth rejection at the frozen query
+prefixes before choosing a retrieval change; retain all three negative cases.
 
 ## 16. End-Of-Session Handoff Template
 

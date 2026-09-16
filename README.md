@@ -60,8 +60,9 @@ This does not establish useful live object search. See the
 
 Stationary graph retention now passes a matched **saved-data** comparison: the
 same 944-pair input at 0.25x changes the active graph from 1 to 64 nodes and eligible
-memory from 0 to 3 provisional records. Text queries regain candidates, but a
-fridge query selects a trash-bin crop and all routes refuse an unknown start.
+memory from 0 to 3 provisional records. The operator rejected all three displayed
+query crops: fridge and trash queries select the same wrong region, while the
+bowl query has no selected candidate. All routes refuse an unknown start.
 See [the comparison, depth limitations and local image review](docs/stationary-memory.md).
 
 ## Goal

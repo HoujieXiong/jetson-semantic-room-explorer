@@ -256,7 +256,8 @@ def query_text(database, model, phrase, output, *, planning=False):
                       encoder=encoder.identity, load_ms=encoder.load_ms)
         report['status'] = result['semantic']['status']
         report['limitation'] = 'Ranks only committed crops of current geometric supports. Partial coverage and uncalibrated cosine scores do not prove identity or presence/absence. No navigation decision.'
-        write_query_review([{'text': phrase, 'ranking': result['semantic']['ranking']}],
+        write_query_review([{'text': phrase, 'ranking': result['semantic']['ranking'],
+                             'selected_object_ids': result['semantic']['selected_object_ids']}],
                            database.parent, output/'queries.html', report['limitation'])
     except (ValueError, OSError, RuntimeError, sqlite3.Error) as error:
         report.update(status='INCOMPLETE', error={'type': type(error).__name__, 'message': str(error)})

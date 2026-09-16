@@ -235,24 +235,41 @@ def rank_objects(text_vector, objects, samples):
 
 
 def write_query_review(queries, crop_root, output, limitation):
-    """Embed verified source crops for inspecting ranked results without WebGL."""
+    """Keep reported selections separate from rejected diagnostic crops."""
     cards = []
     for row in queries:
-        cells = []
-        for candidate in row['ranking'][:3]:
-            path = crop_root/candidate['best_view']['crop']
-            if file_hash(path) != candidate['best_view']['crop_sha256']:
-                raise ValueError('Query review crop changed since indexing')
-            encoded = base64.b64encode(path.read_bytes()).decode('ascii')
-            cells.append(f'<td><img src="data:image/png;base64,{encoded}" alt="Recorded object crop">'
-                         f'<p>ID {candidate["object_id"]} | cosine {candidate["cosine_similarity"]:.3f}</p>'
-                         f'<p>Detector: {html.escape(candidate["detector_label"])}</p></td>')
-        cards.append('<h2>'+html.escape(row['text'])+'</h2><table><tr>'+''.join(cells)+'</tr></table>')
+        selected = row.get('selected_object_ids')
+        if selected is not None and not set(selected) <= {c['object_id'] for c in row['ranking']}:
+            raise ValueError('Query review selection is absent from its ranking')
+        if selected is None:
+            groups = [('Ranked candidates; no selection decision supplied', row['ranking'], False)]
+        else:
+            groups = [('Unconfirmed candidates' if selected else 'No candidate selected',
+                       [c for c in row['ranking'] if c['object_id'] in selected], False),
+                      ('Not selected — diagnostic images only',
+                       [c for c in row['ranking'] if c['object_id'] not in selected], True)]
+        parts = ['<h2>'+html.escape(row['text'])+'</h2>']
+        for title, candidates, diagnostic in groups:
+            if diagnostic and not candidates:
+                continue
+            cells = []
+            for candidate in candidates[:3]:
+                path = crop_root/candidate['best_view']['crop']
+                if file_hash(path) != candidate['best_view']['crop_sha256']:
+                    raise ValueError('Query review crop changed since indexing')
+                encoded = base64.b64encode(path.read_bytes()).decode('ascii')
+                cells.append(f'<td><img src="data:image/png;base64,{encoded}" alt="Recorded candidate crop">'
+                             f'<p>ID {candidate["object_id"]} | cosine {candidate["cosine_similarity"]:.3f}</p>'
+                             f'<p>Detector: {html.escape(candidate["detector_label"])}</p></td>')
+            table = '<table><tr>'+''.join(cells)+'</tr></table>' if cells else ''
+            parts.append('<details><summary>'+title+'</summary>'+table+'</details>' if diagnostic
+                         else '<h3>'+title+'</h3>'+table)
+        cards.append(''.join(parts))
     output.write_text('<!doctype html><html lang="en"><meta charset="utf-8">'
         '<title>Semantic memory query review</title><style>body{font-family:sans-serif;max-width:1100px;margin:30px auto;background:#f4f5f7;color:#172033}'
         'table{width:100%;table-layout:fixed;background:white}td{padding:16px;vertical-align:top}img{width:100%;height:180px;object-fit:contain}</style>'
         '<h1>Semantic memory query review</h1><p>'+html.escape(limitation)+'</p>'
-        '<p>Top three ranked records per phrase. Scores are not confidence probabilities; detector labels can be wrong.</p>'
+        '<p>Up to three records per group. Selected candidates are unconfirmed; scores are not confidence probabilities and detector labels can be wrong.</p>'
         +''.join(cards)+'</html>')
 
 
