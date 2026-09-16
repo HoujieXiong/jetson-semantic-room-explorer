@@ -15,6 +15,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rclpy.serialization import deserialize_message
 from rclpy.time import Time
 import rosbag2_py
+from rosidl_runtime_py.convert import message_to_ordereddict
 from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import CameraInfo, Image
 from tf2_msgs.msg import TFMessage
@@ -32,6 +33,25 @@ TOPICS = {
 OPTICAL_FRAME = 'camera_color_optical_frame'
 # A subscriber may enter or leave between a pair's two messages.
 MAX_BOUNDARY_FRAMES = 2
+
+
+def message_content_bytes(message):
+    """Stable field identity across CDR padding; image pixels remain byte-exact."""
+    if isinstance(message, Image):
+        value = {key: getattr(message, key) for key in
+                 ('height', 'width', 'encoding', 'is_bigendian', 'step')}
+        value['header'] = message_to_ordereddict(message.header)
+        value['data_sha256'] = hashlib.sha256(message.data).hexdigest()
+    else:
+        value = message_to_ordereddict(message)
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+
+
+def comparison_key(reference):
+    mode = reference.get('wire_comparison', 'serialized_sha256')
+    if mode not in ('serialized_sha256', 'message_content_sha256'):
+        raise ValueError('Unknown replay wire comparison')
+    return mode
 
 
 def distribution(values):
@@ -73,6 +93,7 @@ class ContractCheck:
         self.scene = scene
         self.counts = defaultdict(int)
         self.hashes = {topic: hashlib.sha256() for topic in TOPICS}
+        self.content_hashes = {topic: hashlib.sha256() for topic in TOPICS}
         self.stamps = defaultdict(list)
         self.arrivals = defaultdict(list)
         self.calibration = {}
@@ -87,6 +108,7 @@ class ContractCheck:
         message = deserialize_message(payload, TOPICS[topic])
         self.counts[topic] += 1
         self.hashes[topic].update(payload)
+        self.content_hashes[topic].update(message_content_bytes(message))
         self.arrivals[topic].append(arrival_ns)
         if topic == '/tf_static':
             for transform in message.transforms:
@@ -175,6 +197,7 @@ class ContractCheck:
             arrivals = self.arrivals[topic]
             topics[topic] = {
                 'count': self.counts[topic], 'serialized_sha256': self.hashes[topic].hexdigest(),
+                'message_content_sha256': self.content_hashes[topic].hexdigest(),
                 'header_rate_hz': (len(stamps)-1)*1e9/(stamps[-1]-stamps[0]) if len(stamps)>1 else None,
                 'arrival_rate_hz': (len(arrivals)-1)*1e9/(arrivals[-1]-arrivals[0]) if len(arrivals)>1 and arrivals[-1]>arrivals[0] else None,
                 'header_period_ms': distribution(np.diff(stamps)/1e6),

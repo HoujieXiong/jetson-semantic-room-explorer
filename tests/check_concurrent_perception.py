@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import sys
 import time
+import uuid
 
 import message_filters
 import numpy as np
@@ -20,12 +21,13 @@ from sensor_msgs.msg import Image
 from tf2_ros import TransformException
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
-from check_femto_rosbag import ContractCheck, TOPICS, distribution
+from check_femto_rosbag import ContractCheck, TOPICS, comparison_key, distribution
 from check_rtabmap_mapping import MappingCheck, pose_values
 from check_rtabmap_odometry import stamp_ns
 from observe_rgbd_objects import DEPTH_POLICY, INFERENCE, infer_rgbd
 from rgbd_geometry import map_from_camera, pinhole_matrix
 from extract_mapped_rgbd import file_hash
+from online_scene_memory import OnlineMemoryWriter
 
 
 class ConcurrentCheck(MappingCheck):
@@ -40,6 +42,7 @@ class ConcurrentCheck(MappingCheck):
         self.awaiting_pose = []
         self.odom_by_stamp = {}
         self.callback_ms = []
+        self.memory = None
         self.filters = {topic: message_filters.SimpleFilter() for topic in TOPICS if topic != '/tf_static'}
         self.sync = message_filters.ApproximateTimeSynchronizer(list(self.filters.values()), 10, 0.005)
         self.sync.registerCallback(self.pair)
@@ -80,6 +83,25 @@ class ConcurrentCheck(MappingCheck):
             raise ValueError('Duplicate odometry source timestamp')
         self.odom_by_stamp[stamp] = {**self.info[-1], 'received_elapsed_s': self.elapsed()}
 
+    def mapping_stats(self, message):
+        super().mapping_stats(message)
+        if self.memory is not None:
+            self.memory.submit('mapping', self.mapping_info[-1], self.elapsed())
+
+    def map_graph(self, message):
+        super().map_graph(message)
+        if self.memory is not None:
+            try:
+                tf = self.tf.lookup_transform('camera_link', 'camera_color_optical_frame',
+                                              Time(nanoseconds=stamp_ns(message.header.stamp)))
+            except TransformException:
+                extrinsic = {'status': 'REJECTED', 'reason': 'camera_extrinsic_unavailable'}
+            else:
+                pose = pose_values(tf.transform.translation, tf.transform.rotation)
+                extrinsic = {'status': 'ACCEPTED', 'camera_link_from_optical':
+                             map_from_camera(pose['position_m'], pose['quaternion_xyzw']).tolist()}
+            self.memory.submit('graph', {**self.graphs[-1], 'extrinsic': extrinsic}, self.elapsed())
+
     def pair(self, rgb, depth, rgb_info, depth_info):
         stamps = [stamp_ns(m.header.stamp) for m in (rgb, depth, rgb_info, depth_info)]
         if stamps[0] != stamps[2] or stamps[1] != stamps[3] or abs(stamps[0]-stamps[1]) > 5_000_000:
@@ -102,6 +124,8 @@ class ConcurrentCheck(MappingCheck):
         self.rows.append(row)
         if self.pending is not None:
             row.update(status='DROPPED', reason='pending_queue_full')
+            if self.memory is not None:
+                self.memory.submit('observation', row, self.elapsed())
             return
         # NumPy views retain the ROS message data buffers until the job completes.
         color = np.frombuffer(rgb.data, dtype=np.uint8).reshape(rgb.height, rgb.width, 3)
@@ -130,6 +154,8 @@ class ConcurrentCheck(MappingCheck):
         return {'status': 'REJECTED', 'reason': reason, 'odom_evidence': info}
 
     def pump(self):
+        if self.memory is not None:
+            self.memory.check()
         if self.active is not None:
             row, future = self.active
             if future.done():
@@ -154,6 +180,9 @@ class ConcurrentCheck(MappingCheck):
             row.update(pose=pose, status='PROCESSED', completed_elapsed_s=self.elapsed())
             row['pose_wait_ms'] = (pose['checked_elapsed_s']-row['prediction_completed_elapsed_s'])*1000
             row['arrival_to_result_ms'] = (row['completed_elapsed_s']-row['arrived_elapsed_s'])*1000
+            if self.memory is not None:
+                self.memory.submit('observation', {**row, 'camera_info':
+                    self.sensor.calibration['/camera/color/camera_info']}, self.elapsed())
             self.awaiting_pose.remove(row)
         if self.pending is None or self.active is not None or len(self.awaiting_pose) >= 8:
             return
@@ -182,7 +211,7 @@ class ConcurrentCheck(MappingCheck):
         measured = super().finish(reference)
         sensor = self.sensor.finish()
         for topic in self.filters:
-            for key in ('count', 'serialized_sha256'):
+            for key in ('count', comparison_key(reference)):
                 if sensor['topics'][topic][key] != reference['topics'][topic][key]:
                     raise ValueError('Sensor replay changed or messages were lost: '+topic)
         paired = {'color': {row['rgb_stamp_ns'] for row in self.rows},
@@ -206,6 +235,7 @@ def main():
     for name in ('reference', 'model', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--duration', type=float, required=True)
+    parser.add_argument('--memory-db', type=Path, help='Optional fresh causal observation/graph journal')
     args = parser.parse_args()
     ready = args.output.with_suffix('.ready.json')
     if not np.isfinite(args.duration) or not 0 < args.duration <= 600 or args.output.exists() or ready.exists():
@@ -219,7 +249,7 @@ def main():
               'model_path': str(model_path), 'model_sha256': file_hash(model_path),
               'inference': INFERENCE, 'depth_policy': DEPTH_POLICY,
               'live_capture_executed': False, 'motion_executed': False}
-    check = node = executor = None
+    check = node = executor = memory = None
     initialized = False
     try:
         os.environ['YOLO_OFFLINE'] = 'true'
@@ -244,6 +274,12 @@ def main():
         node = rclpy.create_node('concurrent_rgbd_check', parameter_overrides=[Parameter('use_sim_time', value=True)])
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='rgbd_inference')
         check = ConcurrentCheck(lambda *values: infer_rgbd(model, *values), executor)
+        if args.memory_db is not None:
+            memory = OnlineMemoryWriter(args.memory_db, {
+                **{key: report[key] for key in ('reference_sha256', 'model_sha256', 'inference', 'depth_policy', 'runtime')},
+                'session_id': str(uuid.uuid4()), 'origin_monotonic_ns': int(check.begin*1e9),
+                'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map', 'point_unit': 'meter'})
+            check.memory = memory
         check.subscribe(node)
         ready.write_text(json.dumps(report, indent=2)+'\n')
         print('READY: GPU warmup and subscriptions complete', flush=True)
@@ -253,6 +289,8 @@ def main():
             check.pump()
         if not node.get_clock().ros_time_is_active or node.get_clock().now().nanoseconds <= 0:
             raise ValueError('No active ROS simulated clock')
+        if memory is not None:
+            memory.close()
         report.update(check.finish(reference))
         if file_hash(model_path) != report['model_sha256'] or file_hash(args.reference) != report['reference_sha256']:
             report['status'] = 'INCOMPLETE'
@@ -262,17 +300,29 @@ def main():
         report['error'] = {'type': type(error).__name__, 'message': str(error)}
         raise
     finally:
+        close_error = None
         try:
+            if memory is not None:
+                try:
+                    memory.close()
+                except (RuntimeError, TimeoutError) as error:
+                    close_error = error
+                    report.update(status='INCOMPLETE', memory_error=str(error))
+                report['online_memory'] = {'database': str(args.memory_db.resolve()),
+                    'session_id': memory.context['session_id'], **memory.stats,
+                    'writer_thread_closed': not memory.thread.is_alive()}
             if check is not None and report['status'] == 'INCOMPLETE':
                 report.update(check.incomplete_evidence(), perception=check.evidence())
             args.output.write_text(json.dumps(report, indent=2, allow_nan=False)+'\n')
         finally:
             if node is not None:
                 node.destroy_node()
-            if initialized:
+            if initialized and rclpy.ok():
                 rclpy.shutdown()
             if executor is not None:
                 executor.shutdown(wait=True, cancel_futures=True)
+        if close_error is not None:
+            raise close_error
     print('MEASURED: concurrent source-time perception and SLAM', flush=True)
 
 

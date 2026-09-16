@@ -1,5 +1,8 @@
 """Shared rectified-camera intrinsics and frozen map-from-camera pose checks."""
 
+from bisect import bisect_left
+import math
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 
@@ -22,3 +25,16 @@ def map_from_camera(position, quaternion):
     transform[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
     transform[:3, 3] = position
     return transform
+
+
+def match_source_stamp(mapping_stamp, source_stamps):
+    """Bound only RTAB-Map's integer-ns -> double-seconds -> integer-ns rounding."""
+    if not source_stamps:
+        raise ValueError('Mapped observation has no tracked source pose')
+    index = bisect_left(source_stamps, mapping_stamp)
+    closest = min((source_stamps[i] for i in (index-1, index) if 0 <= i < len(source_stamps)),
+                  key=lambda stamp: abs(stamp-mapping_stamp))
+    tolerance_ns = math.ceil(2*math.ulp(mapping_stamp/1e9)*1e9) + 1
+    if abs(closest-mapping_stamp) > tolerance_ns:
+        raise ValueError('Mapped observation has no tracked source pose within floating-point timestamp precision')
+    return closest

@@ -599,45 +599,75 @@ weights, minimal sample and three new packages are isolated from the baseline.
 See `docs/cutr-feasibility.md` and `data/outputs/cutr/`. CuTR is not imported into
 scene memory or used for search decisions.
 
+### 4.20 Causal Online Observation Memory
+
+Status: `VERIFIED` for bounded recorded-data persistence and label queries during
+SLAM/perception. This is not a continuous live service or online text-search gate.
+
+The 899-pair line bag passes full typed-message/content verification at nominal
+0.25x. All pairs are retained as outcomes: 893 processed, six explicit drops,
+888 accepted source-time poses and five refusals. The fresh SQLite journal holds
+1,019 events including 60 mapping updates and 60 received graph revisions.
+Independent queries at prefixes 170/509/848 precede playback end; refrigerator
+is found from nine available supports. Final active-graph memory has 14 provisional
+objects from 20 eligible keyframes; reopening preserves results and database bytes.
+
+Queries reproject original camera points using one received graph version, retain
+original pose refusals and expose snapshot-scoped IDs and excluded nodes. The
+frozen pipeline remains separate. Writer queue peak is 3/16, write P95 20.183 ms;
+system RAM peak 3,434 MB. All owned processes close without force. Independent
+source-pixel, causal TF, graph-revision and association checks pass; 109 focused
+tests pass. Initial native-player/serialization failures remain INCOMPLETE.
+See `docs/online-scene-memory.md` and
+`data/outputs/online_memory/line_20260915/attempt_07/`.
+
 ## 5. Current Next Task
 
-Milestone: **Causal online observation memory and queries on recorded RGB-D**.
+Milestone: **Causal online MobileCLIP text retrieval on recorded RGB-D**.
 
-Status: `PLANNED`. Minimum saved-data perception, memory, MobileCLIP retrieval and
-ROS previews are verified. M7 feasibility is complete as an offline-only decision;
-CuTR is not a prerequisite for the remaining baseline pipeline.
+Status: `PLANNED`. Causal observation persistence and label queries during a
+bounded 899-pair replay are verified and recorded in the Progress Ledger. Saved
+MobileCLIP retrieval/ROS previews also work, but their indexes bind to frozen
+geometry and cannot be silently reused as an online semantic memory.
 
 The user requested pipeline-first work and deferred physical scale/return-error
-refinement. Do not gate software integration on a new measured-motion capture.
-Official MobileCLIP/CuTR downloads and their isolated required dependencies are
-already authorized. Continue safe autonomous work using existing local data.
+refinement. Continue safe autonomous work with existing local data. Official
+MobileCLIP/CuTR downloads and isolated required dependencies are already
+authorized. CuTR remains an offline comparison, not a baseline prerequisite.
+Do not gate integration on a new measured-motion capture; physical capture still
+requires operator readiness.
 
 Required observable result:
 
-1. During a bounded replay of the existing 899-pair line bag, persist accepted
-   observations and answer a query before playback ends, using only already
-   delivered frames, source-time poses and map information. No future final poses.
-2. Reuse the existing bounded inference/TF producer and SQLite/query logic where
-   their contracts fit. Inspect the frozen-memory schema before changing it;
-   do not fabricate frozen map hashes or mix map pose revisions silently.
-3. Preserve source timestamps, dropped/refused observations and explicit geometry
-   revision semantics. Keep callbacks, queues, writes and cleanup bounded.
-4. Verify reopened persistence, prefix-only query evidence, missing-pose behavior
-   and revision handling with focused tests and an independent replay check.
-   Retain the working frozen-data pipeline and all raw recording artifacts.
-5. Measure concurrent memory/latency, review the complete diff, update only measured
-   progress and push a verified checkpoint. Ask only for missing input/equipment
-   or authority. Live physical capture still requires operator readiness.
+1. Answer a text-description query before a bounded replay ends, with source
+   crops/embeddings available by that decision and geometry from one named online
+   event-prefix/graph snapshot. Never import a future crop or final pose merely
+   because an existing frozen index contains it.
+2. Reuse the existing MobileCLIP preprocessing/model provenance, online journal
+   and association logic where contracts fit. Inspect current crop and index
+   ownership before editing; avoid a second semantic pipeline or fake frozen IDs.
+3. Preserve bounded inference/embedding queues, explicit missing/late/rejected
+   evidence and revision-scoped identities. Measure Jetson concurrency before
+   making latency/throughput claims; do not introduce CuTR into this run.
+4. Verify persistence/reopening, source pixel/crop identity, no future evidence,
+   graph revisions and an explicit no-result case. Compare actual text-query
+   rankings with saved source crops; do not equate an embedding match with a
+   verified object identity or safe navigation goal.
+5. Retain the frozen demo and causal label-query path, review the complete diff,
+   update measured progress and push a verified checkpoint. Ask only for missing
+   local inputs/equipment/authority; existing downloads and safe pushes are allowed.
 
-Starting points: `tests/check_concurrent_perception.py`, `scripts/scene_memory.py`,
-`scripts/finalize_concurrent_observations.py`, `scripts/semantic_memory.py` and
-`data/outputs/concurrent_rgbd/line_20260915/`. The current producer is a bounded
-measurement harness, not an indefinite production node. Existing memory and
-semantic indexes bind to frozen final geometry; causal revision support is new
-work. Do not claim autonomous navigation without a mobile base.
+Starting points: `scripts/online_scene_memory.py`,
+`tests/check_concurrent_perception.py`, `scripts/semantic_memory.py`,
+`docs/online-scene-memory.md`, `docs/semantic-memory.md` and
+`data/outputs/online_memory/line_20260915/attempt_07/`.
+The current producer is a bounded measurement harness, not an indefinite node.
+Object IDs may change with graph revisions; new semantic evidence must remain
+attached to its original observation. No mobile base or motor command is involved.
 
-Learning checkpoint: online evidence must be available at decision time. A final
-optimized map can improve an offline replay but cannot justify an earlier decision.
+Learning checkpoint: visual meaning belongs to the original crop; its map
+position and object association can change. Query timing and revision provenance
+must keep those two forms of evidence consistent.
 
 ## 6. Target System Architecture
 
@@ -928,8 +958,11 @@ Learning goal: projective geometry and uncertainty from 2D detection plus depth.
 Status: `VERIFIED` for minimum offline persistence, deterministic association and
 reopened label queries. Seventeen memory tests, 21 existing regression tests and
 real M5 imports pass; 18 observations form nine provisional objects with
-13 supporting observations, at most one per object per frame. Reliable identity, covariance-aware fusion and
-live scaling remain `PLANNED`. See the M6 ledger entry and `docs/scene-memory.md`.
+13 supporting observations, at most one per object per frame. Causal persistence
+and label queries during the 899-pair replay are now also `VERIFIED`: 1,019 journal
+events and 14 provisional objects in the final active-graph snapshot. See
+`docs/online-scene-memory.md`. Reliable identity, covariance-aware fusion and
+live scaling remain `PLANNED`. See the M6 ledger entries and `docs/scene-memory.md`.
 
 Steps:
 
@@ -3536,6 +3569,95 @@ model invocation is not evidence of a safe concurrent pipeline or accurate map.
 
 Next action: add causal persistent observations and queries during existing-bag
 playback, with explicit pose-revision handling and no final-map lookahead.
+
+### 2026-09-15: Causal Online Memory And Queries During RGB-D Playback
+
+Milestone: M6 causal recorded-data slice. Status: `VERIFIED`. No new capture or
+physical movement; live real-time operation and online text retrieval remain
+unverified. The prior frozen memory/search path stays separate and compatible.
+
+Changed: `scripts/online_scene_memory.py` adds a bounded SQLite event journal and
+snapshot queries; the existing concurrent producer optionally enqueues finalized
+observations, mapping information and received graphs. It retains drops, original
+source-time pose refusals, pixel hashes and calibration. The existing association
+and query implementation is reused, with the unchanged floating-point timestamp
+matcher shared through `rgbd_geometry.py`. Queries reproject all eligible camera
+points under one graph revision, record excluded nodes and use snapshot-scoped
+object IDs. No frozen map identity is fabricated. SIGINT cleanup now avoids
+calling ROS shutdown twice.
+
+Transport evidence: native-player attempts 01/02 miss the first two input frames;
+both remain INCOMPLETE. Attempts 03–05 fail on raw-message acknowledgement or
+typed serialization byte assertions. Local CameraInfo can reserialize from 408
+to 405 bytes, and CDR padding can vary between serializations without a field
+change. Full traversal checks all 3,597 original messages, original aggregate
+serialized hashes, typed field equality and image bytes. A derived reference
+explicitly selects field/content comparison; original byte mode remains default.
+No original bag/reference is modified. Attempt 06 is intentionally interrupted
+because per-message ACK overhead exceeds the bounded budget; the writer drains,
+all owned PIDs disappear and no force is needed. This verifies the SIGINT fix.
+The final local player gates its actual subscriber matches, uses original typed
+messages in receipt order at nominal 0.25x and waits for final acknowledgements.
+This is not proof of the root cause of the earlier native-player loss.
+
+Successful attempt 07: player duration 246.268 s, full supervisor 322.416 s.
+All four sensor streams deliver 899 messages with matching field/pixel hashes;
+899 synchronized pairs have no unmatched input. Perception processes 893 with
+six pending-queue drops and zero failures. Source-time poses: 888 accepted,
+five refused (one missing odometry, four missing map TF). Odometry reports 898
+tracked, zero lost, one input without output. Map database integrity passes with
+60 nodes; the last received graph has 21. Journal integrity passes with 1,019
+events: 899 observation outcomes, 60 mapping events and 60 graph revisions.
+Its closed size is 6,131,712 bytes and SHA256 is
+`74d99b5baa9d8fe799187232d73ded75a3e4dfa85e5aa16bb4f27715dc36c624`.
+
+Decision-time evidence: initial query returns NO_GRAPH. Three independent CLI
+queries finish before playback end: bottle at prefix/graph 170/157 has two
+eligible frames and returns NOT_FOUND; refrigerator at 509/497 has nine frames
+and one candidate supported nine times; backpack at 848/837 has 16 frames and
+returns NOT_FOUND. Computation is 37.871/134.085/227.862 ms; complete CLI wall
+times are 718–818 ms including imports. After playback, prefix/graph 1019/1006
+has 20 eligible frames, 88 detections, 64 supports and 14 provisional objects,
+including two bottle candidates. Node 1 remains excluded for its original pose
+refusal; 39 other mapped nodes are outside the current graph. Their raw evidence
+remains persisted. Fresh CLI reads reproduce results and leave DB bytes unchanged.
+
+Independent verification rereads source pixels and depth units, reconstructs TF
+only from events already received at each pose decision, and separately derives
+each query's prefix, graph identity, eligibility, full-point associations and
+reopened list. Fused-coordinate error is at most 1.78e-15 m (numerical consistency,
+not accuracy). Received graphs contain 135 historical translation changes above
+1 micrometer, largest 0.002438 m. All original input hashes remain unchanged.
+
+Resources: writer queue peak 3/16; commit P50/P95/max 12.077/20.183/285.078 ms.
+Pending/inference/pose-wait peaks are 1/1/7 against limits 1/1/8. Perception
+arrival-to-result P50/P95 is 489.245/557.984 ms; callback P95 is 24.411 ms.
+Perception RSS peaks at 1,307,452 KiB, system RAM at 3,434 MB and system swap at
+879 MB (878 MB at trial minimum, including existing usage). Available RAM minimum
+is 4,125,184 KiB. Observer/player/odometry/mapper exit 0; telemetry stops by SIGINT;
+no forced termination or remaining owned PID. This does not establish indefinite
+leak freedom or real-time performance.
+
+Tests: 12 online-memory, 40 odometry/concurrency/message-identity, 39 frozen and
+semantic-memory, and 18 ROS-contract tests pass. Known cases exercise revisions,
+delayed evidence, no future-pose repair, graph removal/restoration, missing/changed
+extrinsics, concurrent commits, duplicate-source failure, real SQLite queue
+overflow and cleanup. Message tests distinguish padding from pixel/calibration/
+timestamp changes and retain default byte comparison. Compilation/whitespace pass.
+
+Evidence: `data/outputs/online_memory/line_20260915/` contains normalization,
+focused logs and retained attempts 01–07. Successful attempt 07 includes exact
+source/config/helper snapshots, parameter queries, measurements, resource samples,
+query JSON, `verification.json`, `online_verification.json`, `reopen_check.json`
+and the SQLite journal. Commands/contracts are in `docs/online-scene-memory.md`.
+No dependency was downloaded or baseline model/camera/SLAM configuration changed.
+
+Limit/learning: storing observations is insufficient; a decision must identify
+what evidence and map revision existed at that time. Current queries use active
+graph keyframes, and absence is not room-wide negative evidence. Identity, metric
+accuracy, continuous capture, online embeddings and changing-map routes remain
+unverified. Next action: integrate MobileCLIP text retrieval with these causal
+online snapshots using only already delivered image evidence.
 
 ## 16. End-Of-Session Handoff Template
 

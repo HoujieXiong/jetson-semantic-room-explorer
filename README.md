@@ -34,6 +34,13 @@ is about 1.8 seconds; a concurrent SLAM trial stopped CuTR at the declared low-m
 guard before its first result. It remains an offline research comparison. See
 [CuTR measurements, images and limitations](docs/cutr-feasibility.md).
 
+Causal observation memory and label queries now also pass during a bounded
+899-pair replay. SQLite retains 1,019 observation/map events, and queries use only
+their committed prefix and one received graph revision. A refrigerator is found
+before playback ends; reopening preserves 14 provisional active-graph objects.
+See [online memory, query timeline and measured limits](docs/online-scene-memory.md).
+Online text retrieval and live real-time operation remain unverified.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
@@ -610,8 +617,9 @@ pose waiting reduces queue drops from 793 to nine. The final run processes 1402
 frames, with 1109 accepted poses and 293 explicit pose refusals. All 56 focused
 tests pass, independent pixel/TF checks pass, and every owned process closes.
 See [the measured comparison and commands](docs/concurrent-rgbd-perception.md).
-Real-time throughput, reliable tracking and causal online memory/search remain
-unverified.
+Real-time throughput and reliable room-loop tracking remain unverified. Causal
+label queries on the newer line recording are now verified as described in
+[online scene memory](docs/online-scene-memory.md).
 
 The concurrent run's own frozen map now feeds memory and search without rerunning
 inference: 62 of 64 exported nodes retain 252 detections, with 189 accepted depths
@@ -726,10 +734,12 @@ jetson-semantic-room-explorer/
 - [X] Bounded concurrent SLAM/perception and resources at 0.25x rosbag replay
 - [X] Concurrent observations finalized into their own frozen memory and search
 - [X] New forward/backward capture through the full pipeline; zero reported tracking losses at 0.25x
-- [ ] Real-time SLAM/perception and causal online memory/search acceptance
+- [X] Causal persistent observations and label queries during bounded RGB-D replay
+- [ ] Online text retrieval and search routes from a changing map
+- [ ] Real-time SLAM/perception and continuous live operation
 - [ ] Physical navigation acceptance
-- [ ] CuTR Jetson/Femto feasibility benchmark complete
-- [ ] Open-vocabulary semantic query implemented
+- [X] CuTR Jetson/Femto feasibility measured; retained as an offline research comparison
+- [X] Minimum saved-data MobileCLIP text retrieval and ROS search previews
 
 ## Resume-Oriented Summary
 

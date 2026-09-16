@@ -22,7 +22,7 @@ from sensor_msgs.msg import CameraInfo
 from tf2_msgs.msg import TFMessage
 from tf2_ros import Buffer
 
-from check_femto_rosbag import distribution
+from check_femto_rosbag import comparison_key, distribution, message_content_bytes
 
 
 def stamp_ns(stamp):
@@ -61,6 +61,7 @@ class OdomCheck:
         self.info, self.poses = [], []
         self.camera_stamps = {'color': [], 'depth': []}
         self.camera_hashes = {stream: hashlib.sha256() for stream in self.camera_stamps}
+        self.camera_content_hashes = {stream: hashlib.sha256() for stream in self.camera_stamps}
         self.tf = Buffer(cache_time=Duration(seconds=120))
         self.dynamic_tf = {}
         self.clock_stamps = []
@@ -85,6 +86,7 @@ class OdomCheck:
         message = deserialize_message(payload, CameraInfo)
         self.camera_stamps[stream].append(stamp_ns(message.header.stamp))
         self.camera_hashes[stream].update(payload)
+        self.camera_content_hashes[stream].update(message_content_bytes(message))
 
     def odom_info(self, message):
         if message.header.frame_id != 'odom':
@@ -115,7 +117,9 @@ class OdomCheck:
     def finish(self, reference):
         for stream, stamps in self.camera_stamps.items():
             expected = reference['topics'][f'/camera/{stream}/camera_info']
-            if len(stamps) != expected['count'] or self.camera_hashes[stream].hexdigest() != expected['serialized_sha256']:
+            key = comparison_key(reference)
+            hashes = self.camera_hashes if key == 'serialized_sha256' else self.camera_content_hashes
+            if len(stamps) != expected['count'] or hashes[stream].hexdigest() != expected[key]:
                 raise ValueError(f'{stream} CameraInfo replay differs from the verified bag')
         if not self.info or len(self.info) != len(self.poses):
             raise ValueError('Missing odometry or unmatched OdomInfo/Odometry results')

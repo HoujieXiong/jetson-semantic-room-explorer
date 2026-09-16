@@ -1,7 +1,7 @@
 """Measure mapping interfaces on the verified bag; geometry quality is separate."""
 
-from bisect import bisect_left
-import math
+from pathlib import Path
+import sys
 
 import numpy as np
 from rclpy.qos import QoSProfile, ReliabilityPolicy
@@ -13,17 +13,8 @@ from tf2_ros import TransformException
 from check_rtabmap_odometry import OdomCheck, check_pose, main, stamp_ns
 
 
-def match_source_stamp(mapping_stamp, source_stamps):
-    """Bound only RTAB-Map's integer-ns -> double-seconds -> integer-ns rounding."""
-    if not source_stamps:
-        raise ValueError('Mapped observation has no tracked source pose')
-    index = bisect_left(source_stamps, mapping_stamp)
-    closest = min((source_stamps[i] for i in (index-1, index) if 0 <= i < len(source_stamps)),
-                  key=lambda stamp: abs(stamp-mapping_stamp))
-    tolerance_ns = math.ceil(2*math.ulp(mapping_stamp/1e9)*1e9) + 1
-    if abs(closest-mapping_stamp) > tolerance_ns:
-        raise ValueError('Mapped observation has no tracked source pose within floating-point timestamp precision')
-    return closest
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
+from rgbd_geometry import match_source_stamp
 
 
 def pose_values(position, orientation):

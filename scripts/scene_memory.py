@@ -228,29 +228,34 @@ def query(database, command='list', label=None):
         connection.row_factory = sqlite3.Row
         connection.execute('BEGIN')  # Keep counts, objects and evidence in one read snapshot.
         check_schema(connection)
-        context = json.loads(connection.execute('SELECT context_json FROM metadata WHERE id=1').fetchone()[0])
-        sql, parameters = 'SELECT * FROM objects', ()
-        if command in ('find', 'last_seen'):
-            sql += ' WHERE label=?'
-            parameters = (label.strip().casefold(),)
-        elif command != 'list':
-            raise ValueError('Unknown query')
-        rows = connection.execute(sql+' ORDER BY last_seen_ns DESC, object_id', parameters).fetchall()
-        if command == 'last_seen' and rows:
-            rows = [row for row in rows if row['last_seen_ns'] == rows[0]['last_seen_ns']]
-        objects = []
-        for row in rows:
-            frame = json.loads(connection.execute('SELECT evidence_json FROM frames WHERE node_id=?', (row['last_node_id'],)).fetchone()[0])
-            detection = next(d for d in frame['detections'] if d['detection_index'] == row['last_detection_index'])
-            objects.append({'object_id': row['object_id'], 'label': row['label'], 'status': 'PROVISIONAL',
-                'map_point_m': json.loads(row['position_json']), 'support_count': row['support_count'],
-                'first_seen_ns': row['first_seen_ns'], 'last_seen_ns': row['last_seen_ns'],
-                'mean_detection_confidence': row['confidence_sum']/row['support_count'],
-                'last_observation': {'node_id': row['last_node_id'], 'source_stamp_ns': frame['source_stamp_ns'],
-                                     'detection': detection}})
-        return {'status': 'FOUND' if objects else 'NOT_FOUND', 'query': command, 'label': label,
-                'context': context, 'counts': summary(connection), 'objects': objects,
-                'limitation': 'Provisional label/distance association of surface samples; identity and physical accuracy unverified. IDs may change if older evidence is added.'}
+        return query_contents(connection, command, label)
+
+
+def query_contents(connection, command='list', label=None):
+    """Query an already validated, transaction-consistent association snapshot."""
+    context = json.loads(connection.execute('SELECT context_json FROM metadata WHERE id=1').fetchone()[0])
+    sql, parameters = 'SELECT * FROM objects', ()
+    if command in ('find', 'last_seen'):
+        sql += ' WHERE label=?'
+        parameters = (label.strip().casefold(),)
+    elif command != 'list':
+        raise ValueError('Unknown query')
+    rows = connection.execute(sql+' ORDER BY last_seen_ns DESC, object_id', parameters).fetchall()
+    if command == 'last_seen' and rows:
+        rows = [row for row in rows if row['last_seen_ns'] == rows[0]['last_seen_ns']]
+    objects = []
+    for row in rows:
+        frame = json.loads(connection.execute('SELECT evidence_json FROM frames WHERE node_id=?', (row['last_node_id'],)).fetchone()[0])
+        detection = next(d for d in frame['detections'] if d['detection_index'] == row['last_detection_index'])
+        objects.append({'object_id': row['object_id'], 'label': row['label'], 'status': 'PROVISIONAL',
+            'map_point_m': json.loads(row['position_json']), 'support_count': row['support_count'],
+            'first_seen_ns': row['first_seen_ns'], 'last_seen_ns': row['last_seen_ns'],
+            'mean_detection_confidence': row['confidence_sum']/row['support_count'],
+            'last_observation': {'node_id': row['last_node_id'], 'source_stamp_ns': frame['source_stamp_ns'],
+                                 'detection': detection}})
+    return {'status': 'FOUND' if objects else 'NOT_FOUND', 'query': command, 'label': label,
+            'context': context, 'counts': summary(connection), 'objects': objects,
+            'limitation': 'Provisional label/distance association of surface samples; identity and physical accuracy unverified. IDs may change if older evidence is added.'}
 
 
 if __name__ == '__main__':

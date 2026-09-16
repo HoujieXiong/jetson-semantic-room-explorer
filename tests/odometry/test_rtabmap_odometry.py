@@ -1,13 +1,58 @@
 """Run using the isolated RTAB-Map environment."""
 from pathlib import Path
+import copy
 import sys
 import unittest
 
-from rclpy.serialization import serialize_message
-from sensor_msgs.msg import CameraInfo
+from rclpy.serialization import deserialize_message, serialize_message
+from sensor_msgs.msg import CameraInfo, Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from check_rtabmap_odometry import OdomCheck, check_pose, lost_intervals
+from check_femto_rosbag import comparison_key, message_content_bytes
+
+
+class MessageIdentityTests(unittest.TestCase):
+    def test_padding_is_not_message_content(self):
+        message = CameraInfo()
+        payload = serialize_message(message)
+        self.assertEqual(message_content_bytes(message), message_content_bytes(
+            deserialize_message(payload + b'\x00\x00\x00', CameraInfo)))
+
+    def test_all_calibration_fields_and_timestamps_count(self):
+        original = CameraInfo()
+        variants = []
+        for field, value in [('binning_x', 2), ('distortion_model', 'plumb_bob')]:
+            changed = copy.deepcopy(original)
+            setattr(changed, field, value)
+            variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed.k[0] = 500.
+        variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed.roi.x_offset = 1
+        variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed.header.stamp.nanosec = 1
+        variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed.header.frame_id = 'other'
+        variants.append(changed)
+        for changed in variants:
+            self.assertNotEqual(message_content_bytes(original), message_content_bytes(changed))
+
+    def test_image_pixels_and_layout_count(self):
+        original = Image(height=1, width=1, encoding='rgb8', step=3, data=[1, 2, 3])
+        for field, value in [('data', [1, 2, 4]), ('encoding', 'bgr8'), ('step', 4),
+                             ('width', 2), ('height', 2), ('is_bigendian', 1)]:
+            changed = copy.deepcopy(original)
+            setattr(changed, field, value)
+            self.assertNotEqual(message_content_bytes(original), message_content_bytes(changed))
+
+    def test_default_identity_stays_serialized_and_unknown_mode_fails(self):
+        self.assertEqual(comparison_key({}), 'serialized_sha256')
+        with self.assertRaisesRegex(ValueError, 'Unknown replay'):
+            comparison_key({'wire_comparison': 'unchecked'})
 
 
 class OdometryEvidenceTests(unittest.TestCase):
@@ -74,6 +119,17 @@ class OdometryContractTests(unittest.TestCase):
 
     def test_altered_replay_is_rejected(self):
         self.check.camera_hashes['color'].update(b'altered')
+        with self.assertRaisesRegex(ValueError, 'differs from the verified bag'):
+            self.check.finish(self.reference)
+
+    def test_explicit_content_identity_accepts_padding_but_rejects_fields(self):
+        self.reference['wire_comparison'] = 'message_content_sha256'
+        for stream in ('color', 'depth'):
+            self.reference['topics'][f'/camera/{stream}/camera_info']['message_content_sha256'] = (
+                self.check.camera_content_hashes[stream].hexdigest())
+        self.check.camera_hashes['color'].update(b'padding')
+        self.assertEqual(self.check.finish(self.reference)['status'], 'MEASURED')
+        self.check.camera_content_hashes['color'].update(b'changed field')
         with self.assertRaisesRegex(ValueError, 'differs from the verified bag'):
             self.check.finish(self.reference)
 
