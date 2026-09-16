@@ -87,6 +87,14 @@ bowl-region record scores 0.252092 / 0.251910. Another recording retains all
 17 records and 11 query results, and 93 focused tests pass. Original labels and
 defaults remain unchanged; this does not establish stable recognition or motion.
 
+The [temporal stability audit](docs/query-stability.md) now covers 784 saved
+snapshots and 2,602 text rankings. Bowl-region selection improves from 105/126
+to 113/126 rankable samples with optional merging, but still drops below threshold.
+A later one-pixel depth-sample difference reverses the merge. Fridge/trash queries
+remain consistently wrong in the stationary scene; all 125 motion snapshots have
+identical rankings between modes. Runtime defaults remain unchanged. These are
+correlated saved-data measurements, not recognition accuracy or live acceptance.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

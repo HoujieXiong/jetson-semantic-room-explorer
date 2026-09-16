@@ -747,46 +747,70 @@ publication remain unused. Scores are marginal; fridge/trash failures, stable
 identity, live throughput and navigation remain unresolved. See
 `docs/coobserved-tracks.md` and the latest ledger entry.
 
+### 4.28 Temporal Query And Association Stability
+
+Status: `VERIFIED` for a saved-data measurement, with instability retained as a
+finding. Three journals contribute 392 prefixes, 784 snapshots and 2,602 rankings.
+At 126 rankable complete-crop stationary samples, bowl-region selection is
+105/126 with original association and 113/126 with optional merging. Both modes
+still drop below 0.25. These correlated counts are not recognition accuracy.
+
+Merging starts at prefix 232 and reverses at 941: node 51 has 98.09% overlapping
+boxes and equal 1.439 m depths but a one-pixel horizontal sample difference,
+projecting to 1.918 mm. The exact-sample rule rejects the merge. Stationary
+fridge/trash queries consistently select the previously rejected region. All
+125 motion snapshots have identical rankings between modes; early graph changes
+and pending embeddings temporarily remove semantic support.
+
+Independent checks cover 120 boundary snapshots, 400 standalone API comparisons
+and another 366 event-boundary calls. Source geometry agrees within 8.89e-16 m
+and scalar scores within 6.33e-8. All planning attempts refuse. Runtime code,
+thresholds, defaults and input hashes remain unchanged. See
+`docs/query-stability.md` and the latest ledger entry. Stable physical identity,
+recognition, live throughput and navigation remain unverified.
+
 ## 5. Current Next Task
 
-Milestone: **Measure query and association stability across recorded prefixes**.
+Milestone: **Validate shared-depth-region evidence for duplicate association**.
 
-Status: `PLANNED`. The optional duplicate-track correction is verified on two
-saved query prefixes and recorded in the Progress Ledger. Safe saved-data work
-and GitHub pushes remain authorized. Keep the camera closed until new operator
-readiness; never issue navigation commands. No new recording is needed yet.
+Status: `PLANNED`. The temporal stability audit is verified and its observed
+failures are recorded in the Progress Ledger. Safe saved-data work and GitHub
+pushes remain authorized. Keep the camera closed until new operator readiness;
+never issue navigation commands. No new recording is needed yet.
 
 Required observable result:
 
-1. Preserve the operator-rejected cases, confirmed node-21 crops, both original
-   stationary journals and the new duplicate-track evidence. Region overlap is
-   only an audit proxy; do not invent per-frame physical identities or feedback.
-2. State a bounded stability acceptance check before editing. Reuse current
-   query APIs and stored text vectors to inspect contiguous committed prefixes
-   at received graph revisions, in both original and optional merge modes.
-   Cover the stationary journal and the existing forward/backward recording.
-3. Record when the bowl region first has eligible support, is selected, loses
-   selection or changes provisional associations. Distinguish source time,
-   commit availability and reopened analysis; do not call it a live benchmark.
-   Retain the known wrong-region fridge/trash cases as failures.
-4. Keep image/depth/pose eligibility, 0.25 / 0.02 filters, causal source support,
-   freshness, unknown-start and clearance gates fixed. Do not tune thresholds
-   against these same images or enable the optional mode by default merely
-   because the two audited bowl queries pass.
-5. Verify sampled boundaries independently, record limitations and measured
-   counts, run focused tests if code changes, review the complete diff and
-   publish a verified checkpoint. Prefer evidence-only work if existing APIs
-   already satisfy this acceptance result.
+1. Preserve the original rejected queries, operator-confirmed node-21 crops,
+   all three measured journals, exact-sample merge results and stability evidence.
+   Later crops have no new human annotations; do not infer them from prior feedback.
+2. Inspect original aligned depth and RGB for node 51 and other shared-frame
+   bowl/sink witnesses. Determine whether their overlapping depth regions support
+   one surface despite the changed sample pixel. Use calibrated geometry and
+   depth quality; label similarity and text scores cannot justify association.
+3. Before editing, declare an acceptance check for the smallest justified optional
+   association change. It must keep one representative per source frame and reject
+   distinct nearby targets, containment/occlusion, conflicting depth and groups
+   without direct evidence. If source evidence is insufficient, retain ambiguity.
+4. Recheck the complete stationary graph/semantic timeline and the existing
+   motion recording, including prefixes 232, 871, 932, 941 and the final prefix.
+   Report whether the split is resolved and whether other associations change;
+   do not promise that fixing sample sensitivity will fix marginal text scores.
+5. Keep original depth/pose/keyframe gates, 0.25 / 0.02 text filters, causal support,
+   freshness, unknown-start and clearance refusals. Preserve fridge/trash failures
+   and keep the mode optional. Run focused tests for any code change, independent
+   source/fusion checks and complete diff review before updating the ledger and
+   publishing a verified checkpoint.
 
-Starting points: `docs/coobserved-tracks.md`, `scripts/online_scene_memory.py`,
-`scripts/online_semantic_memory.py`,
-`data/outputs/duplicate_tracks/steady_20260916/verification.json`,
-`data/outputs/stationary_memory/steady_20260916/bowl_1280_pad_01/online.db`, and
-`data/outputs/online_semantic/line_20260915/attempt_02/online.db`.
+Starting points: `docs/query-stability.md`, `docs/coobserved-tracks.md`,
+`scripts/scene_memory.py`, `scripts/observe_rgbd_objects.py`,
+`data/outputs/query_stability/20260916/node51_evidence.json`,
+`data/outputs/query_stability/20260916/boundary_refinement.json`, and the retained
+stationary RGB-D bag/source observations. Use the existing local extraction tools.
 
-Learning checkpoint: removing duplicate votes improves the meaning of a memory
-record. It does not establish that retrieval remains correct as observations and
-map revisions arrive; selection stability needs a separate measurement.
+Learning checkpoint: exact pixel identity is a conservative evidence condition,
+but depth sampling can move within the same observed surface. Any more tolerant
+association rule needs source evidence and distinct-object regressions, not a
+lower text threshold or a claim of permanent object identity.
 
 ## 6. Target System Architecture
 
@@ -4408,6 +4432,101 @@ it does not convert a marginal text score into stable object recognition.
 Next action: measure fixed-policy candidate and association stability across
 committed graph prefixes in the existing stationary and motion journals before
 considering any default-mode change.
+
+### 2026-09-16: Temporal Stability Measured; Bowl Selection And Association Still Change
+
+Status: `VERIFIED` for the bounded saved-prefix audit. This is evidence-only
+work: runtime code, association modes, detector/encoder settings and query or
+planning thresholds remain unchanged. Stable retrieval is not claimed.
+
+The predeclared audit samples the empty prefix, every received graph event,
+every semantic outcome, original query checkpoints and final prefixes from
+`retained_01`, `bowl_1280_pad_01` and `line_20260915/attempt_02`. It also retains
+the previously audited stationary prefixes 871 and 932. The cases provide
+133 / 134 / 125 prefixes respectively: 784 snapshots across two modes and
+2,602 text rankings. All prefix copies contain exact contiguous original events.
+The journals use single-event transactions. Stored `available_elapsed_s` is
+producer-reported availability before durable commit completion, not an exact
+commit timestamp; source recording time is tracked separately. Most audit points
+were not queried in the original live playback.
+
+The local audit hooks the existing query's ranking call to reuse its immutable
+snapshot for the original stored text vectors. It records source representatives
+without changing runtime functions. Separate standalone API calls and independent
+source reconstruction validate this batching. No camera, GPU inference, model
+fetch, ROS publication, dependency or persistent service is added.
+
+Measured findings:
+
+- Original stationary: first bowl-region geometry at prefix 940 and embedding at
+  943, after the original unsuccessful bowl query at 932. Bowl-region scores
+  range from 0.148821 to 0.161973 in 28 rankable sampled snapshots, with no
+  selections. Optional merging leaves all 133 sampled rankings unchanged.
+- Complete-crop stationary: first bowl-region geometry at 61, embedding and
+  selection at 65. Original association selects the region in 105/126 rankable
+  samples; optional merging selects it in 113/126. Score ranges are
+  0.248069–0.253747 / 0.248943–0.253747. These correlated snapshot counts are not
+  accuracy percentages or independent trials.
+- Original association loses bowl selection at semantic event 463 and recovers
+  at 644; optional merging loses it at 479 and recovers at 581. The respective
+  stored availability times are 106.237/148.883 s and 113.083/135.821 s. No wrong
+  region replaces the bowl during sampled dropouts. Thresholds stay 0.25 / 0.02.
+- The merge becomes eligible at graph prefix 232 and remains active in 80 sampled
+  snapshots. Graph prefix 941 adds node 51 and reverses merging through the end.
+  The node's original observation/mapping/semantic sequences are 936/940/944;
+  the association changes before its new vectors arrive. Both original boxes
+  have IoU 0.980930, depth 1.439 m and inlier P10/P90 1.433/1.447 m, but sampled
+  pixels are [549,296] and [550,296]. Map points differ by 0.001917895 m. Source
+  crop hashes agree and assistant inspection shows the same bowl region, with
+  no new operator annotation. The exact-pixel rule explicitly rejects the merge.
+  Final bowl-region records again have 18 sink plus 37 bowl supports.
+- In the stationary original/complete-crop cases, fridge and trash queries
+  select the known rejected region in every 125/126 rankable sample respectively,
+  in both modes. These remain failures. Region counts use the predeclared fixed-
+  scene overlap proxy; no mixed bowl-region records occur.
+- All 125 moving-recording rankings are identical between modes, with no merges.
+  Fridge synonyms pass in all 113 rankable samples. Bottle and elephant never
+  pass; maximum top scores are 0.245764 / 0.189366. Twelve snapshots have no
+  semantic support, including startup and six early loss episodes after initial
+  selection. Active-graph replacement and pending embeddings explain the gaps.
+  Both fridge phrases remain selected at all sampled prefixes from 151 onward.
+
+Verification:
+
+- Independent original source-event pose reconstruction, point-list association,
+  matrix connectivity, representative selection and scalar fusion check
+  120 boundary snapshots, with maximum geometry error 8.881784197e-16 m and
+  score error 6.322654933e-8. Four hundred standalone API queries exactly match
+  batched results and original query checkpoints match saved evidence.
+- Another 366 API calls inspect all events in observed state-change brackets:
+  12 original-stationary, 65 complete-crop and 106 motion event prefixes in
+  each mode. These confirm transition event numbers, without claiming exhaustive
+  coverage outside those brackets.
+- All 784 current planning decisions refuse: 400 stale-evidence cases, 130
+  graph/grid stamp mismatches, four missing graphs and 250 incompatible grid
+  policies. The older motion journal predates occupancy integration. No goal is
+  selected, published or executed. Original code and all declared inputs retain
+  their hashes; no runtime unit suite is rerun for this evidence-only change.
+- Main measurement takes 205.753 s with peak RSS 196,192 KiB; independent checks
+  take 55.366 s and bracket refinement 29.178 s. These are audit execution costs,
+  not live-pipeline performance. Cleanup finds no remaining owned runtime/audit
+  processes and 5,275,872 KiB available RAM. Private outputs total about 91 MB.
+
+Evidence: `data/outputs/query_stability/20260916/`, including `acceptance.json`,
+`measurement.json`, `summary.json`, `verification.json`,
+`boundary_refinement.json`, `node51_evidence.json`, `timing_contract.json`,
+`cleanup.json`, compressed snapshots, exact local check scripts and logs.
+The inspected `stability.png` / `stability.svg` export and `review.html` explain
+both the threshold crossings and original node-51 crops. Room images and generated
+artifacts remain local/private. See `docs/query-stability.md` for reproduction.
+
+Learning checkpoint: a query can be consistently wrong, and a correct region
+can alternate between selected/unselected or one/two provisional records.
+Successful isolated queries are not evidence of stable recognition or identity.
+
+Next action: validate shared-depth-region evidence and implement only a justified
+optional association change for sampling jitter, with distinct-object refusals
+and the existing fixed query/planning gates preserved.
 
 ## 16. End-Of-Session Handoff Template
 

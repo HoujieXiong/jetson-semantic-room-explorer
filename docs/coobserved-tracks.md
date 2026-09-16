@@ -120,6 +120,6 @@ stale planning evidence; do not refresh its timestamps to obtain a route. Review
 the generated `query/queries.html`, or the existing
 `data/outputs/duplicate_tracks/steady_20260916/prefix_871/queries.html`.
 
-Next: measure candidate and association stability across all committed graph
-prefixes in the existing stationary and motion journals before considering a
-default-mode change. Keep the fixed thresholds and retained failure cases.
+Follow-up: the [temporal stability audit](query-stability.md) measures all saved
+graph/semantic prefixes. Bowl selection still drops out, and a later one-pixel
+sample change reverses merging. The optional mode remains disabled by default.
