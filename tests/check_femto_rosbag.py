@@ -159,13 +159,14 @@ class ContractCheck:
             else:
                 self.depth_centers.append(float(np.median(valid)) / 1000)
 
-    def finish(self):
+    def finish(self, *, measure_message_loss=False):
         for topic in TOPICS:
             if self.counts[topic] < (1 if topic == '/tf_static' else 10):
                 raise ValueError(f'Insufficient messages on {topic}: {self.counts[topic]}')
         if self.calibration['/camera/color/camera_info'] != self.calibration['/camera/depth/camera_info']:
             raise ValueError('Registered depth and color CameraInfo disagree')
         info_matching = {}
+        completeness_errors = []
         for stream in ('color', 'depth'):
             images = self.stamps[f'/camera/{stream}/image_raw']
             infos = self.stamps[f'/camera/{stream}/camera_info']
@@ -176,14 +177,16 @@ class ContractCheck:
             interior = sum(start <= stamp <= end for stamp in missing)
             info_matching[stream] = {'unmatched_interior': interior, 'unmatched_at_recording_boundaries': len(missing) - interior}
             if interior:
-                raise ValueError(f'Image/CameraInfo timestamp mismatch inside {stream} recording')
+                completeness_errors.append(f'Image/CameraInfo timestamp mismatch inside {stream} recording')
             if len(missing) - interior > MAX_BOUNDARY_FRAMES:
-                raise ValueError(f'Too many missing {stream} Image/CameraInfo messages at recording boundaries')
+                completeness_errors.append(f'Too many missing {stream} Image/CameraInfo messages at recording boundaries')
         pairs = paired_timestamps(self.stamps['/camera/color/image_raw'], self.stamps['/camera/depth/image_raw'])
         if not pairs['pairs'] or pairs['unmatched_color_interior'] or pairs['unmatched_depth_interior']:
-            raise ValueError(f'Unmatched RGB-D frames inside the recording: {pairs}')
+            completeness_errors.append(f'Unmatched RGB-D frames inside the recording: {pairs}')
         if max(pairs['unmatched_color_boundaries'], pairs['unmatched_depth_boundaries']) > MAX_BOUNDARY_FRAMES:
-            raise ValueError(f'Too many unmatched RGB-D frames at recording boundaries: {pairs}')
+            completeness_errors.append(f'Too many unmatched RGB-D frames at recording boundaries: {pairs}')
+        if completeness_errors and not measure_message_loss:
+            raise ValueError(completeness_errors[0])
         if not any(self.depth_coverage):
             raise ValueError('Recording contains no valid depth')
         if self.scene == 'fixed-wall' and not (2 <= min(self.depth_centers) <= max(self.depth_centers) <= 3):
@@ -203,7 +206,9 @@ class ContractCheck:
                 'header_period_ms': distribution(np.diff(stamps)/1e6),
                 'first_stamp_ns': stamps[0] if stamps else None, 'last_stamp_ns': stamps[-1] if stamps else None,
             }
-        return {'status': 'PASSED', 'scene': self.scene, 'topics': topics, 'camera_info': self.calibration,
+        return {'status': 'MEASURED' if completeness_errors else 'PASSED',
+                'message_completeness_passed': not completeness_errors, 'message_completeness_errors': completeness_errors,
+                'scene': self.scene, 'topics': topics, 'camera_info': self.calibration,
                 'image_info_matching': info_matching, 'synchronization': pairs,
                 'depth_center_m': distribution(self.depth_centers), 'depth_valid_ratio': distribution(self.depth_coverage),
                 'depth_empty_center_frames': self.depth_empty_centers,

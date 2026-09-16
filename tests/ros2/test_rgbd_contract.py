@@ -151,6 +151,22 @@ class CompleteContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Too many unmatched RGB-D'):
             self.sample(color_count=20).finish()
 
+    def test_live_message_loss_is_measured_without_claiming_a_complete_stream(self):
+        check = self.sample(color_count=20)
+        report = check.finish(measure_message_loss=True)
+        self.assertEqual(report['status'], 'MEASURED')
+        self.assertFalse(report['message_completeness_passed'])
+        self.assertEqual(report['synchronization']['unmatched_color_boundaries'], 10)
+        self.assertTrue(report['message_completeness_errors'])
+        with self.assertRaisesRegex(ValueError, 'Too many unmatched RGB-D'):
+            check.finish()
+
+    def test_live_message_loss_mode_keeps_calibration_and_depth_checks(self):
+        with self.assertRaisesRegex(ValueError, 'CameraInfo disagree'):
+            self.sample(depth_fx=900.0).finish(measure_message_loss=True)
+        with self.assertRaisesRegex(ValueError, 'no valid depth'):
+            self.sample(depth_mm=0, scene='room-walk').finish(measure_message_loss=True)
+
     def test_room_walk_accepts_distance_outside_original_wall_range(self):
         report = self.sample(depth_mm=4500, scene='room-walk').finish()
         self.assertEqual(report['depth_center_m']['median'], 4.5)

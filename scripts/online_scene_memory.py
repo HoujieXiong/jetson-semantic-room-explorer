@@ -25,6 +25,9 @@ POLICY = {'queue_capacity': 16, 'max_events': 20000, 'max_payload_bytes': 524288
           'geometry': 'Reproject original camera points with the latest received graph and fixed camera extrinsic',
           'selection': 'Mapped keyframes still present in that graph, with an originally accepted source-time pose',
           'identity': 'Provisional object IDs belong only to the named event-prefix/graph snapshot'}
+# Live recording/query startup exposed consecutive 5.79 s and 2.91 s fsync stalls.
+# Drain existing bursts in bounded FULL transactions; never wait to fill a batch.
+LIVE_POLICY = {**POLICY, 'queue_capacity': 512, 'commit_batch_capacity': 16}
 TABLES = {'metadata', 'events'}
 
 
@@ -128,17 +131,21 @@ class OnlineMemoryWriter:
     def __init__(self, database, context):
         if context['inference'] != INFERENCE or context['depth_policy'] != DEPTH_POLICY:
             raise ValueError('Online memory requires the measured perception policy')
-        for key in ('reference_sha256', 'model_sha256'):
-            require_hash(context[key])
+        sources = [key for key in ('reference_sha256', 'live_config_sha256') if key in context]
+        if len(sources) != 1:
+            raise ValueError('Require exactly one replay reference or live camera configuration hash')
+        require_hash(context[sources[0]])
+        require_hash(context['model_sha256'])
         self.database = Path(database)
         self.database.parent.mkdir(parents=True, exist_ok=True)
         self.database.touch(exist_ok=False)
-        self.context = {**context, 'kind': 'causal_rgbd_journal', 'schema_version': 1, 'policy': POLICY}
-        self.queue = queue.Queue(maxsize=POLICY['queue_capacity'])
+        policy = LIVE_POLICY if 'live_config_sha256' in context else POLICY
+        self.context = {**context, 'kind': 'causal_rgbd_journal', 'schema_version': 1, 'policy': policy}
+        self.queue = queue.Queue(maxsize=policy['queue_capacity'])
         self.error = None
         self.closed = False
         self.ready = threading.Event()
-        self.stats = {'events_committed': 0, 'queue_peak': 0, 'write_ms': []}
+        self.stats = {'events_committed': 0, 'queue_peak': 0, 'write_ms': [], 'committed_batch_sizes': []}
         self.thread = threading.Thread(target=self._run, name='online_memory_writer')
         self.thread.start()
         if not self.ready.wait(5):
@@ -185,26 +192,34 @@ class OnlineMemoryWriter:
                         if self.closed:
                             break
                         continue
-                    kind, serialized, elapsed = item
+                    batch = [item]
+                    while len(batch) < self.context['policy'].get('commit_batch_capacity', 1):
+                        try:
+                            batch.append(self.queue.get_nowait())
+                        except queue.Empty:
+                            break
                     begin = time.monotonic()
-                    payload = json.loads(serialized)
-                    validate_event(kind, payload, elapsed)
-                    if kind == 'semantic':
-                        validate_semantic(connection, self.context, payload, elapsed)
-                    if kind == 'occupancy' and self.context.get('grid_policy') != GRID_POLICY:
-                        raise ValueError('Occupancy events require the declared grid policy')
-                    if elapsed < previous or self.stats['events_committed'] >= POLICY['max_events']:
-                        raise ValueError('Regressing availability time or online event limit exceeded')
-                    if kind == 'graph' and payload['extrinsic']['status'] == 'ACCEPTED':
-                        current = payload['extrinsic']['camera_link_from_optical']
-                        if extrinsic is not None and not np.allclose(current, extrinsic, atol=1e-8, rtol=0):
-                            raise ValueError('Camera extrinsic changed; start a new memory session')
-                        extrinsic = current
                     with connection:
-                        connection.execute('INSERT INTO events VALUES (?, ?, ?, ?)',
-                                           (self.stats['events_committed']+1, elapsed, kind, serialized))
-                    previous = elapsed
-                    self.stats['events_committed'] += 1
+                        for offset, (kind, serialized, elapsed) in enumerate(batch, 1):
+                            payload = json.loads(serialized)
+                            validate_event(kind, payload, elapsed)
+                            if kind == 'semantic':
+                                validate_semantic(connection, self.context, payload, elapsed)
+                            if kind == 'occupancy' and self.context.get('grid_policy') != GRID_POLICY:
+                                raise ValueError('Occupancy events require the declared grid policy')
+                            seq = self.stats['events_committed']+offset
+                            if elapsed < previous or seq > POLICY['max_events']:
+                                raise ValueError('Regressing availability time or online event limit exceeded')
+                            if kind == 'graph' and payload['extrinsic']['status'] == 'ACCEPTED':
+                                current = payload['extrinsic']['camera_link_from_optical']
+                                if extrinsic is not None and not np.allclose(current, extrinsic, atol=1e-8, rtol=0):
+                                    raise ValueError('Camera extrinsic changed; start a new memory session')
+                                extrinsic = current
+                            connection.execute('INSERT INTO events VALUES (?, ?, ?, ?)',
+                                               (seq, elapsed, kind, serialized))
+                            previous = elapsed
+                    self.stats['events_committed'] += len(batch)
+                    self.stats['committed_batch_sizes'].append(len(batch))
                     self.stats['write_ms'].append((time.monotonic()-begin)*1000)
                 connection.execute('PRAGMA wal_checkpoint(TRUNCATE)')
         except Exception as error:
@@ -232,7 +247,10 @@ def query_online(database, command='list', label=None, *, text_vector=None, enco
         if tables != TABLES or connection.execute('PRAGMA user_version').fetchone()[0] != 1:
             raise ValueError('Expected an online observation journal, not frozen scene memory')
         context = json.loads(connection.execute('SELECT context_json FROM metadata WHERE id=1').fetchone()[0])
-        if context['kind'] != 'causal_rgbd_journal' or context['policy'] != POLICY:
+        # Preserve the actual failed live trials as readable evidence.
+        supported = (POLICY, {**POLICY, 'queue_capacity': 128},
+                     {**LIVE_POLICY, 'queue_capacity': 128}, LIVE_POLICY) if 'live_config_sha256' in context else (POLICY,)
+        if context['kind'] != 'causal_rgbd_journal' or context['policy'] not in supported:
             raise ValueError('Unsupported online memory context/policy')
         events = connection.execute('SELECT seq, available_elapsed_s, kind, payload_json FROM events ORDER BY seq').fetchall()
     if len(events) > POLICY['max_events']:

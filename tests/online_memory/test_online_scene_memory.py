@@ -2,6 +2,7 @@
 
 from contextlib import closing
 from pathlib import Path
+import json
 import sqlite3
 import sys
 import tempfile
@@ -86,6 +87,93 @@ class OnlineMemoryTests(unittest.TestCase):
         stamp = STAMP+(node-1)*1_000_000_000
         self.send('mapping', {'node_id': node, 'stamp_ns': stamp+191})
         self.send('observation', observation(stamp, status))
+
+    def test_live_provenance_is_distinct_and_persists_without_bag_reference(self):
+        provenance = context()
+        del provenance['reference_sha256']
+        provenance['live_config_sha256'] = 'e'*64
+        path = self.db.with_name('live.db')
+        writer = online.OnlineMemoryWriter(path, provenance)
+        writer.close()
+        with closing(sqlite3.connect(path)) as connection:
+            saved = json.loads(connection.execute('SELECT context_json FROM metadata').fetchone()[0])
+        self.assertEqual(saved['live_config_sha256'], 'e'*64)
+        self.assertEqual(saved['policy'], online.LIVE_POLICY)
+        self.assertNotIn('reference_sha256', saved)
+        self.assertEqual(online.query_online(path)['status'], 'NO_GRAPH')
+
+    def test_live_burst_is_bounded_and_original_live_failure_stays_readable(self):
+        provenance = context()
+        del provenance['reference_sha256']
+        provenance['live_config_sha256'] = 'e'*64
+        path = self.db.with_name('live.db')
+        writer = online.OnlineMemoryWriter(path, provenance)
+        try:
+            with closing(sqlite3.connect(path)) as blocker:
+                blocker.execute('BEGIN IMMEDIATE')
+                writer.submit('mapping', {'node_id': 1, 'stamp_ns': STAMP}, 1.)
+                deadline = time.monotonic()+.2
+                while not writer.queue.empty() and time.monotonic() < deadline:
+                    time.sleep(.001)
+                for node in range(2, online.LIVE_POLICY['queue_capacity']+2):
+                    writer.submit('mapping', {'node_id': node, 'stamp_ns': STAMP+node}, float(node))
+                with self.assertRaisesRegex(RuntimeError, 'queue full'):
+                    writer.submit('mapping', {'node_id': 1000, 'stamp_ns': STAMP+1000}, 1000.)
+                blocker.rollback()
+        finally:
+            writer.close()
+        self.assertEqual(writer.stats['events_committed'], 513)
+        self.assertEqual(sum(writer.stats['committed_batch_sizes']), 513)
+        self.assertEqual(max(writer.stats['committed_batch_sizes']), 16)
+        with closing(sqlite3.connect(path)) as connection:
+            self.assertEqual(connection.execute('SELECT seq FROM events ORDER BY seq').fetchall(),
+                             [(i,) for i in range(1, 514)])
+        with closing(sqlite3.connect(path)) as connection:
+            old = {**writer.context, 'policy': online.POLICY}
+            connection.execute('UPDATE metadata SET context_json=?', (json.dumps(old),))
+            connection.commit()
+        self.assertEqual(online.query_online(path)['status'], 'NO_GRAPH')
+
+    def test_failed_live_batch_rolls_back_without_exposing_partial_prefix(self):
+        provenance = context()
+        del provenance['reference_sha256']
+        provenance['live_config_sha256'] = 'e'*64
+        path = self.db.with_name('live.db')
+        # Hold the first real validation so the following pair is queued together.
+        import threading
+        entered, release = threading.Event(), threading.Event()
+        original = online.validate_event
+        def validate(kind, payload, elapsed):
+            if payload.get('node_id') == 1:
+                entered.set()
+                if not release.wait(2):
+                    raise TimeoutError('Test did not release the writer')
+            return original(kind, payload, elapsed)
+        with patch.object(online, 'validate_event', side_effect=validate):
+            writer = online.OnlineMemoryWriter(path, provenance)
+            try:
+                writer.submit('mapping', {'node_id': 1, 'stamp_ns': STAMP}, 1.)
+                self.assertTrue(entered.wait(2))
+                writer.submit('mapping', {'node_id': 2, 'stamp_ns': STAMP+1}, 2.)
+                writer.submit('mapping', {'node_id': 2, 'stamp_ns': STAMP+2}, 3.)
+            finally:
+                release.set()
+                with self.assertRaises(RuntimeError):
+                    writer.close()
+        self.assertEqual(writer.stats['events_committed'], 1)
+        with closing(sqlite3.connect(path)) as connection:
+            self.assertEqual(connection.execute('SELECT seq FROM events').fetchall(), [(1,)])
+        self.assertEqual(online.query_online(path)['snapshot']['event_seq'], 1)
+
+    def test_ambiguous_missing_or_malformed_source_provenance_is_rejected(self):
+        for source in ({'live_config_sha256': 'e'*64}, {}, {'live_config_sha256': 'invalid'}):
+            provenance = context()
+            if source != {'live_config_sha256': 'e'*64}:
+                del provenance['reference_sha256']
+            provenance.update(source)
+            with self.assertRaises(ValueError):
+                online.OnlineMemoryWriter(self.db.with_name('invalid.db'), provenance)
+            self.assertFalse(self.db.with_name('invalid.db').exists())
 
     def test_query_before_graph_and_delayed_observation_has_no_future_data(self):
         self.assertEqual(online.query_online(self.db)['status'], 'NO_GRAPH')

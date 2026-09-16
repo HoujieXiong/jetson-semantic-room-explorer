@@ -1,4 +1,4 @@
-"""Bounded ROS replay measurement: GPU RGB-D perception alongside online SLAM."""
+"""Bounded live/replay measurement: GPU RGB-D perception alongside online SLAM."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -211,6 +211,8 @@ class ConcurrentCheck(MappingCheck):
 
     def evidence(self):
         return {'frames': self.rows, 'tf_events': self.tf_events,
+                'sensor_stamps_ns': dict(self.sensor.stamps),
+                'sensor_arrivals_monotonic_ns': dict(self.sensor.arrivals),
                 'callback_ms': distribution(self.callback_ms),
                 'queue_policy': {'selection': 'every synchronized RGB-D pair', 'pending_capacity': 1,
                     'inference_workers': 1, 'overflow': 'drop_new', 'pose_result_capacity': 8,
@@ -226,11 +228,13 @@ class ConcurrentCheck(MappingCheck):
         if self.pending is not None or self.active is not None or self.awaiting_pose:
             raise RuntimeError('Pending perception work at the bounded measurement deadline')
         measured = super().finish(reference)
-        sensor = self.sensor.finish()
-        for topic in self.filters:
-            for key in ('count', comparison_key(reference)):
-                if sensor['topics'][topic][key] != reference['topics'][topic][key]:
-                    raise ValueError('Sensor replay changed or messages were lost: '+topic)
+        sensor = self.sensor.finish(measure_message_loss=reference is None)
+        measured['contract_checks_passed'] &= sensor['message_completeness_passed']
+        if reference is not None:
+            for topic in self.filters:
+                for key in ('count', comparison_key(reference)):
+                    if sensor['topics'][topic][key] != reference['topics'][topic][key]:
+                        raise ValueError('Sensor replay changed or messages were lost: '+topic)
         paired = {'color': {row['rgb_stamp_ns'] for row in self.rows},
                   'depth': {row['depth_stamp_ns'] for row in self.rows}}
         unmatched = {topic: sorted(set(self.sensor.stamps[topic])-paired[topic.split('/')[2]]) for topic in self.filters}
@@ -249,7 +253,10 @@ class ConcurrentCheck(MappingCheck):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('reference', 'model', 'output'):
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--reference', type=Path, help='Verified sensor bag report; requires simulated time')
+    source.add_argument('--live-config', type=Path, help='Actual camera configuration; uses system time. Stop the camera before the deadline to drain work.')
+    for name in ('model', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--duration', type=float, required=True)
     parser.add_argument('--memory-db', type=Path, help='Optional fresh causal observation/graph journal')
@@ -263,12 +270,15 @@ def main():
     ready = args.output.with_suffix('.ready.json')
     if not np.isfinite(args.duration) or not 0 < args.duration <= 600 or args.output.exists() or ready.exists():
         parser.error('Use a new output path and a finite duration at most 600 seconds')
-    reference = json.loads(args.reference.read_text())
-    if reference.get('status') != 'PASSED':
+    reference = json.loads(args.reference.read_text()) if args.reference is not None else None
+    if reference is not None and reference.get('status') != 'PASSED':
         parser.error('Use the verified sensor bag report')
+    source_path = args.reference if reference is not None else args.live_config
+    source_key = 'reference_sha256' if reference is not None else 'live_config_sha256'
     model_path = args.model.resolve(strict=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    report = {'status': 'INCOMPLETE', 'reference_sha256': file_hash(args.reference),
+    report = {'status': 'INCOMPLETE', source_key: file_hash(source_path),
+              'input_mode': 'replay' if reference is not None else 'live', 'use_sim_time': reference is not None,
               'model_path': str(model_path), 'model_sha256': file_hash(model_path),
               'inference': INFERENCE, 'depth_policy': DEPTH_POLICY,
               'live_capture_executed': False, 'motion_executed': False}
@@ -300,12 +310,12 @@ def main():
             report['semantic_load_ms'] = encoder.load_ms
         rclpy.init()
         initialized = True
-        node = rclpy.create_node('concurrent_rgbd_check', parameter_overrides=[Parameter('use_sim_time', value=True)])
+        node = rclpy.create_node('concurrent_rgbd_check', parameter_overrides=[Parameter('use_sim_time', value=reference is not None)])
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='rgbd_inference')
         check = ConcurrentCheck(lambda *values: infer_rgbd(model, *values), executor)
         if args.memory_db is not None:
             context = {
-                **{key: report[key] for key in ('reference_sha256', 'model_sha256', 'inference', 'depth_policy', 'runtime')},
+                **{key: report[key] for key in (source_key, 'input_mode', 'use_sim_time', 'model_sha256', 'inference', 'depth_policy', 'runtime')},
                 'session_id': str(uuid.uuid4()), 'origin_monotonic_ns': int(check.begin*1e9),
                 'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map', 'point_unit': 'meter'}
             if encoder is not None:
@@ -325,8 +335,10 @@ def main():
         while time.monotonic() < deadline:
             rclpy.spin_once(node, timeout_sec=0.01)
             check.pump()
-        if not node.get_clock().ros_time_is_active or node.get_clock().now().nanoseconds <= 0:
+        if reference is not None and (not node.get_clock().ros_time_is_active or node.get_clock().now().nanoseconds <= 0):
             raise ValueError('No active ROS simulated clock')
+        if reference is None and node.get_clock().ros_time_is_active:
+            raise ValueError('Live capture must use system time')
         if semantic is not None:
             if semantic.active is not None or semantic.pending:
                 raise RuntimeError('Pending semantic work at the bounded deadline')
@@ -336,9 +348,9 @@ def main():
         if memory is not None:
             memory.close()
         report.update(check.finish(reference))
-        if file_hash(model_path) != report['model_sha256'] or file_hash(args.reference) != report['reference_sha256']:
+        if file_hash(model_path) != report['model_sha256'] or file_hash(source_path) != report[source_key]:
             report['status'] = 'INCOMPLETE'
-            raise ValueError('Reference or model changed during the trial')
+            raise ValueError('Input provenance or model changed during the trial')
     except (RuntimeError, ValueError, OSError) as error:
         report['status'] = 'INCOMPLETE'
         report['error'] = {'type': type(error).__name__, 'message': str(error)}
@@ -361,10 +373,11 @@ def main():
                     close_error = error
                     report.update(status='INCOMPLETE', memory_error=str(error))
                 report['online_memory'] = {'database': str(args.memory_db.resolve()),
-                    'session_id': memory.context['session_id'], **memory.stats,
+                    'session_id': memory.context['session_id'], 'policy': memory.context['policy'], **memory.stats,
                     'writer_thread_closed': not memory.thread.is_alive()}
             if check is not None and report['status'] == 'INCOMPLETE':
                 report.update(check.incomplete_evidence(), perception=check.evidence())
+            report['live_capture_executed'] = reference is None and check is not None and bool(check.rows)
             args.output.write_text(json.dumps(report, indent=2, allow_nan=False)+'\n')
         finally:
             if node is not None:

@@ -116,19 +116,25 @@ class OdomCheck:
 
     def finish(self, reference):
         for stream, stamps in self.camera_stamps.items():
+            if not stamps or min(stamps) <= 0 or np.any(np.diff(stamps) <= 0):
+                raise ValueError('CameraInfo timestamps must be present, positive and increasing')
+            if reference is None:
+                continue
             expected = reference['topics'][f'/camera/{stream}/camera_info']
             key = comparison_key(reference)
             hashes = self.camera_hashes if key == 'serialized_sha256' else self.camera_content_hashes
             if len(stamps) != expected['count'] or hashes[stream].hexdigest() != expected[key]:
                 raise ValueError(f'{stream} CameraInfo replay differs from the verified bag')
-        if not self.info or len(self.info) != len(self.poses):
+        if not self.info or not self.poses or (reference is not None and len(self.info) != len(self.poses)):
             raise ValueError('Missing odometry or unmatched OdomInfo/Odometry results')
         for rows in (self.info, self.poses):
             stamps = [row['stamp_ns'] for row in rows]
             if min(stamps) <= 0 or np.any(np.diff(stamps) <= 0):
                 raise ValueError('Odometry timestamps must increase')
-        if len(self.clock_stamps) < 2 or self.clock_stamps[-1] <= self.clock_stamps[0]:
+        if reference is not None and (len(self.clock_stamps) < 2 or self.clock_stamps[-1] <= self.clock_stamps[0]):
             raise ValueError('No advancing simulated clock')
+        if reference is None and self.clock_stamps:
+            raise ValueError('Unexpected simulated clock during live capture')
         color, depth = self.camera_stamps['color'], self.camera_stamps['depth']
         expected_stamps = set()
         for stamp in color:
@@ -138,7 +144,16 @@ class OdomCheck:
                 raise ValueError('Input RGB-D skew exceeds the verified 5 ms contract')
             expected_stamps.add(max(stamp, nearest))
         valid = []
-        for info, pose in zip(self.info, self.poses):
+        infos = {row['stamp_ns']: row for row in self.info}
+        poses = {row['stamp_ns']: row for row in self.poses}
+        unmatched = {'info_without_pose': sorted(infos.keys()-poses.keys()),
+                     'pose_without_info': sorted(poses.keys()-infos.keys())}
+        paired = [(infos[stamp], poses[stamp]) for stamp in sorted(infos.keys() & poses.keys())]
+        if not paired:
+            raise ValueError('No source-matched OdomInfo/Odometry results')
+        if reference is not None and any(unmatched.values()):
+            raise ValueError('Output does not preserve the synchronized source image stamp')
+        for info, pose in paired:
             stamp = info['stamp_ns']
             if pose['stamp_ns'] != stamp or stamp not in expected_stamps:
                 raise ValueError('Output does not preserve the synchronized source image stamp')
@@ -158,21 +173,25 @@ class OdomCheck:
             self.tf.lookup_transform('odom', 'camera_color_optical_frame', Time(nanoseconds=stamp))
             valid.append(pose)
         start, end = min(color[0], depth[0]), max(color[-1], depth[-1])
-        lost = sum(row['lost'] for row in self.info)
-        return {'status': 'MEASURED', 'contract_checks_passed': True,
-                'reference_pairs': len(expected_stamps), 'processed_frames': len(self.info),
-                'input_frames_without_result': len(expected_stamps)-len(self.info),
+        matched_info = [info for info, _ in paired]
+        lost = sum(row['lost'] for row in matched_info)
+        return {'status': 'MEASURED', 'contract_checks_passed': not any(unmatched.values()),
+                'unmatched_odometry_stamps': unmatched, 'received_odometry_messages': len(self.poses),
+                'received_odom_info_messages': len(self.info),
+                'reference_pairs': len(expected_stamps) if reference is not None else None,
+                'received_pairs': len(expected_stamps), 'processed_frames': len(paired),
+                'input_frames_without_result': len(expected_stamps)-len(paired),
                 'tracked_frames': len(valid), 'lost_frames': lost,
-                'lost_fraction_of_processed': lost/len(self.info),
-                'lost_intervals': lost_intervals(self.info, end),
+                'lost_fraction_of_processed': lost/len(paired),
+                'lost_intervals': lost_intervals(matched_info, end),
                 'source_start_ns': start, 'source_end_ns': end,
-                'first_result_offset_s': (self.info[0]['stamp_ns']-start)/1e9,
-                'last_result_offset_s': (self.info[-1]['stamp_ns']-start)/1e9,
+                'first_result_offset_s': (matched_info[0]['stamp_ns']-start)/1e9,
+                'last_result_offset_s': (matched_info[-1]['stamp_ns']-start)/1e9,
                 'last_tracked_offset_s': (valid[-1]['stamp_ns']-start)/1e9 if valid else None,
                 'processing_ms': distribution([row['processing_s']*1000 for row in self.info]),
                 'tracked_inliers': distribution([row['inliers'] for row in self.info if not row['lost']]),
                 'clock_messages': len(self.clock_stamps), 'validated_pose_tf_count': len(valid),
-                'trajectory': [{**pose, 'lost': info['lost']} for info, pose in zip(self.info, self.poses)],
+                'trajectory': [{**pose, 'lost': info['lost']} for info, pose in paired],
                 'odom_info': self.info,
                 'limitation': 'No ground-truth pose, accuracy or loop-closure claim; dropped input frames and lost outputs are reported separately.'}
 

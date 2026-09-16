@@ -138,6 +138,47 @@ class OdometryContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'advancing simulated clock'):
             self.check.finish(self.reference)
 
+    def test_live_source_needs_no_bag_or_simulated_clock(self):
+        self.check.clock_stamps = []
+        result = self.check.finish(None)
+        self.assertIsNone(result['reference_pairs'])
+        self.assertEqual(result['received_pairs'], 1)
+        with self.assertRaisesRegex(ValueError, 'advancing simulated clock'):
+            self.check.finish(self.reference)
+
+    def test_live_source_rejects_simulated_clock_and_missing_camera(self):
+        with self.assertRaisesRegex(ValueError, 'Unexpected simulated clock'):
+            self.check.finish(None)
+        self.check.clock_stamps = []
+        self.check.camera_stamps['color'] = []
+        with self.assertRaisesRegex(ValueError, 'CameraInfo timestamps'):
+            self.check.finish(None)
+
+    def test_live_source_still_requires_source_stamp_and_tf(self):
+        self.check.clock_stamps = []
+        self.check.info[0]['stamp_ns'] += 1
+        with self.assertRaisesRegex(ValueError, 'No source-matched'):
+            self.check.finish(None)
+        self.check.info[0]['stamp_ns'] -= 1
+        self.check.info[0]['lost'] = False
+        self.check.poses[0]['quaternion_xyzw'] = [0, 0, 0, 1]
+        with self.assertRaisesRegex(ValueError, 'Missing TF'):
+            self.check.finish(None)
+
+    def test_live_unmatched_pose_is_counted_and_never_validated_as_tracked(self):
+        self.check.clock_stamps = []
+        extra = copy.deepcopy(self.check.poses[0])
+        extra['stamp_ns'] += 66_000_000
+        self.check.poses.append(extra)
+        result = self.check.finish(None)
+        self.assertFalse(result['contract_checks_passed'])
+        self.assertEqual(result['unmatched_odometry_stamps']['pose_without_info'], [extra['stamp_ns']])
+        self.assertEqual(result['processed_frames'], 1)
+        self.assertEqual(len(result['trajectory']), 1)
+        self.assertEqual(result['received_odometry_messages'], 2)
+        with self.assertRaisesRegex(ValueError, 'unmatched'):
+            self.check.finish(self.reference)
+
     def test_missing_output_is_rejected(self):
         self.check.poses = []
         with self.assertRaisesRegex(ValueError, 'unmatched'):

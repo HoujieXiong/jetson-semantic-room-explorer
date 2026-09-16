@@ -665,55 +665,60 @@ it is not room-data evidence. Full during-query CLI latency is 18.135–20.750 s
 system RAM peaks at 5,119 MB. See `docs/online-search-preview.md` and
 `data/outputs/online_search/line_20260915/attempt_03/`.
 
+### 4.23 Bounded Live Camera Measurement
+
+Status: `VERIFIED` for a 947-pair live recording, measured overload/transport loss,
+persistent source events and an independently received refusal. Useful live
+retrieval and navigation remain unverified. See `docs/live-rgbd-search.md` and the
+latest Progress Ledger entry. The final journal has 1,162 events, 11 source-checked
+crops and 54 graphs/grids. Static-scene rehearsal retains only node 1, leaving no
+eligible semantic support; the grid also lacks the required clearance. Four prior
+failures are preserved. All owned processes closed and 103 focused tests pass.
+
 ## 5. Current Next Task
 
-Milestone: **Operator-assisted bounded live RGB-D to semantic search preview**.
+Milestone: **Saved-data validation of stationary graph/observation association**.
 
-Status: `PLANNED`. The recorded-data causal pipeline is verified through online
-text queries, consistent graph/grid evidence and independently received ROS
-previews. Its real-room route is nearly zero length and uses a simulated start;
-physical navigation, continuous live operation and recognition quality are open.
-
-The user asked how to help. The requested operator preparation is to place the
-camera steadily with visible floor and familiar furniture (for example the
-fridge or sink), then confirm readiness. Do not start physical capture or ask for
-movement before that readiness confirmation. Existing local driver, SLAM, YOLO
-and MobileCLIP environments are available; inspect their current state first.
-Safe autonomous preparation and verified GitHub pushes remain authorized.
+Status: `PLANNED`. The user has gone to bed and explicitly authorizes continued
+safe work with collected data. Do not start the camera, request movement or issue
+navigation commands. Existing environments, safe changes and GitHub pushes remain
+authorized. No new recording is needed to investigate the measured failure.
 
 Required observable result:
 
-1. Inspect current camera availability, ROS process ownership and the separate
-   native/camera/SLAM environments. Prepare a bounded live run with fresh outputs,
-   explicit timeouts, original stream units/timestamps and complete cleanup.
-2. After operator readiness, receive fresh Femto RGB-D into the existing SLAM,
-   observation, semantic memory and occupancy pipeline. Record arrivals, queue
-   drops, TF/pose refusals, load and actual throughput at the camera input rate.
-   Do not call slow recorded playback real-time evidence or hide overload.
-3. Issue at least one actual text query using only received live evidence and
-   verify an independently received ROS decision. Publish a preview goal/path
-   only when map/start/freshness checks pass; retain no-goal decisions. Keep any
-   simulated start explicit and issue no navigation or motor commands.
-4. Save a bounded reusable recording and raw source/calibration/provenance where
-   the installed setup permits it. Check visible floor/free-space coverage and
-   show the operator the actual crop/preview for qualitative confirmation.
-   Request a short safe movement only if concrete coverage limits require it.
-5. Run focused regression/source checks, review the complete diff, update measured
-   progress and push a verified checkpoint. Keep physical scale/return accuracy,
-   meaningful travel, component optimization and CuTR outside this first live slice.
+1. Preserve the live trial and inspect actual mapping statistics, node revisions,
+   original source-time pose refusals and semantic supports. Establish why static
+   rehearsal leaves the current query empty before changing association behavior.
+2. Prepare a reproducible replay from existing data. The final live bag has 947
+   complete image pairs but three missing CameraInfo messages. Retain the original
+   failed strict report; if a complete-message subset is needed, copy only original
+   messages with explicit retained/excluded source IDs and byte/hash evidence.
+   Never invent CameraInfo timestamps or silently repair missing messages.
+3. Make the smallest justified configuration or association change that allows
+   valid stationary observations to remain queryable under the current received
+   graph. Preserve source-time pose checks, committed-prefix causality and graph
+   identity. Do not replace a missing source pose with a later/latest pose.
+4. Measure at least one text query during replay with actual source crops and an
+   independent ROS decision receiver. Require positive eligible object support;
+   report the actual semantic selection/refusal, including wrong detector labels.
+   Keep start, map age, clearance and route thresholds unchanged. The live grid's
+   0.115 m maximum clearance does not support a 0.25 m route.
+5. Verify original artifacts unchanged, regression cases, persistence and cleanup;
+   review the complete diff and publish a measured checkpoint. Explicitly label
+   slowed replay and separate it from live throughput or physical navigation.
 
-Starting points: `docs/online-search-preview.md`, `docs/camera-ros2.md`,
-`config/rtabmap_online_preview.yaml`, `tests/check_concurrent_perception.py`,
-`scripts/online_search_preview.py`, `scripts/femto_ros2_env.bash`,
-`scripts/rtabmap_odom_env.bash` and
-`data/outputs/online_search/line_20260915/attempt_03/`.
-The current observer is a bounded recorded-data measurement harness; adapt its
-input/reference contract explicitly before using live frames.
+Starting points: `docs/live-rgbd-search.md`, `config/rtabmap_online_preview.yaml`,
+`scripts/online_scene_memory.py`, `scripts/online_semantic_memory.py`,
+`tests/check_concurrent_perception.py`, and
+`data/outputs/live_search/steady_20260916/attempt_05/`. Native parameters include
+`Mem/RehearsalSimilarity=0.6`, `Mem/RehearsalIdUpdatedToNewOne=false`, and
+`RGBD/LinearUpdate=RGBD/AngularUpdate=0.1`. The saved `/info` statistics report
+rehearsal merges into node 1. Inspect their meaning and cost before selecting a fix.
 
-Learning checkpoint: live arrivals cannot be slowed to fit computation. Explicit
-backpressure and source-time evidence determine what can safely enter memory;
-visible floor coverage determines whether a semantic result can become a useful
-geometric preview.
+Learning checkpoint: an encoded observation does not automatically remain in the
+active geometric memory. Graph-node retention and original source validity must
+agree before a query can select an object; semantic evidence still does not
+establish a safe route.
 
 ## 6. Target System Architecture
 
@@ -3954,3 +3959,59 @@ Next action:
 
 The repository, tests, and this ledger must be sufficient to resume the project
 after chat history is unavailable.
+
+
+### 2026-09-15: Bounded Live RGB-D Measurement And Explicit Search Refusal
+
+Status: `VERIFIED` for measured live capture/concurrency, persistent source events
+and an independently received refusal. Lossless transport, useful live object
+retrieval, continuous operation and navigation remain unverified.
+
+Evidence: `docs/live-rgbd-search.md` and ignored
+`data/outputs/live_search/steady_20260916/attempt_05/`; retained failures are
+`attempt_01` through `attempt_04` and `failed_attempts.json`.
+
+The operator confirmed the stationary kitchen view. A bounded 70-second camera
+interval supplied 947 recorded RGB/depth pairs over 64.696 source seconds at
+14.622/14.623 Hz (requested 15 FPS). Original SDK global stamps match ROS headers;
+1280x720 RGB and hardware-aligned depth originate from 1280x720 MJPG and 640x576
+Y16 profiles. Intrinsics, timestamp CSV, mm depth, first RGB/raw depth, crops and
+occupancy are retained. All image pairs are saved, but the bag loses two RGB and
+one depth CameraInfo messages; the observer separately loses one depth image.
+Strict bag verification remains INCOMPLETE. Missing messages are measured, never
+reconstructed as received evidence.
+
+Of 946 synchronized observer pairs, 285 are processed and 661 explicitly dropped;
+68 have accepted source poses, 215 lack source odometry and 2 lack map TF.
+Odometry has 221 tracked matched outputs, zero reported lost and 726 inputs
+without output. There are 54 mapping/graph/grid events and 54 semantic events:
+12 encoded keyframes, 11 source-verified crops, 42 explicit rejections. The journal
+commits 1,162 events and reopens identically. `a fridge` takes 20.374 seconds and
+uses prefix 602 / graph event 585; evidence age is 1.204 seconds. It has no eligible
+semantic support and refuses a missing current graph node. Independent ROS
+counts are one decision, zero goals and zero paths; no simulated start or motion.
+
+The final graph retains node 1 after measured rehearsal merges. Its first source
+observation lacked map TF; later observations belong to removed nodes. The final
+grid has 764 free, 745 occupied and 9,701 unknown cells, maximum clearance 0.115 m,
+below the unchanged 0.25 m policy. Visible floor alone does not validate a route.
+Detector proposals also include a trash bin mislabeled as refrigerator.
+
+Live mode now declares configuration provenance and real time separately from
+strict replay. Missing messages are reported without validating unmatched poses.
+Storage stalls required a bounded 512-event live queue and at most 16 events per
+FULL SQLite transaction; rollback/prefix visibility are tested. Peak queue 136,
+759 transactions, transaction P50/P95/max 9.526/41.952/5,195.412 ms. Replay keeps its
+original policy. Peak RAM 5,011 MB; GPU temperature 61.406 C. All owned processes
+exit with no forced termination or leftovers. Four earlier failures remain
+INCOMPLETE, including the original queue overflow, an unmatched odometry message,
+a 128-entry overflow and consecutive 5.789/2.907-second storage stalls.
+
+All 103 focused tests pass (44 odometry/perception, 39 online-memory/semantic/search,
+20 ROS sensor). Six independent reports verify source units/pixels, causal TF,
+all 11 crops, all 54 witnessed grids/graphs, the ROS refusal and old/new journal
+reopening. Journal SHA-256:
+`e6f9a15fe76f542ad00d88c4b6650237fb0dd1c39b4db186c4aa5b5b121da41e`.
+No raw room data, weights or recordings are committed. The user has gone to bed
+and authorizes continued work using collected data; no further capture or
+operator movement is authorized without a new readiness confirmation.

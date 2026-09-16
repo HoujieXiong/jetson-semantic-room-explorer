@@ -11,8 +11,8 @@ memory and search decisions. See the [runnable demo and measured timeline](docs/
 Planning starts are explicitly simulated. SLAM and GPU perception now also pass
 a bounded concurrent rosbag trial at 0.25x. Its own final map and observations
 now feed a separate persistent memory and matching search preview; see the
-[measured finalization](docs/finalize-concurrent-memory.md). Live real-time
-operation and physical navigation remain unverified.
+[measured finalization](docs/finalize-concurrent-memory.md). Sustained real-time
+throughput and physical navigation remain unverified.
 
 A new forward/backward recording also passes the full pipeline: 899 RGB-D pairs,
 898 tracked odometry outputs with zero reported tracking losses at 0.25x replay,
@@ -49,7 +49,14 @@ snapshots. One recorded-data frontier goal/path is independently received; its
 simulated start nearly coincides with the goal, so this does not validate room
 travel. Unknown starts, insufficient clearance and stale maps correctly refuse
 goals. See [causal search previews and measured limits](docs/online-search-preview.md).
-Live real-time operation and physical navigation remain unverified.
+Sustained real-time throughput and physical navigation remain unverified.
+
+A bounded **live camera measurement is now verified**: 947 recorded RGB-D pairs,
+221 tracked odometry outputs and 1,162 persistent events, with one independently
+received ROS refusal. Real input exposes transport loss, heavy frame dropping and
+stationary map-node merging that leaves the query without eligible object support.
+This does not establish useful live object search. See the
+[live measurements, retained failures and source evidence](docs/live-rgbd-search.md).
 
 ## Goal
 
