@@ -173,6 +173,6 @@ xdg-open data/outputs/bowl_replay/steady_20260916/review.html
 This page embeds source-checked PNGs and needs no WebGL or video decoder. It was
 opened successfully on the Jetson desktop; no further operator review is claimed.
 
-Next: audit and minimally correct the duplicate bowl/sink associations using
-source overlap and 3D evidence, preserving distinct nearby objects and the fixed
-retrieval/planning gates. Label similarity alone must not merge records.
+Follow-up: [shared-frame RGB-D evidence](coobserved-tracks.md) now supports an
+optional query-time merge of these duplicate tracks. It removes eight duplicate
+votes at each saved prefix while preserving the original trial and default mode.

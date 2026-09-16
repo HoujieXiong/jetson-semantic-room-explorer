@@ -62,6 +62,14 @@ prefix, graph hash and source semantic events. Later commits do not alter an
 already returned result. Nodes outside the active graph remain excluded even
 though their original pixels/vectors persist.
 
+Online text-query and search-preview CLIs optionally accept
+`--merge-duplicate-tracks`. It requires repeated shared-frame box/depth evidence
+before consolidating different-label tracks, and retains one representative per
+source frame. The result records its policy, original labels and merge witnesses.
+Canonical detector labels are retained, not inferred from query text. This mode
+is restricted to complete list/text snapshots; defaults and label-only queries
+keep their original behavior. See the [contract and measurements](coobserved-tracks.md).
+
 The existing experimental selection threshold remains cosine >= 0.25 and within
 0.02 of the highest score. Exact text is passed unchanged, without substituting a
 YOLO label. Empty support returns `NO_SEMANTIC_SUPPORT`; rankings below threshold

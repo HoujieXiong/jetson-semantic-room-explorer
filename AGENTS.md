@@ -729,43 +729,64 @@ unknown start, with zero published goals/paths. Fridge depth and trash retrieval
 remain failed; small score margins and duplicate records remain unresolved.
 Defaults are unchanged. See `docs/bowl-replay.md` and the latest ledger entry.
 
+### 4.27 Shared-Frame Evidence For Duplicate Tracks
+
+Status: `VERIFIED` for optional query-time consolidation on saved prefixes 871
+and 932. Eight common frames have minimum IoU about 0.964487, identical depth pixels
+and metric depths. The bowl/sink tracks merge into one provisional record with
+31/32 supports and cosine 0.252092/0.251910, removing eight duplicate votes at
+each prefix. The lowest original ID and detector label remain ID 2 / sink;
+source labels and all merge witnesses are explicit, not new operator feedback.
+
+Independent geometry agrees within 2.23e-16 m and scalar scores within 3.13e-8.
+Default results remain exact. A separate motion recording preserves 17 objects,
+63 supports and 11 query rankings. All 93 focused tests pass. A real GPU query
+reproduces the result and refuses stale planning evidence; a retrospective check
+at the original decision time still refuses an unknown start. Camera and ROS
+publication remain unused. Scores are marginal; fridge/trash failures, stable
+identity, live throughput and navigation remain unresolved. See
+`docs/coobserved-tracks.md` and the latest ledger entry.
+
 ## 5. Current Next Task
 
-Milestone: **Resolve duplicate bowl/sink records using source and geometry evidence**.
+Milestone: **Measure query and association stability across recorded prefixes**.
 
-Status: `PLANNED`. The bounded bowl replay and original source-time comparison
-are verified and recorded in the Progress Ledger. Safe saved-data work and
-GitHub pushes remain authorized. Keep the camera closed until new operator
+Status: `PLANNED`. The optional duplicate-track correction is verified on two
+saved query prefixes and recorded in the Progress Ledger. Safe saved-data work
+and GitHub pushes remain authorized. Keep the camera closed until new operator
 readiness; never issue navigation commands. No new recording is needed yet.
 
 Required observable result:
 
-1. Preserve the original three operator-rejected cases, the confirmed node-21
-   bowl/fridge crops and the new `bowl_1280_pad_01` trial unchanged. The operator
-   has not separately labeled its new query crops. Do not invent that feedback.
-2. Audit the two selected bowl/sink records at actual bowl query prefix 871 and
-   source-bounded prefix 932. Use original image overlap, depth, source-time poses
-   and graph evidence to determine which supports describe the same surface and
-   which remain ambiguous. A detector label or text score alone is insufficient.
-3. State a minimal association acceptance check before editing. Reuse existing
-   memory code and retain provenance; avoid duplicate votes for the same object
-   in one frame without merging distinct nearby targets or inventing identity.
-   If the available evidence does not justify a merge, report ambiguity explicitly.
-4. Keep the 0.25 / 0.02 semantic filters, valid-depth rules, causal source support,
-   freshness, unknown-start and clearance/route refusals unchanged. Preserve
-   fridge-depth and trash-proposal failures. No live throughput/navigation claim.
-5. Check the actual saved prefixes and another existing recording for regression,
-   run focused tests and independent source/fusion checks, review the complete
-   diff, and update the ledger with measured results before publishing a checkpoint.
+1. Preserve the operator-rejected cases, confirmed node-21 crops, both original
+   stationary journals and the new duplicate-track evidence. Region overlap is
+   only an audit proxy; do not invent per-frame physical identities or feedback.
+2. State a bounded stability acceptance check before editing. Reuse current
+   query APIs and stored text vectors to inspect contiguous committed prefixes
+   at received graph revisions, in both original and optional merge modes.
+   Cover the stationary journal and the existing forward/backward recording.
+3. Record when the bowl region first has eligible support, is selected, loses
+   selection or changes provisional associations. Distinguish source time,
+   commit availability and reopened analysis; do not call it a live benchmark.
+   Retain the known wrong-region fridge/trash cases as failures.
+4. Keep image/depth/pose eligibility, 0.25 / 0.02 filters, causal source support,
+   freshness, unknown-start and clearance gates fixed. Do not tune thresholds
+   against these same images or enable the optional mode by default merely
+   because the two audited bowl queries pass.
+5. Verify sampled boundaries independently, record limitations and measured
+   counts, run focused tests if code changes, review the complete diff and
+   publish a verified checkpoint. Prefer evidence-only work if existing APIs
+   already satisfy this acceptance result.
 
-Starting points: `docs/bowl-replay.md`, `scripts/scene_memory.py`,
-`scripts/online_scene_memory.py`, `scripts/online_semantic_memory.py`,
-`data/outputs/bowl_replay/steady_20260916/cutoff_verification.json`, and
-`data/outputs/stationary_memory/steady_20260916/bowl_1280_pad_01/`.
+Starting points: `docs/coobserved-tracks.md`, `scripts/online_scene_memory.py`,
+`scripts/online_semantic_memory.py`,
+`data/outputs/duplicate_tracks/steady_20260916/verification.json`,
+`data/outputs/stationary_memory/steady_20260916/bowl_1280_pad_01/online.db`, and
+`data/outputs/online_semantic/line_20260915/attempt_02/online.db`.
 
-Learning checkpoint: successful retrieval can still return multiple records for
-one physical object. Source evidence, instance association, text selection and
-safe motion are separate acceptance conditions.
+Learning checkpoint: removing duplicate votes improves the meaning of a memory
+record. It does not establish that retrieval remains correct as observations and
+map revisions arrive; selection stability needs a separate measurement.
 
 ## 6. Target System Architecture
 
@@ -4305,6 +4326,88 @@ problems. Correct RGB retrieval cannot fill depth holes or establish a safe rout
 Next action: audit and minimally correct the duplicate bowl/sink associations
 using original image overlap and 3D evidence, with distinct-object regressions;
 never merge solely by label similarity.
+
+### 2026-09-16: Duplicate Bowl/Sink Tracks Consolidated From Shared RGB-D Evidence
+
+Status: `VERIFIED` for optional query-time merging on two saved stationary
+prefixes and a no-change regression on the existing motion recording. This is
+reopened-data verification, not another concurrent replay or live acceptance.
+
+The pre-edit audit finds eight common nodes (4, 13, 25, 31, 41, 43, 44, 45),
+minimum box IoU 0.964486775, identical actual depth pixels/depth values and
+identical per-frame map points. Original track centroids differ by
+0.001160315 / 0.001125797 m at prefixes 871 / 932. These are recorded numerical
+comparisons, not physical accuracy or additional operator annotations.
+
+The predeclared opt-in policy requires at least two agreeing shared frames and
+IoU >= 0.9; every shared frame must agree. It keeps existing 0.35 m centroid
+and running-mean geometry gates and requires direct evidence for every pair in
+a group. The implementation also enforces the existing 1e-6 m numerical
+agreement tolerance on identical-sample map points. Each source frame retains
+only its highest-confidence detection, with detection-index tie breaking.
+Derived associations preserve excluded overlaps and all raw evidence. Semantic
+fusion uses only the retained geometric representative. The journal is read-only.
+
+The online semantic-query and search-preview CLIs expose
+`--merge-duplicate-tracks`; original defaults and frozen memory APIs remain
+unchanged. Complete list/text queries name the policy and witness report;
+label-only queries cannot use the mode. Canonical ID/label remain the lowest
+original ID and its detector label, here ID 2 / sink, with original bowl/sink
+labels in the audit. No text-driven relabeling, dependency or schema migration
+is added.
+
+Measured results:
+
+- Prefix 871: 3 -> 2 total records; bowl/sink 28 + 11 -> 31 geometric/semantic
+  supports, removing eight duplicate votes. Total supports become 60. The merged
+  record alone is selected for `a bowl`, cosine 0.252092183.
+- Prefix 932: 3 -> 2 records; 29 + 11 -> 32 supports, again eight votes removed.
+  Total supports become 62. The merged record alone is selected, cosine
+  0.251910120. Both best views remain original node 37 crop 1.
+- The wrong refrigerator region remains separate and scores 0.118698165 /
+  0.118344463 for `a bowl`. Fridge depth and trash proposals remain failures;
+  all original rejected/confirmed feedback and trial hashes remain unchanged.
+- Independent source-event graph/pose reconstruction and confidence-based
+  representative selection agree within 2.220446050e-16 m. Scalar vector fusion
+  and ranking agree within 3.121129769e-8. All chosen crop hashes agree, both
+  databases contain exact original contiguous event prefixes, and every merged
+  source frame contributes at most one geometry/vector vote.
+- Default queries exactly reproduce original objects, counts, semantic rankings,
+  context, included/excluded sources, snapshots and planning evidence. On
+  `line_20260915`, zero merges preserve the complete logical geometry database:
+  17 records, 63 supports and all 11 frozen query rankings unchanged.
+- All 52 memory and 41 online-memory/semantic/search tests pass. New cases cover
+  insufficient witnesses, conflicting frames, nested boxes, nearby targets,
+  missing/different depth pixels, inconsistent points, transitive-only links,
+  complete groups, running geometry gates and prefix-bounded one-vector voting.
+  The initial geometry-drift test fixture was corrected after a floating-point
+  boundary split its intended original track; the full corrected suites pass.
+- A bounded real GPU CLI exits 0 and reproduces the complete merged semantic
+  result, text vector and snapshot. It takes 12.370796 s including model loading
+  (11.190452 s); snapshot processing takes 251.631806 ms. Peak RSS is
+  1,377,320 KiB; peak allocated CUDA memory is 228,483,584 bytes. This is a single
+  functional measurement, not a latency distribution.
+- Current planning refuses `stale_or_future_map_evidence`. Explicitly labeled
+  retrospective planning using the original read/decision times remains
+  `NO_ROUTE` / `unknown_cell`. No publication is requested and no movement occurs.
+  Native cleanup finds no remaining query/camera/SLAM processes and
+  5,208,468 KiB available RAM; this is not a long-duration leak claim.
+
+Private evidence: `data/outputs/duplicate_tracks/steady_20260916/`, including
+`acceptance.json`, `audit.json`, `verification.json`, `gpu_verification.json`,
+`cleanup.json`, `checkpoint_review.json`, exact prefix copies and representative lists,
+query and decision reports, independent check scripts and test logs. Original
+trial journal SHA256 remains
+`e2c793d624dc93524cd88f8761377da595acffdb45e29f2cb10125c268d65daa`.
+See `docs/coobserved-tracks.md` for the reproduction command and limitations.
+
+Learning checkpoint: shared source measurements can justify removing duplicate
+votes even when detector labels differ. This improves association accounting;
+it does not convert a marginal text score into stable object recognition.
+
+Next action: measure fixed-policy candidate and association stability across
+committed graph prefixes in the existing stationary and motion journals before
+considering any default-mode change.
 
 ## 16. End-Of-Session Handoff Template
 

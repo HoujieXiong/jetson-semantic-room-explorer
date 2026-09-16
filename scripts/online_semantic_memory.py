@@ -241,7 +241,7 @@ def rank_snapshot(connection, context, events, remembered, text_vector, encoder_
             'semantic_event_count': len(events)}
 
 
-def query_text(database, model, phrase, output, *, planning=False):
+def query_text(database, model, phrase, output, *, planning=False, merge_duplicates=False):
     from online_scene_memory import POLICY as MEMORY_POLICY, query_online
     if not phrase.strip():
         raise ValueError('Provide a nonempty text phrase')
@@ -257,7 +257,8 @@ def query_text(database, model, phrase, output, *, planning=False):
             raise ValueError('Journal has no declared semantic encoder')
         encoder = MobileClipEncoder(model, square_pad=context['semantic_encoder'].get('square_pad', False))
         vector, elapsed_ms = encoder.encode(phrase)
-        result = query_online(database, text_vector=vector, encoder_identity=encoder.identity, planning=planning)
+        result = query_online(database, text_vector=vector, encoder_identity=encoder.identity,
+                              planning=planning, merge_duplicates=merge_duplicates)
         report.update(result, text=phrase, text_vector=vector.tolist(), text_encode_ms=elapsed_ms,
                       encoder=encoder.identity, load_ms=encoder.load_ms)
         report['status'] = result['semantic']['status']
@@ -282,6 +283,8 @@ if __name__ == '__main__':
     for name in ('db', 'model', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--text', required=True)
+    parser.add_argument('--merge-duplicate-tracks', action='store_true', help='Require repeated shared-frame RGB-D evidence before merging tracks')
     args = parser.parse_args()
-    result = query_text(args.db.resolve(), args.model.resolve(), args.text, args.output.resolve())
+    result = query_text(args.db.resolve(), args.model.resolve(), args.text, args.output.resolve(),
+                        merge_duplicates=args.merge_duplicate_tracks)
     print(json.dumps({'status': result['status'], 'snapshot': result.get('snapshot'), 'output': str(args.output)}))

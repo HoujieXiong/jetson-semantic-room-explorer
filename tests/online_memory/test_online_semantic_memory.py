@@ -95,6 +95,46 @@ class OnlineSemanticTests(unittest.TestCase):
     def query(self, vector=None):
         return query_online(self.db, text_vector=axis(0) if vector is None else vector, encoder_identity=IDENTITY)
 
+    def test_coobserved_merging_uses_only_prefix_witnesses_and_one_vector_per_frame(self):
+        earlier = None
+        for node in (1, 2):
+            stamp = STAMP+(node-1)*10**9
+            row = observation(stamp)
+            row.update(camera_info={'width': 5, 'height': 4},
+                       rgb_pixels_sha256=hashlib.sha256(self.rgb.tobytes()).hexdigest())
+            first = row['detections'][0]
+            first.update(label='bowl', box_xyxy=[0., 0., 5., 4.])
+            first['depth']['pixel_uv'] = [2, 2]
+            second = copy.deepcopy(first)
+            second.update(detection_index=1, label='sink', detection_confidence=.8)
+            row['detections'].append(second)
+            self.send('mapping', {'node_id': node, 'stamp_ns': stamp})
+            self.send('observation', row)
+            encoded = self.encoded(row, node)
+            encoded['samples'][1]['vector'] = axis(1).tolist()
+            self.send('semantic', encoded)
+            self.send('graph', graph({n: [1., 0., 0.] for n in range(1, node+1)}, stamp))
+            merged = query_online(self.db, text_vector=axis(1), encoder_identity=IDENTITY,
+                                  merge_duplicates=True)
+            if node == 1:
+                earlier = merged
+                self.assertEqual(earlier['counts']['objects'], 2)
+                self.assertFalse(earlier['association_review']['merged'])
+        self.assertEqual(earlier['counts']['objects'], 2)
+        self.assertEqual(merged['counts']['objects'], 1)
+        self.assertEqual(merged['counts']['supporting_observations'], 2)
+        self.assertEqual(merged['semantic']['available_supports'], 2)
+        self.assertEqual(merged['semantic']['selected_object_ids'], [])
+        self.assertEqual(merged['semantic']['ranking'][0]['cosine_similarity'], 0.)
+        self.assertIn('coobserved_duplicates', merged['context']['association_policy'])
+        original = self.query(axis(1))
+        self.assertEqual(original['counts']['objects'], 2)
+        self.assertEqual(original['semantic']['available_supports'], 4)
+        self.assertEqual(original['semantic']['selected_object_ids'], [2])
+        self.assertNotIn('association_review', original)
+        with self.assertRaisesRegex(ValueError, 'complete list/text query'):
+            query_online(self.db, 'find', 'bowl', merge_duplicates=True)
+
     def test_delayed_embedding_cannot_change_earlier_query_and_reopen_matches(self):
         row = self.source()
         self.send('graph', graph({1: [1, 0, 0]}))

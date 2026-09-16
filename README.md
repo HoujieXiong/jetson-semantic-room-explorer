@@ -80,6 +80,13 @@ all 94 crops match source pixels. Scores are marginal and bowl/sink records like
 duplicate one object. All routes still refuse an unknown start; fridge and trash
 failures persist. The trial remains 0.25x saved-data verification.
 
+An optional [source-evidence association correction](docs/coobserved-tracks.md)
+now consolidates the duplicate bowl/sink tracks at both saved query prefixes.
+Eight shared RGB-D frames justify removing eight duplicate votes; the single
+bowl-region record scores 0.252092 / 0.251910. Another recording retains all
+17 records and 11 query results, and 93 focused tests pass. Original labels and
+defaults remain unchanged; this does not establish stable recognition or motion.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

@@ -2,6 +2,7 @@
 
 import argparse
 from contextlib import closing
+from itertools import combinations
 import json
 import math
 from pathlib import Path
@@ -17,6 +18,11 @@ SCHEMA_VERSION = 1
 POLICY = {'distance_gate_m': 0.35, 'same_frame_overlap_min_area': 0.5,
           'position_update': 'Equal mean of one representative per source frame',
           'representative_order': 'Descending detector confidence, then detection index'}
+COOBSERVED_POLICY = {'min_shared_frames': 2, 'min_box_iou': 0.9, 'same_sample_point_tolerance_m': 1e-6,
+    'depth': 'Identical sampled pixel and metric depth in every shared source frame',
+    'group': 'Every pair must qualify; retain groups with conflicting or incomplete evidence',
+    'geometry': 'Existing centroid and running representative distance gates',
+    'identity': 'Provisional; keep the lowest original object ID and its detector label'}
 SCHEMA = (
     'CREATE TABLE metadata (id INTEGER PRIMARY KEY CHECK(id=1), context_json TEXT NOT NULL)',
     'CREATE TABLE frames (node_id INTEGER PRIMARY KEY, source_stamp_ns INTEGER UNIQUE NOT NULL, evidence_json TEXT NOT NULL)',
@@ -171,6 +177,113 @@ def rebuild_objects(connection):
         [(o['id'], o['label'], canonical(o['point']), o['count'], o['first'], o['last'],
           o['confidence_sum'], o['last_node'], o['last_index']) for o in objects])
     connection.executemany('INSERT INTO associations VALUES (?, ?, ?, ?, ?, ?)', decisions)
+
+
+def merge_coobserved_tracks(connection):
+    """Consolidate duplicate proposal tracks in a derived snapshot, retaining source evidence."""
+    frames = {node: json.loads(payload) for node, payload in
+              connection.execute('SELECT node_id, evidence_json FROM frames')}
+    detections = {(node, d['detection_index']): d for node, frame in frames.items()
+                  for d in frame['detections']}
+    tracks = {oid: {'label': label, 'point': json.loads(point), 'views': {}}
+              for oid, label, point in connection.execute('SELECT object_id, label, position_json FROM objects')}
+    associations = connection.execute('SELECT node_id, detection_index, object_id, decision FROM associations').fetchall()
+    by_node = {}
+    for node, index, oid, decision in associations:
+        if decision in ('new_object', 'nearest_match'):
+            tracks[oid]['views'][node] = detections[node, index]
+            by_node.setdefault(node, []).append(oid)
+    pairs = sorted({tuple(sorted(pair)) for ids in by_node.values() for pair in combinations(ids, 2)})
+    qualified, neighbors = {}, {}
+    report = {'policy': COOBSERVED_POLICY, 'merged': [], 'unresolved': []}
+    for a, b in pairs:
+        left, right = tracks[a], tracks[b]
+        if left['label'] == right['label'] or math.dist(left['point'], right['point']) > POLICY['distance_gate_m']:
+            continue
+        witnesses, conflicts = [], []
+        for node in sorted(left['views'].keys() & right['views'].keys()):
+            x, y = left['views'][node], right['views'][node]
+            box, other = x['box_xyxy'], y['box_xyxy']
+            area = max(0, min(box[2], other[2])-max(box[0], other[0]))*max(0, min(box[3], other[3])-max(box[1], other[1]))
+            iou = area/((box[2]-box[0])*(box[3]-box[1])+(other[2]-other[0])*(other[3]-other[1])-area)
+            depths = [x['depth'], y['depth']]
+            same_sample = (all('pixel_uv' in d for d in depths)
+                           and depths[0]['pixel_uv'] == depths[1]['pixel_uv']
+                           and depths[0]['depth_m'] == depths[1]['depth_m'])
+            evidence = {'node_id': node, 'detection_indices': [x['detection_index'], y['detection_index']],
+                        'box_iou': iou, 'same_depth_sample': same_sample,
+                        'map_point_distance_m': math.dist(x['map_point_m'], y['map_point_m'])}
+            if (iou >= COOBSERVED_POLICY['min_box_iou'] and same_sample
+                    and evidence['map_point_distance_m'] <= COOBSERVED_POLICY['same_sample_point_tolerance_m']):
+                witnesses.append(evidence)
+            else:
+                conflicts.append(evidence)
+        if conflicts or len(witnesses) < COOBSERVED_POLICY['min_shared_frames']:
+            report['unresolved'].append({'object_ids': [a, b], 'witnesses': witnesses, 'conflicts': conflicts,
+                'reason': 'conflicting_shared_frame' if conflicts else 'insufficient_shared_frames'})
+            continue
+        qualified[a, b] = witnesses
+        neighbors.setdefault(a, set()).add(b)
+        neighbors.setdefault(b, set()).add(a)
+
+    remaining = set(neighbors)
+    while remaining:
+        pending, group = [min(remaining)], set()
+        while pending:
+            oid = pending.pop()
+            if oid not in group:
+                group.add(oid)
+                pending.extend(neighbors[oid]-group)
+        remaining -= group
+        ids = sorted(group)
+        if any(pair not in qualified for pair in combinations(ids, 2)):
+            report['unresolved'].append({'object_ids': ids, 'reason': 'incomplete_pairwise_evidence'})
+            continue
+        views = {}
+        for oid in ids:
+            for node, detection in tracks[oid]['views'].items():
+                views.setdefault(node, []).append(detection)
+        representatives, points = [], []
+        for node in sorted(views, key=lambda n: (frames[n]['source_stamp_ns'], n)):
+            chosen = min(views[node], key=lambda d: (-d['detection_confidence'], d['detection_index']))
+            point = chosen['map_point_m']
+            mean = [math.fsum(p[i] for p in points)/len(points) for i in range(3)] if points else None
+            distance = math.dist(point, mean) if mean is not None else None
+            if distance is not None and distance > POLICY['distance_gate_m']:
+                break
+            representatives.append((node, chosen, distance))
+            points.append(point)
+        if len(representatives) != len(views):
+            report['unresolved'].append({'object_ids': ids, 'reason': 'merged_distance_gate'})
+            continue
+        canonical_id = ids[0]
+        chosen_by_node = {node: (d, distance) for node, d, distance in representatives}
+        for node, index, oid, _ in associations:
+            if oid not in group:
+                continue
+            chosen, distance = chosen_by_node[node]
+            if index == chosen['detection_index']:
+                decision = 'new_object' if distance is None else 'nearest_match'
+                representative = None
+            else:
+                decision, representative = 'same_frame_overlap', chosen['detection_index']
+                distance = math.dist(detections[node, index]['map_point_m'], chosen['map_point_m'])
+            connection.execute('UPDATE associations SET object_id=?, decision=?, distance_m=?, representative_index=? '
+                               'WHERE node_id=? AND detection_index=?',
+                               (canonical_id, decision, distance, representative, node, index))
+        first, last = representatives[0][0], representatives[-1][0]
+        mean = [math.fsum(p[i] for p in points)/len(points) for i in range(3)]
+        connection.execute('UPDATE objects SET position_json=?, support_count=?, first_seen_ns=?, last_seen_ns=?, '
+                           'confidence_sum=?, last_node_id=?, last_detection_index=? WHERE object_id=?',
+                           (canonical(mean), len(points), frames[first]['source_stamp_ns'], frames[last]['source_stamp_ns'],
+                            math.fsum(d['detection_confidence'] for _, d, _ in representatives),
+                            last, representatives[-1][1]['detection_index'], canonical_id))
+        connection.executemany('DELETE FROM objects WHERE object_id=?', [(oid,) for oid in ids[1:]])
+        report['merged'].append({'object_id': canonical_id, 'original_object_ids': ids,
+            'detector_labels': [tracks[oid]['label'] for oid in ids],
+            'support_count_before': sum(len(tracks[oid]['views']) for oid in ids), 'support_count_after': len(points),
+            'pair_witnesses': [{'object_ids': list(pair), 'frames': qualified[pair]} for pair in combinations(ids, 2)]})
+    return report
 
 
 def check_schema(connection):

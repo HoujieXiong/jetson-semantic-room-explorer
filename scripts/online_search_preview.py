@@ -142,13 +142,13 @@ def plan_snapshot(query, phrase, simulated_xy=None, *, now_ns=None):
     return result
 
 
-def run(database, model, phrase, output, simulated_xy=None, ros_preview=False):
+def run(database, model, phrase, output, simulated_xy=None, ros_preview=False, *, merge_duplicates=False):
     from online_semantic_memory import query_text
     output.mkdir(parents=True, exist_ok=False)
     report = {'status': 'INCOMPLETE', 'motion_executed': False}
     started = time.monotonic()
     try:
-        query = query_text(database, model, phrase, output/'query', planning=True)
+        query = query_text(database, model, phrase, output/'query', planning=True, merge_duplicates=merge_duplicates)
         decision = plan_snapshot(query, phrase, simulated_xy)
         report['decision'] = decision
         if ros_preview:
@@ -183,7 +183,8 @@ if __name__ == '__main__':
     parser.add_argument('--text', required=True)
     parser.add_argument('--simulated-start-xy', type=float, nargs=2, metavar=('X_M', 'Y_M'))
     parser.add_argument('--publish-preview', action='store_true')
+    parser.add_argument('--merge-duplicate-tracks', action='store_true', help='Require repeated shared-frame RGB-D evidence before merging tracks')
     args = parser.parse_args()
     report = run(args.db.resolve(), args.model.resolve(), args.text, args.output.resolve(),
-                 args.simulated_start_xy, args.publish_preview)
+                 args.simulated_start_xy, args.publish_preview, merge_duplicates=args.merge_duplicate_tracks)
     print(json.dumps({'status': report['status'], 'decision': report['decision']['search_status']}))

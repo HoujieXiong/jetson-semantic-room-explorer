@@ -15,7 +15,8 @@ import numpy as np
 
 from observe_rgbd_objects import DEPTH_POLICY, inference_config
 from rgbd_geometry import map_from_camera, match_source_stamp
-from scene_memory import SCHEMA, canonical, query_contents, rebuild_objects, require_hash
+from scene_memory import (SCHEMA, POLICY as ASSOCIATION_POLICY, COOBSERVED_POLICY, canonical,
+                          merge_coobserved_tracks, query_contents, rebuild_objects, require_hash)
 from online_semantic_memory import rank_snapshot, validate_semantic
 from online_search_preview import GRID_POLICY, grid_from_event
 
@@ -238,9 +239,12 @@ class OnlineMemoryWriter:
         self.check()
 
 
-def query_online(database, command='list', label=None, *, text_vector=None, encoder_identity=None, planning=False):
+def query_online(database, command='list', label=None, *, text_vector=None, encoder_identity=None,
+                 planning=False, merge_duplicates=False):
     """Read one committed event prefix, then derive associations in a private SQLite snapshot."""
     started = time.monotonic_ns()
+    if type(merge_duplicates) is not bool or (merge_duplicates and (command != 'list' or label is not None)):
+        raise ValueError('Duplicate merging requires a boolean mode and a complete list/text query')
     with closing(sqlite3.connect(Path(database).resolve().as_uri()+'?mode=ro', uri=True,
                                 timeout=POLICY['sqlite_timeout_s'])) as connection:
         connection.execute('BEGIN')
@@ -279,7 +283,10 @@ def query_online(database, command='list', label=None, *, text_vector=None, enco
         derived.row_factory = sqlite3.Row
         for statement in SCHEMA:
             derived.execute(statement)
-        derived.execute('INSERT INTO metadata VALUES (1, ?)', (canonical({**context, 'snapshot': snapshot}),))
+        derived_context = {**context, 'snapshot': snapshot}
+        if merge_duplicates:
+            derived_context['association_policy'] = {**ASSOCIATION_POLICY, 'coobserved_duplicates': COOBSERVED_POLICY}
+        derived.execute('INSERT INTO metadata VALUES (1, ?)', (canonical(derived_context),))
         poses = {pose['node_id']: pose for pose in graph[1]['poses']} if graph else {}
         stamps = sorted(sources)
         for node in sorted(set(poses) | set(mappings)):
@@ -317,7 +324,10 @@ def query_online(database, command='list', label=None, *, text_vector=None, enco
             included.append({'node_id': node, 'source_stamp_ns': frame['source_stamp_ns'],
                              'observation_seq': source_seq, 'mapping_seq': mappings[node][0]})
         rebuild_objects(derived)
+        review = merge_coobserved_tracks(derived) if merge_duplicates else None
         result = query_contents(derived, command, label)
+        if review is not None:
+            result['association_review'] = review
         if text_vector is not None:
             if command != 'list' or label is not None:
                 raise ValueError('Text retrieval requires the complete geometric snapshot')
