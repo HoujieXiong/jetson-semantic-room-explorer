@@ -3,3 +3,8 @@
     # Publish matching graph/grid stamps on each processing cycle, including
     # stationary periods. Online consumers enforce their own evidence age.
     latch: false
+    # Retain stationary source nodes so accepted semantic observations remain
+    # addressable in the current graph. Online memory rejects over 600 nodes.
+    Mem/RehearsalSimilarity: "1.0"
+    RGBD/LinearUpdate: "0"
+    RGBD/AngularUpdate: "0"

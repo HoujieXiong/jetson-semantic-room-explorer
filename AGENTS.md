@@ -675,50 +675,65 @@ crops and 54 graphs/grids. Static-scene rehearsal retains only node 1, leaving n
 eligible semantic support; the grid also lacks the required clearance. Four prior
 failures are preserved. All owned processes closed and 103 focused tests pass.
 
+### 4.24 Stationary Source Nodes And Eligible Semantic Memory
+
+Status: `VERIFIED` for a matched 944-pair saved-data comparison at 0.25x. The online
+mapping overlay disables rehearsal and stationary motion thresholds. Active graph
+nodes increase from 1 to 64; final eligible memory increases from zero to 44 frames,
+33 supporting observations and three provisional records. Native parameter dumps,
+source-time TF, crop/vector/graph/grid checks, independent ROS decisions and
+old/new journal reopening pass. The camera remained closed.
+
+Three actual text queries complete during playback. Trash and fridge phrases
+both select the apparent trash-bin crop; the bowl phrase has no passing candidate.
+The true fridge has insufficient valid depth. All three routes refuse an unknown
+camera start and send no goal/path. One complete received message group remains
+unmatched by perception; it is reported. This restores graph/observation
+association, not retrieval accuracy or live throughput. The 600-node consumer
+limit makes this a bounded configuration, not a continuous deployment policy.
+See `docs/stationary-memory.md` and
+`data/outputs/stationary_memory/steady_20260916/retained_01/review.html`.
+
 ## 5. Current Next Task
 
-Milestone: **Saved-data validation of stationary graph/observation association**.
+Milestone: **Operator-reviewed retrieval cases from the stationary recording**.
 
-Status: `PLANNED`. The user has gone to bed and explicitly authorizes continued
-safe work with collected data. Do not start the camera, request movement or issue
-navigation commands. Existing environments, safe changes and GitHub pushes remain
-authorized. No new recording is needed to investigate the measured failure.
+Status: `PLANNED`. The graph-retention comparison is verified and recorded in
+Section 4.24 and the Progress Ledger. The user is asleep and authorized safe
+saved-data work and GitHub pushes. Keep the camera closed until new operator
+readiness; never issue navigation commands. No new recording is needed for the
+next review.
 
 Required observable result:
 
-1. Preserve the live trial and inspect actual mapping statistics, node revisions,
-   original source-time pose refusals and semantic supports. Establish why static
-   rehearsal leaves the current query empty before changing association behavior.
-2. Prepare a reproducible replay from existing data. The final live bag has 947
-   complete image pairs but three missing CameraInfo messages. Retain the original
-   failed strict report; if a complete-message subset is needed, copy only original
-   messages with explicit retained/excluded source IDs and byte/hash evidence.
-   Never invent CameraInfo timestamps or silently repair missing messages.
-3. Make the smallest justified configuration or association change that allows
-   valid stationary observations to remain queryable under the current received
-   graph. Preserve source-time pose checks, committed-prefix causality and graph
-   identity. Do not replace a missing source pose with a later/latest pose.
-4. Measure at least one text query during replay with actual source crops and an
-   independent ROS decision receiver. Require positive eligible object support;
-   report the actual semantic selection/refusal, including wrong detector labels.
-   Keep start, map age, clearance and route thresholds unchanged. The live grid's
-   0.115 m maximum clearance does not support a 0.25 m route.
-5. Verify original artifacts unchanged, regression cases, persistence and cleanup;
-   review the complete diff and publish a measured checkpoint. Explicitly label
-   slowed replay and separate it from live throughput or physical navigation.
+1. When the operator returns, open
+   `data/outputs/stationary_memory/steady_20260916/retained_01/review.html` and
+   confirm the intended targets and whether the three actual query crops match.
+   Record operator labels separately from model labels and assistant judgments.
+2. Freeze those query prefixes, original RGB/depth/crops, expected target labels
+   and measured failure reasons as the comparison cases before changing retrieval.
+   The present fridge query selects a trash-bin/cabinet proposal; the true fridge
+   is detected in RGB but fails depth. The bowl query has no passing candidate at
+   its original prefix; later bowl/sink labels overlap. Do not treat provisional
+   record counts or later observations as earlier retrieval success.
+3. Based on confirmed cases, choose one minimal saved-data improvement and state
+   its acceptance result before editing. Reuse the current geometry and retrieval
+   code. Do not guess a depth through holes, lower thresholds to pass this scene,
+   merge records solely by label similarity or insert future graph/pose evidence.
+4. Preserve unknown-start, freshness, clearance and route refusals. The new
+   retention configuration is only measured at 0.25x; it has not run live and the
+   consumer refuses graphs over 600 nodes. A bounded fix is not continuous-room
+   navigation acceptance.
+5. Run the affected focused tests and independent saved-data checks, review the
+   complete diff, and record only measured outcomes before publishing a checkpoint.
 
-Starting points: `docs/live-rgbd-search.md`, `config/rtabmap_online_preview.yaml`,
-`scripts/online_scene_memory.py`, `scripts/online_semantic_memory.py`,
-`tests/check_concurrent_perception.py`, and
-`data/outputs/live_search/steady_20260916/attempt_05/`. Native parameters include
-`Mem/RehearsalSimilarity=0.6`, `Mem/RehearsalIdUpdatedToNewOne=false`, and
-`RGBD/LinearUpdate=RGBD/AngularUpdate=0.1`. The saved `/info` statistics report
-rehearsal merges into node 1. Inspect their meaning and cost before selecting a fix.
+Starting points: `docs/stationary-memory.md`, its local `comparison.json` and
+`retained_01/visual_review.json`, `scripts/online_semantic_memory.py`,
+`scripts/online_scene_memory.py`, and `scripts/rgbd_geometry.py`.
 
-Learning checkpoint: an encoded observation does not automatically remain in the
-active geometric memory. Graph-node retention and original source validity must
-agree before a query can select an object; semantic evidence still does not
-establish a safe route.
+Learning checkpoint: graph retention restores the ability to query observations;
+RGB recognition, valid depth, object identity and a safe path each need separate
+support. Operator-reviewed source images provide the next quality reference.
 
 ## 6. Target System Architecture
 
@@ -3981,6 +3996,79 @@ reopening. Journal SHA-256:
 No raw room data, weights or recordings are committed. The user has gone to bed
 and authorizes continued work using collected data; no further capture or
 operator movement is authorized without a new readiness confirmation.
+
+### 2026-09-15: Stationary Graph Retention And Saved-Data Query Comparison
+
+Status: `VERIFIED` for current-graph source association and actual text-to-ROS
+decisions during slowed replay. Recognition accuracy, the changed configuration
+on live input, continuous operation and physical navigation remain unverified.
+
+Changed: only three runtime configuration values in
+`config/rtabmap_online_preview.yaml`: `Mem/RehearsalSimilarity=1.0`,
+`RGBD/LinearUpdate=0`, `RGBD/AngularUpdate=0`. They retain stationary source nodes
+without weakening source-time TF, graph membership, query causality or route
+checks. Documentation: `docs/stationary-memory.md`, README and this ledger.
+
+Evidence: ignored `data/outputs/stationary_memory/steady_20260916/`, including
+`diagnosis.json`, `subset_provenance.json`, strict `reference.json`,
+`baseline_01/`, `retained_01/`, `comparison.json`, local trial/verification helpers,
+source/config snapshots and native parameter dumps. The original live trial's
+53 rehearsal merges explain its missing eligible supports. The copied subset
+keeps 944 complete RGB/depth/CameraInfo groups plus static TF (3,777 original
+messages), excludes nine existing messages from three incomplete groups, and
+preserves message IDs, stamps and bytes. No CameraInfo is synthesized; the
+original bag, metadata and failed strict report remain unchanged.
+
+Both runs use identical saved input/models/source code at 0.25x and produce 64
+mapping updates and 943 tracked odometry outputs, zero reported lost, one input
+without odometry output. Baseline has 63 rehearsal merges, one active node,
+622 processed/322 dropped perception frames and zero eligible objects. Changed
+configuration has zero merges, 64 active nodes, 621 processed/322 dropped and
+one complete received group unmatched by perception. Its source poses are 613
+accepted, two missing odometry and six missing map TF. All refusals remain saved.
+
+The changed journal commits 1,199 events, encodes 44 keyframes/33 actual crops and
+reopens with 44 eligible frames, 77 detections, 33 accepted supports and three
+provisional records. Baseline has 1,200 events and 35 crops but no current-graph
+support. Journal bytes grow from 5,804,032 to 6,533,120; both map databases store
+64 nodes including unlinked nodes, so their similar sizes do not indicate equal
+active graphs. Changed writer peak is 5/16, transaction P50/P95/max
+9.492/35.384/496.941 ms. Peak RAM is 4,938 MB and GPU temperature 61.031 C. Swap
+rises from 1,252 to 1,639 MB; no long-run resource claim is made.
+
+Actual during-playback queries: `a fridge` selects the apparent trash-bin/cabinet
+crop at cosine 0.272788 (13 eligible frames/7 supports); `a trash can` selects the
+same provisional object at 0.280325 (22/15); `a bowl` has no passing candidate at
+0.157531 (33/24). CLI times are 30.240/19.949/17.533 s. Visual judgments remain
+pending operator confirmation, and final overlapping bowl/sink records are not
+three established identities. The visible fridge has an explicit depth rejection
+in all 621 processed frames; one source example has only 838/11,076 valid depth
+pixels despite RGB detection confidence 0.942. Cause of missing depth is unproven.
+
+All three starts are the actual camera projection in an unknown grid cell;
+independent ROS receipts each contain one decision, zero goals, zero paths.
+The trash candidate's internal stand-off/clearance is 1.004/0.315 m, but this does
+not validate a route from the unknown start. Evidence ages 2.440/2.314/1.978 s
+pass the unchanged freshness gate. The post-stop decision refuses stale data.
+
+Five independent verification/reopen reports per run pass: original pixels/units,
+causal TF, geometry, scalar vector fusion/ranking, all 64 witnessed graph/grid
+events, candidates/refusals and old/new journal persistence. All owned children
+exit without forced termination or leftovers. The user was asleep; the camera
+was never opened. `retained_01/review.html` embeds verified original images/crops
+and the occupancy preview without WebGL or video codecs; desktop rendering and
+operator identity review remain pending. No images, models or bags are committed.
+Changed journal SHA-256:
+`d528f06677b9f5637503c0d926e4810293a41103bca829907ad074a6b62e51d2`.
+The prior semantic journal remains byte-identical with its recorded hash.
+
+Decision: use the measured retention settings only for bounded online trials;
+the memory consumer rejects graphs over 600 nodes and RTAB-Map itself continues
+to grow. A real RGB detection, valid 3D evidence, retained graph support, semantic
+identity and safe route are separate acceptance conditions.
+
+Next action: operator review of the three query images and intended targets,
+using the saved review page; no new recording is needed for this review.
 
 ## 16. End-Of-Session Handoff Template
 

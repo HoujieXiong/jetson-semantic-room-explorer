@@ -58,6 +58,12 @@ stationary map-node merging that leaves the query without eligible object suppor
 This does not establish useful live object search. See the
 [live measurements, retained failures and source evidence](docs/live-rgbd-search.md).
 
+Stationary graph retention now passes a matched **saved-data** comparison: the
+same 944-pair input at 0.25x changes the active graph from 1 to 64 nodes and eligible
+memory from 0 to 3 provisional records. Text queries regain candidates, but a
+fridge query selects a trash-bin crop and all routes refuse an unknown start.
+See [the comparison, depth limitations and local image review](docs/stationary-memory.md).
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
@@ -754,6 +760,8 @@ jetson-semantic-room-explorer/
 - [X] Causal persistent observations and label queries during bounded RGB-D replay
 - [X] Causal MobileCLIP text retrieval during bounded RGB-D replay
 - [X] Causal search decisions and bounded ROS previews from a changing recorded map
+- [X] Bounded live RGB-D measurement with explicit overload, message loss and ROS refusal
+- [X] Stationary graph retention restores eligible semantic memory in saved-data comparison
 - [ ] Live-camera search validation and meaningful physical routes
 - [ ] Real-time SLAM/perception and continuous live operation
 - [ ] Physical navigation acceptance

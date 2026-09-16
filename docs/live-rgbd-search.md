@@ -156,5 +156,6 @@ reopen reports. Journal SHA-256:
 `e6f9a15fe76f542ad00d88c4b6650237fb0dd1c39b4db186c4aa5b5b121da41e`.
 Only source, tests and documentation are committed.
 
-Next: use this recording to resolve stationary map-node/observation association,
-while keeping missing-source and unsafe-route refusals explicit.
+Follow-up: [stationary graph retention](stationary-memory.md) is verified in a
+matched saved-data replay. This does not retroactively change the live trial's
+losses, empty memory or refusal, and the changed configuration has not run live.
