@@ -17,6 +17,7 @@ from observe_rgbd_objects import DEPTH_POLICY, INFERENCE
 from rgbd_geometry import map_from_camera, match_source_stamp
 from scene_memory import SCHEMA, canonical, query_contents, rebuild_objects, require_hash
 from online_semantic_memory import rank_snapshot, validate_semantic
+from online_search_preview import GRID_POLICY, grid_from_event
 
 
 POLICY = {'queue_capacity': 16, 'max_events': 20000, 'max_payload_bytes': 524288,
@@ -46,7 +47,10 @@ def validate_event(kind, payload, elapsed):
     if not np.isfinite(elapsed) or elapsed < 0:
         raise ValueError('Invalid event availability time')
     canonical(payload)
-    if kind == 'semantic':
+    if kind == 'occupancy':
+        positive_int(payload['stamp_ns'])
+        grid_from_event(payload)
+    elif kind == 'semantic':
         positive_int(payload['node_id'])
     elif kind == 'mapping':
         positive_int(payload['node_id'])
@@ -187,6 +191,8 @@ class OnlineMemoryWriter:
                     validate_event(kind, payload, elapsed)
                     if kind == 'semantic':
                         validate_semantic(connection, self.context, payload, elapsed)
+                    if kind == 'occupancy' and self.context.get('grid_policy') != GRID_POLICY:
+                        raise ValueError('Occupancy events require the declared grid policy')
                     if elapsed < previous or self.stats['events_committed'] >= POLICY['max_events']:
                         raise ValueError('Regressing availability time or online event limit exceeded')
                     if kind == 'graph' and payload['extrinsic']['status'] == 'ACCEPTED':
@@ -216,7 +222,7 @@ class OnlineMemoryWriter:
         self.check()
 
 
-def query_online(database, command='list', label=None, *, text_vector=None, encoder_identity=None):
+def query_online(database, command='list', label=None, *, text_vector=None, encoder_identity=None, planning=False):
     """Read one committed event prefix, then derive associations in a private SQLite snapshot."""
     started = time.monotonic_ns()
     with closing(sqlite3.connect(Path(database).resolve().as_uri()+'?mode=ro', uri=True,
@@ -232,6 +238,7 @@ def query_online(database, command='list', label=None, *, text_vector=None, enco
     if len(events) > POLICY['max_events']:
         raise ValueError('Online memory event limit exceeded')
     sources, mappings, graph, semantic = {}, {}, None, []
+    occupancy = None
     for seq, elapsed, kind, serialized in events:
         payload = json.loads(serialized)
         if kind == 'observation':
@@ -242,6 +249,8 @@ def query_online(database, command='list', label=None, *, text_vector=None, enco
             graph = (seq, payload)
         elif kind == 'semantic':
             semantic.append((seq, payload))
+        elif kind == 'occupancy':
+            occupancy = (seq, elapsed, payload)
     snapshot = {'session_id': context['session_id'], 'event_seq': events[-1][0] if events else 0,
                 'available_elapsed_s': events[-1][1] if events else None,
                 'graph_seq': graph[0] if graph else None,
@@ -300,6 +309,17 @@ def query_online(database, command='list', label=None, *, text_vector=None, enco
                   observation_events=len(sources), read_started_monotonic_ns=started,
                   query_ms=(time.monotonic_ns()-started)/1e6,
                   limitation='Causal active-graph keyframe snapshot; absent/excluded records do not prove object absence. IDs may change between snapshots. No physical accuracy or navigation acceptance.')
+    if planning:
+        def evidence(seq, payload):
+            return {'event_seq': seq, 'available_elapsed_s': events[seq-1][1], 'payload': payload}
+        current = [evidence(seq, payload) for seq, payload in mappings.values()
+                   if graph and payload['stamp_ns'] == graph[1]['stamp_ns']]
+        result['planning_evidence'] = {'session_id': context['session_id'],
+            'origin_monotonic_ns': context['origin_monotonic_ns'], 'grid_policy': context.get('grid_policy'),
+            'latest_source_stamp_ns': max(sources) if sources else None,
+            'graph': evidence(*graph) if graph else None,
+            'occupancy': evidence(occupancy[0], occupancy[2]) if occupancy else None,
+            'mapping': current[0] if len(current) == 1 else None}
     return result
 
 

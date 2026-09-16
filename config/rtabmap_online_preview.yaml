@@ -1,0 +1,5 @@
+/rtabmap:
+  ros__parameters:
+    # Publish matching graph/grid stamps on each processing cycle, including
+    # stationary periods. Online consumers enforce their own evidence age.
+    latch: false

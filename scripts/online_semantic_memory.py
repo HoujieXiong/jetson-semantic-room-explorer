@@ -240,7 +240,7 @@ def rank_snapshot(connection, context, events, remembered, text_vector, encoder_
             'semantic_event_count': len(events)}
 
 
-def query_text(database, model, phrase, output):
+def query_text(database, model, phrase, output, *, planning=False):
     from online_scene_memory import query_online
     if not phrase.strip():
         raise ValueError('Provide a nonempty text phrase')
@@ -251,7 +251,7 @@ def query_text(database, model, phrase, output):
     try:
         encoder = MobileClipEncoder(model)
         vector, elapsed_ms = encoder.encode(phrase)
-        result = query_online(database, text_vector=vector, encoder_identity=encoder.identity)
+        result = query_online(database, text_vector=vector, encoder_identity=encoder.identity, planning=planning)
         report.update(result, text=phrase, text_vector=vector.tolist(), text_encode_ms=elapsed_ms,
                       encoder=encoder.identity, load_ms=encoder.load_ms)
         report['status'] = result['semantic']['status']

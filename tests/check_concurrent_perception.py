@@ -29,6 +29,7 @@ from rgbd_geometry import map_from_camera, pinhole_matrix
 from extract_mapped_rgbd import file_hash
 from online_scene_memory import OnlineMemoryWriter
 from online_semantic_memory import OnlineSemanticCapture, POLICY as SEMANTIC_POLICY
+from online_search_preview import GRID_POLICY, occupancy_payload
 
 
 class ConcurrentCheck(MappingCheck):
@@ -45,6 +46,7 @@ class ConcurrentCheck(MappingCheck):
         self.callback_ms = []
         self.memory = None
         self.semantic = None
+        self.capture_occupancy = False
         self.filters = {topic: message_filters.SimpleFilter() for topic in TOPICS if topic != '/tf_static'}
         self.sync = message_filters.ApproximateTimeSynchronizer(list(self.filters.values()), 10, 0.005)
         self.sync.registerCallback(self.pair)
@@ -54,10 +56,17 @@ class ConcurrentCheck(MappingCheck):
 
     def subscribe(self, node):
         super().subscribe(node)
+        if self.capture_occupancy:
+            from nav_msgs.msg import OccupancyGrid
+            node.create_subscription(OccupancyGrid, '/map', self.occupancy,
+                QoSProfile(depth=2, reliability=ReliabilityPolicy.RELIABLE))
         for stream in ('color', 'depth'):
             topic = f'/camera/{stream}/image_raw'
             node.create_subscription(Image, topic, lambda data, topic=topic: self.ingest(topic, data),
                 QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE), raw=True)
+
+    def occupancy(self, message):
+        self.memory.submit('occupancy', occupancy_payload(message), self.elapsed())
 
     def camera_info(self, stream, payload):
         super().camera_info(stream, payload)
@@ -245,9 +254,12 @@ def main():
     parser.add_argument('--duration', type=float, required=True)
     parser.add_argument('--memory-db', type=Path, help='Optional fresh causal observation/graph journal')
     parser.add_argument('--semantic-model', type=Path, help='Optional MobileCLIP-S0 checkpoint; requires --memory-db')
+    parser.add_argument('--capture-occupancy', action='store_true', help='Journal received /map grids; requires --memory-db')
     args = parser.parse_args()
     if args.semantic_model is not None and args.memory_db is None:
         parser.error('--semantic-model requires --memory-db')
+    if args.capture_occupancy and args.memory_db is None:
+        parser.error('--capture-occupancy requires --memory-db')
     ready = args.output.with_suffix('.ready.json')
     if not np.isfinite(args.duration) or not 0 < args.duration <= 600 or args.output.exists() or ready.exists():
         parser.error('Use a new output path and a finite duration at most 600 seconds')
@@ -298,6 +310,9 @@ def main():
                 'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map', 'point_unit': 'meter'}
             if encoder is not None:
                 context.update(semantic_encoder=encoder.identity, semantic_policy=SEMANTIC_POLICY)
+            if args.capture_occupancy:
+                context['grid_policy'] = GRID_POLICY
+                check.capture_occupancy = True
             memory = OnlineMemoryWriter(args.memory_db, context)
             check.memory = memory
             if encoder is not None:

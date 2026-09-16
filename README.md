@@ -44,7 +44,12 @@ source-verified crops/vectors; refrigerator synonyms select the visible fridge,
 while unknown and bottle queries remain below the fixed threshold. CLI queries
 take 14–16 seconds including model startup. See
 [online text retrieval and its limitations](docs/online-semantic-memory.md).
-Live real-time operation and changing-map search routes remain unverified.
+Text queries now also drive ROS decisions from matching online graph/grid
+snapshots. One recorded-data frontier goal/path is independently received; its
+simulated start nearly coincides with the goal, so this does not validate room
+travel. Unknown starts, insufficient clearance and stale maps correctly refuse
+goals. See [causal search previews and measured limits](docs/online-search-preview.md).
+Live real-time operation and physical navigation remain unverified.
 
 ## Goal
 
@@ -741,7 +746,8 @@ jetson-semantic-room-explorer/
 - [X] New forward/backward capture through the full pipeline; zero reported tracking losses at 0.25x
 - [X] Causal persistent observations and label queries during bounded RGB-D replay
 - [X] Causal MobileCLIP text retrieval during bounded RGB-D replay
-- [ ] Search routes and ROS previews from a changing map
+- [X] Causal search decisions and bounded ROS previews from a changing recorded map
+- [ ] Live-camera search validation and meaningful physical routes
 - [ ] Real-time SLAM/perception and continuous live operation
 - [ ] Physical navigation acceptance
 - [X] CuTR Jetson/Femto feasibility measured; retained as an offline research comparison

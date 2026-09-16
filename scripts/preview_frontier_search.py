@@ -138,7 +138,7 @@ def render_frontiers(grid, report, path):
                     focus = np.array([point, boundary, unknown, start['map_xy_m']])
                     ax.set_xlim(focus[:, 0].min()-.6, focus[:, 0].max()+.6)
                     ax.set_ylim(focus[:, 1].min()-.6, focus[:, 1].max()+.6)
-            ax.set_title('Full occupancy export' if index == 0 else 'Exploration detail')
+            ax.set_title('Occupancy grid' if index == 0 else 'Exploration detail')
         reason = exploration.get('reason', '') if exploration else report['reason']
         title = report['query_label']+' | '+report['status']+(': '+reason.replace('_', ' ') if reason else '')
         figure.suptitle(title+'\nGeometric preview only; no observation, new coverage or physical navigation verified', fontsize=11)

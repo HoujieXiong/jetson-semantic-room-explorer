@@ -642,50 +642,78 @@ is 14.106–16.125 s including cold model/interpreter startup. System RAM peaks 
 workers and owned processes close. See `docs/online-semantic-memory.md` and
 `data/outputs/online_semantic/line_20260915/attempt_02/`.
 
+### 4.22 Causal Text Queries To ROS Search Previews
+
+Status: `VERIFIED` for bounded recorded-data decisions, matching graph/grid
+snapshots and independently received ROS previews. Meaningful room travel,
+physical navigation and live camera operation remain unverified.
+
+The 899-pair replay commits 1,139 events, including 60 independently witnessed
+occupancy grids and 60 graphs. Four text queries finish during playback; the
+unknown-object query produces an explicitly geometric frontier goal/path.
+Its simulated start nearly coincides with the goal (2.644 micrometers of numeric
+connector), so this is an observation orientation/interface result. Current
+camera and insufficient-clearance fixtures refuse routes; missing and stale maps
+publish decision-only refusals. No thresholds are weakened.
+
+The online-only mapping overlay disables latching to publish fresh matching
+stamps every processing cycle. Existing geometry and ROS publication are reused,
+with an additional evidence deadline before each goal/path send. All 217 focused
+tests, independent source/grid/graph/ranking/route checks, reopening and native
+expiry/timeout checks pass. A separate synthetic fixture publishes a 1.5 m route;
+it is not room-data evidence. Full during-query CLI latency is 18.135–20.750 s;
+system RAM peaks at 5,119 MB. See `docs/online-search-preview.md` and
+`data/outputs/online_search/line_20260915/attempt_03/`.
+
 ## 5. Current Next Task
 
-Milestone: **Causal text-query to ROS search preview on recorded RGB-D**.
+Milestone: **Operator-assisted bounded live RGB-D to semantic search preview**.
 
-Status: `PLANNED`. Concurrent observation persistence and MobileCLIP text queries
-are verified. Existing goal/route/frontier planners and ROS publication work with
-frozen geometry; they are not yet connected to the changing online map.
+Status: `PLANNED`. The recorded-data causal pipeline is verified through online
+text queries, consistent graph/grid evidence and independently received ROS
+previews. Its real-room route is nearly zero length and uses a simulated start;
+physical navigation, continuous live operation and recognition quality are open.
 
-Continue the user's pipeline-first direction using existing local recordings.
-Physical scale/return-error refinement is deferred. Safe autonomous work, existing
-model downloads and GitHub progress pushes are authorized. Do not require a new
-capture unless a concrete missing input prevents progress. Physical capture still
-requires operator readiness; no mobile base or motor command is involved.
+The user asked how to help. The requested operator preparation is to place the
+camera steadily with visible floor and familiar furniture (for example the
+fridge or sink), then confirm readiness. Do not start physical capture or ask for
+movement before that readiness confirmation. Existing local driver, SLAM, YOLO
+and MobileCLIP environments are available; inspect their current state first.
+Safe autonomous preparation and verified GitHub pushes remain authorized.
 
 Required observable result:
 
-1. During a bounded replay, turn a causal text-query result into an independently
-   received ROS search decision, and a goal/path when geometry permits, using map,
-   start and observation evidence already available at decision time. Preserve
-   explicit no-goal/no-route decisions instead of weakening geometry checks.
-2. Inspect the current map/grid and frozen-planner contracts before editing.
-   Reuse existing clearance, stand-off, route/frontier and publication code where
-   their contracts fit. Do not attach final-map hashes to online geometry or
-   silently pass snapshot-scoped object IDs into an old frozen index/planner.
-3. Identify a consistent map/query snapshot and refuse missing, stale or mismatched
-   map/start evidence. Keep any simulated planning start explicit. Retain bounded
-   queues, timeouts and cleanup; measure cold query/model cost honestly.
-4. Verify source/prefix consistency, graph revisions, refusal behavior and received
-   ROS coordinates/path contents with focused and independent replay checks.
-   Maintain the existing frozen demo and online label/text-query commands.
-5. Review the complete diff, update measured progress and push a verified
-   checkpoint. Do not claim real-time operation, safe traversability or autonomous
-   navigation from a recorded-data preview.
+1. Inspect current camera availability, ROS process ownership and the separate
+   native/camera/SLAM environments. Prepare a bounded live run with fresh outputs,
+   explicit timeouts, original stream units/timestamps and complete cleanup.
+2. After operator readiness, receive fresh Femto RGB-D into the existing SLAM,
+   observation, semantic memory and occupancy pipeline. Record arrivals, queue
+   drops, TF/pose refusals, load and actual throughput at the camera input rate.
+   Do not call slow recorded playback real-time evidence or hide overload.
+3. Issue at least one actual text query using only received live evidence and
+   verify an independently received ROS decision. Publish a preview goal/path
+   only when map/start/freshness checks pass; retain no-goal decisions. Keep any
+   simulated start explicit and issue no navigation or motor commands.
+4. Save a bounded reusable recording and raw source/calibration/provenance where
+   the installed setup permits it. Check visible floor/free-space coverage and
+   show the operator the actual crop/preview for qualitative confirmation.
+   Request a short safe movement only if concrete coverage limits require it.
+5. Run focused regression/source checks, review the complete diff, update measured
+   progress and push a verified checkpoint. Keep physical scale/return accuracy,
+   meaningful travel, component optimization and CuTR outside this first live slice.
 
-Starting points: `scripts/online_scene_memory.py`,
-`scripts/online_semantic_memory.py`, `scripts/run_semantic_search.py`,
-`scripts/run_offline_search.py`, `scripts/publish_search_preview.py`,
-`tests/check_concurrent_perception.py`, `docs/online-semantic-memory.md` and
-`data/outputs/online_semantic/line_20260915/attempt_02/`.
-No CuTR integration or component optimization is required for this next slice.
+Starting points: `docs/online-search-preview.md`, `docs/camera-ros2.md`,
+`config/rtabmap_online_preview.yaml`, `tests/check_concurrent_perception.py`,
+`scripts/online_search_preview.py`, `scripts/femto_ros2_env.bash`,
+`scripts/rtabmap_odom_env.bash` and
+`data/outputs/online_search/line_20260915/attempt_03/`.
+The current observer is a bounded recorded-data measurement harness; adapt its
+input/reference contract explicitly before using live frames.
 
-Learning checkpoint: a text match proposes an object; map validity, start pose
-and route feasibility determine whether that proposal can become a useful goal.
-Their evidence must belong to a compatible decision-time snapshot.
+Learning checkpoint: live arrivals cannot be slowed to fit computation. Explicit
+backpressure and source-time evidence determine what can safely enter memory;
+visible floor coverage determines whether a semantic result can become a useful
+geometric preview.
 
 ## 6. Target System Architecture
 
@@ -1066,7 +1094,9 @@ Fixed stand-off/clearance assumptions, map/pose identity, explicit starts,
 whole-segment route checks, PNGs and no-goal/no-route outcomes pass on the saved
 map. The successful route uses an explicitly simulated start; recorded camera
 positions fall in unknown cells. Bounded ROS 2 preview publication is also `VERIFIED`; see
-`docs/ros-search-preview.md`. Cuboid geometry, causal live decisions, continued
+`docs/ros-search-preview.md`. Causal decisions and ROS previews during recorded
+playback also pass; see `docs/online-search-preview.md` for the nearly zero-length
+frontier route and refusals. Cuboid geometry, live-camera decisions, continued
 exploration and physical navigation remain `PLANNED`. See
 `docs/search-goal-preview.md`, `docs/search-route-preview.md` and the M9 ledger.
 
@@ -3780,6 +3810,117 @@ prefix. Partial coverage, YOLO proposal errors, bottle retrieval, physical metri
 accuracy, continuous live throughput and cold-start latency remain limitations.
 Next action: connect causal text queries to ROS search previews with matching map
 snapshots and explicit stale/missing-map refusals, without motor commands.
+
+### 2026-09-15: Causal Text Queries, Occupancy Snapshots And ROS Decisions
+
+Milestone: M6/M8/M9/M10 bounded recorded-data integration. Status: `VERIFIED`.
+No new recording, hardware movement, dependency installation or motor command.
+
+Changed: `online_scene_memory.py` optionally journals received trinary occupancy
+and returns grid/graph/current mapping evidence from the same query transaction.
+`online_search_preview.py` validates source stamps, graph identity, prefix,
+map/start availability and a ten-second evidence age; it reuses original goal,
+route and frontier functions. Starts are current mapped camera_link projections
+or explicit simulated fixtures. `online_semantic_memory.py` exposes this opt-in
+snapshot to the new CLI. The concurrent observer captures `/map` on request.
+`config/rtabmap_online_preview.yaml` sets only `latch: false`, ensuring repeated
+fresh graph/grid stamps. Frozen mapping configuration is unchanged. The shared
+ROS publisher checks an online selection deadline before every send; plotting
+occurs afterward. Existing label, frozen search and retrospective text APIs stay
+compatible. Grid events are capped at 65,536 cells and existing journal budgets.
+
+Successful attempt 03: 399.944 s including cold queries/receivers/cleanup, nominal
+0.25x on the original 60.224 s, 899-pair recording. All image/CameraInfo messages
+match and synchronize. YOLO processes 887 frames with 12 explicit pending drops
+and zero inference failures; 880 source poses pass, two lack source odometry and
+five lack source map TF. Odometry returns 897 tracked outputs, zero reported
+lost, two inputs without output. Map DB has 60 nodes; final graph has 21 nodes.
+Semantic processing stores 58 keyframes / 223 verified crops, with one original
+pose and one dropped-source refusal. Cache/request peaks are 32/1, original
+pending/inference/pose-wait peaks 1/1/8, and writer queue peak 3/16.
+
+The journal contains 899 observations plus 60 each of mapping, graph, occupancy
+and semantic events: 1,139 total. All 60 grids (11,520–16,240 cells) and graphs
+match an independent raw ROS message receiver. Final memory includes 20 eligible
+frames, 14 provisional objects and 65 semantic supports. SQLite integrity passes;
+11,563,008 bytes, SHA256
+`6f0d2ade438fe47e0e033a75b97df2ea635083f8b8deafc76d837c9706faea48`.
+
+Complete query outcomes, using unchanged cosine 0.25 / top window 0.02:
+
+- Before playback: fridge, prefix 0, missing graph, decision only.
+- During: fridge at prefix/graph 76/61 selects refrigerator ID 1 (0.277017),
+  but the recorded camera projection lies in unknown space; decision only.
+- During: refrigerator at 458/441 selects ID 1 (0.301202), but the pre-existing
+  simulated start lacks clearance; decision only.
+- During: kitchen sink at 663/649 selects IDs 9/10 (sink 0.258034, oven distractor
+  0.251973), but the revised fixture also lacks clearance in this graph; decision only.
+- During: elephant at 903/898 selects no object (top 0.165465); the geometric
+  frontier fallback publishes one decision, goal and path, independently received.
+- After playback: bottle at 1139/1125 remains below threshold (top appliance
+  0.245764), and map age 74.190 s causes an explicit decision-only stale refusal.
+
+All four during-playback queries finish before playback ends. Their map ages are
+3.579/4.246/3.539/1.431 s. Mid-run maximum clearance is 0.233903 m, below the fixed
+0.25 m requirement. Later, the frontier goal has clearance lower bound 0.318198 m
+and 0.35 m stand-off to its free/unknown boundary. Goal [2.9000000414,-1.0756973978]
+m, yaw -pi/2, nearly coincides with simulated start [2.9,-1.0757]. The three-point
+path is 0.000002644 m, only the numeric cell-center connector. This verifies a
+turn-to-observe preview, not meaningful room travel or a found elephant. Visual
+PNG inspection agrees with the overlapping start/goal and negative-y view ray.
+
+Timing/resources: full during-query CLI times (startup/model load, planning,
+publication, PNG) 18.135/20.750/18.336/19.138 s. Model loading 11.182–12.337 s;
+snapshot/ranking 51.004–400.589 ms. First crop 381.962 ms; warm 222-crop P50/P95
+84.215/123.801 ms. Perception arrival/result P50/P95 495.725/558.251 ms; writer
+commit P50/P95/max 11.701/26.077/147.811 ms. Producer RSS peak 2,030,400 KiB;
+system RAM peak 5,119 MB, swap 1,153–1,199 MB including existing use; GPU maximum
+61.468 C. No memory guard refusal. All observer, player, SLAM, grid witness,
+query and receiver children exit 0; telemetry SIGINT; no forced stop/remaining PID.
+
+Verification: independent source-pixel, source-time TF, association and scalar
+semantic checks pass; all 223 PNGs match original bag pixels. Maximum cosine
+consistency error is 3.88e-8 and point error 8.89e-16 m, not physical accuracy.
+There are 135 historical translations above 1 micrometer, maximum 0.002461 m.
+Independent grid/path verification checks cells/origin/order, exact source/prefix
+identity, received path/goal coordinates and yaw, blocked-square clearance and
+frontier rays. Fresh-process reopening preserves all query results and journal
+bytes; the prior semantic journal also reproduces its saved geometry/rankings.
+Original recording, weights, frozen index and older journal hashes stay unchanged.
+
+All 217 focused tests pass: 35 online memory, 40 odometry/concurrency, 39 memory
+and 103 search. Known cases cover delayed/concurrent grid commits, revisions,
+mismatched/future/stale evidence, missing/invalid starts, unsnapped simulated
+starts, unknown-query frontier behavior and grid integrity. Native expired-goal
+and missing-subscriber checks transmit no stale data and close ROS contexts.
+A separate explicitly synthetic map/unit-vector fixture publishes a 1.5 m route
+to an independent subscriber; this is protocol/geometry evidence, not room data.
+
+Retained limitations/failures: attempt 01 uses default latching; stationary map
+ages 18.257/42.551 s cause correct refusals, then the trial is intentionally stopped.
+Attempt 02 uses the online overlay but stops when telemetry sees VmRSS disappear
+just before a query exits 0. The supervisor now confirms exit within 0.2 s before
+classifying that narrow sampling race; live-process failures still abort. Both
+attempts stay INCOMPLETE with owned processes/writers closed. A first synthetic
+boundary harness timed out because it started publication before its receiver
+was ready; the second waits for READY before constructing fresh evidence. No
+failed run is relabeled. Revised simulated coordinates are declared before
+attempt 03 from an already received prior grid, not presented as robot localization.
+
+Evidence: `data/outputs/online_search/line_20260915/` retains all attempts, query
+plans, focused logs, raw-message witness, source/config/helper snapshots, received
+ROS reports, PNG review, `verification.json`, `geometry_verification.json`,
+`semantic_verification.json`, `search_verification.json`, `reopen_check.json`,
+`publication_failures/` and `controlled_route_02/`. Commands and all outcomes are
+in `docs/online-search-preview.md`.
+
+Learning: semantic matching, map/start validity and geometric feasibility are
+separate decisions. Their input evidence must share a compatible causal snapshot.
+Limits remain: simulated start, nearly zero room-data route, sparse free-space
+coverage, retrieval distractors/bottle failures, physical accuracy, cold query
+latency and continuous live throughput. Next action: operator-assisted live
+validation with floor and familiar furniture visible; obtain readiness before
+physical capture and keep navigation/scale claims deferred.
 
 ## 16. End-Of-Session Handoff Template
 

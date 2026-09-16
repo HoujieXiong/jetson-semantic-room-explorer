@@ -125,6 +125,9 @@ def publish(decision, duration_s, subscriber_timeout_s, report):
         deadline, next_publish = time.monotonic()+duration_s, 0
         while time.monotonic() < deadline:
             if time.monotonic() >= next_publish:
+                if (decision['selection'] is not None and 'valid_until_monotonic_ns' in decision
+                        and time.monotonic_ns() > decision['valid_until_monotonic_ns']):
+                    raise TimeoutError('Online preview evidence expired before publication')
                 for name, pub in publishers.items():
                     pub.publish(payloads[name])
                     report['published_counts'][name] += 1

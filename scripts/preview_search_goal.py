@@ -190,7 +190,7 @@ def render_overlay(grid, label, obj, decision, eligible, path, route=None):
                 if index == 1:
                     ax.set_xlim(min(ax.get_xlim()[0], start[0]-.2), max(ax.get_xlim()[1], start[0]+.2))
                     ax.set_ylim(min(ax.get_ylim()[0], start[1]-.2), max(ax.get_ylim()[1], start[1]+.2))
-            ax.set_title('Full occupancy export' if index == 0 else 'Target detail')
+            ax.set_title('Occupancy grid' if index == 0 else 'Target detail')
         title = f'{label}: no object candidate' if obj is None else f'Object {obj["object_id"]}: {obj["label"]} | '+(
             'cell-only goal preview' if decision['goal'] else 'No goal: '+decision['reason'].replace('_', ' '))
         if route is None:

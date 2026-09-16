@@ -223,5 +223,6 @@ supervisor now counts that specific exit-sampling race and relies on the child
 exit code, preserving all other failures and the memory guard. Successful attempt
 02 has no forced cleanup. No failed run is relabeled successful.
 
-Next action: connect the causal text-query result to ROS search previews with a
-matching map snapshot and explicit stale/missing-map refusals.
+The subsequent [causal search preview](online-search-preview.md) now connects
+these queries to received occupancy grids and ROS decisions. The original
+semantic journal and retrospective query command remain unchanged.
