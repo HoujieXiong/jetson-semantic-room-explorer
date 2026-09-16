@@ -880,8 +880,9 @@ zero reported loss, 56 graph nodes and 75 source-verified crops. Four warm queri
 take 7.369/0.793/0.802/3.229 s after separate 11.059 s startup. Eight reopening
 comparisons and 52 tests pass. Unlocalized fridge imagery reaches the query, but
 the localized fridge candidate depicts the wrong bin/cabinet region; bowl/sink
-remain unselected. New crop identity feedback is pending; a comparison page and
-its exact local path were provided after the operator could not see the images. Only 76 processed frames receive source-time map poses. Strict
+remain unselected. After opening the saved comparison, the operator confirmed
+that localized A is wrong and unlocalized B is the correct target fridge. Only
+76 processed frames receive source-time map poses. Strict
 bag/sensor completeness remains false. All route refusals remain; the camera is
 closed and no navigation occurred. See `docs/live-warm-queries.md` and the ledger.
 
@@ -898,8 +899,8 @@ measured source-coverage limits, separate from the wrong localized fridge identi
 Existing authorization covers safe saved-data experiments, focused fixes and
 GitHub updates. Both live attempts are closed; do not open the camera without
 fresh operator readiness. No navigation or motor commands. No new recording is
-required for this task. Crop identity feedback may arrive asynchronously; retain
-it against the exact saved images and do not infer human confirmation.
+required for this task. The operator confirmed that A is an incorrect fridge
+candidate and B is the correct fridge; preserve these exact image/hash labels.
 
 Required observable result:
 
@@ -5254,8 +5255,11 @@ Verified:
   valid depth and no target. The operator could not see the tool images; a
   standalone comparison was saved and the desktop open command returned zero,
   but the operator still could not see it. Its exact path/manual command were
-  provided. New identity feedback remains pending, without an accuracy claim. Bowl/sink/elephant
-  remain below threshold; bowl/sink visibility in this view is not established.
+  provided. The operator then confirmed: "A is wrong, and B is correct fridge."
+  This feedback is saved against both exact source views/crop hashes; it confirms
+  the localized failure and correct visual retrieval, not localization success
+  or general recognition accuracy. Bowl/sink/elephant remain below threshold;
+  bowl/sink visibility in this view is not established.
 - Fridge planning finds no route from an unknown start; other queries refuse
   the unknown frontier start. No selection is published or executed. Four closed
   queries reuse original GPU text vectors; fridge still selects the wrong
@@ -5288,8 +5292,9 @@ Verified:
 Evidence: `data/outputs/live_warm/20260916/`, including `acceptance.json`,
 `failed_attempts.json`, both attempts and immutable source snapshots,
 `accounting_note.json`, initial/updated check logs, `summary.json`, `cleanup.json`,
-`review.html`, `compare.html`, `ranked_views.png` and focused test output.
-See `docs/live-warm-queries.md`; no raw room data is committed.
+`review.html`, `compare.html`, `ranked_views.png`, exact operator labels in
+`visual_review.json` and focused test output. See `docs/live-warm-queries.md`;
+no raw room data is committed.
 
 Learning checkpoint: real camera delivery can succeed while independently
 scheduled perception and odometry process different source frames. Matching

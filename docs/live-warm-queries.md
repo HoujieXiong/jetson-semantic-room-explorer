@@ -97,11 +97,11 @@ performance comparison with the earlier replay or live configurations.
 The localized fridge candidate's best crop, `8:2`, is at `[199,317,360,704]` and
 visually contains a black bin and cabinet. The best unlocalized view, `8:0`, is
 at `[462,192,609,502]` and visually contains the fridge. Both come from the same
-source frame. These are assistant inspections; the operator initially could not
-see the tool images. A separate A/B page was written and a desktop open command
-returned successfully, but the operator still could not see it. Its exact local
-path and manual opening command were provided; identity confirmation is pending. **The localized answer
-is flagged as incorrect, not accepted as successful fridge localization.** The
+source frame. After the operator initially could not see the tool images, a
+standalone A/B page and its exact local path were provided. The operator then
+confirmed: **A is wrong; B is the correct fridge.** This feedback is retained
+against both exact source views and crop hashes in `visual_review.json`.
+**The localized answer is incorrect; fridge localization has not succeeded.** The
 unlocalized fridge keeps `insufficient_valid_depth` and cannot supply a 3D target.
 The current scene's bowl/sink visibility is not established by these queries.
 
