@@ -1,16 +1,20 @@
 """Causal crop evidence, revision-scoped fusion, bounded queues and real SQLite."""
 
-from contextlib import closing
+from contextlib import closing, redirect_stdout
 import copy
 import hashlib
+import io
+import json
+import os
 from pathlib import Path
+import signal
 import sqlite3
 import sys
 import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 from PIL import Image
@@ -166,11 +170,112 @@ class OnlineSemanticTests(unittest.TestCase):
             encoder.identity, encoder.load_ms = IDENTITY, 0.
             encoder.encode.return_value = (axis(0), 1.)
             encoder.torch.cuda.max_memory_allocated.return_value = 0
+            encoder.torch.cuda.max_memory_reserved.return_value = 0
             result = query_text(self.db, self.root/'known_encoder', 'a fridge', self.root/'query')
         self.assertEqual(result['status'], 'UNLOCALIZED_CANDIDATES_SELECTED')
         self.assertEqual(result['semantic']['selected_object_ids'], [])
         self.assertEqual(result['semantic']['unlocalized']['selected_observation_ids'], ['1:0'])
         self.assertIn('No localized candidate selected', (self.root/'query/queries.html').read_text())
+
+    def text_encoder(self):
+        encoder = Mock(identity=copy.deepcopy(IDENTITY), load_ms=12.)
+        encoder.encode.return_value = (axis(0), 1.)
+        encoder.torch.cuda.max_memory_allocated.return_value = 0
+        encoder.torch.cuda.max_memory_reserved.return_value = 0
+        return encoder
+
+    def test_reused_encoder_reads_new_commits_without_changing_old_reports(self):
+        row = self.source()
+        self.send('graph', graph({1: [0, 0, 0]}))
+        encoder = self.text_encoder()
+        first = query_text(self.db, None, ' a bottle ', self.root/'first', encoder=encoder)
+        saved = (self.root/'first/query.json').read_bytes()
+        self.send('semantic', self.encoded(row))
+        self.send('graph', graph({1: [3, 0, 0]}))
+        second = query_text(self.db, None, 'a bottle', self.root/'second', encoder=encoder)
+        self.assertEqual(first['semantic']['selected_object_ids'], [])
+        self.assertEqual(second['semantic']['selected_object_ids'], [1])
+        self.assertEqual(second['objects'][0]['map_point_m'], [3, 0, 2])
+        self.assertGreater(second['snapshot']['event_seq'], first['snapshot']['event_seq'])
+        self.assertEqual(saved, (self.root/'first/query.json').read_bytes())
+        self.assertEqual([call.args[0] for call in encoder.encode.call_args_list], [' a bottle ', 'a bottle'])
+        self.assertEqual(second['load_ms'], 0.)
+        self.assertTrue(second['encoder_reused'])
+
+    def test_reused_encoder_rechecks_full_identity_before_every_encoding(self):
+        encoder = self.text_encoder()
+        query_text(self.db, None, 'a bottle', self.root/'first', encoder=encoder)
+        for index, change in enumerate(({'square_pad': True}, {'packages': {'torch': 'different'}},
+                                         {'checkpoint_sha256': 'different'}, {'implementation_sha256': 'different'})):
+            with closing(sqlite3.connect(self.db)) as connection, connection:
+                context = copy.deepcopy(self.writer.context)
+                context['semantic_encoder'].update(change)
+                connection.execute('UPDATE metadata SET context_json=?', (json.dumps(context),))
+            output = self.root/f'mismatch_{index}'
+            with self.assertRaisesRegex(ValueError, 'encoder or policy mismatch'):
+                query_text(self.db, None, 'a bottle', output, encoder=encoder)
+            self.assertEqual(json.loads((output/'query.json').read_text())['status'], 'INCOMPLETE')
+        self.assertEqual(encoder.encode.call_count, 1)
+
+    def test_bounded_session_reuses_one_encoder_and_preserves_refusals(self):
+        from online_search_preview import run_session
+        self.enable_unlocalized()
+        row = self.source(unlocalized=True)
+        self.send('graph', graph({1: [1, 0, 0]}))
+        self.send('semantic', self.encoded(row))
+        encoder = self.text_encoder()
+        source = io.BytesIO(b'{"text":"a fridge"}\n{"text":"an elephant"}\n{"text":"unused"}\n')
+        protocol = io.StringIO()
+        with patch('online_semantic_memory.MobileClipEncoder', return_value=encoder) as load, redirect_stdout(protocol):
+            result = run_session(self.db, self.root/'model', self.root/'session', 2, request_stream=source)
+        self.assertEqual(load.call_count, 1)
+        self.assertEqual(encoder.encode.call_count, 2)
+        self.assertEqual(result['stop_reason'], 'request_limit')
+        self.assertEqual(source.readline(), b'{"text":"unused"}\n')
+        self.assertEqual(len(protocol.getvalue().splitlines()), 3)
+        for entry in result['requests']:
+            saved = json.loads((self.root/'session'/entry['output']/'search.json').read_text())
+            self.assertIsNone(saved['decision']['selection'])
+            self.assertEqual(saved['decision']['unlocalized_selection']['planning_status'], 'REFUSED')
+            self.assertNotIn('publication', saved)
+
+    def test_session_rejects_malformed_requests_and_retains_failures(self):
+        from online_search_preview import run_session
+        inputs = [b'not JSON\n', b'[]\n', b'{"text":"bowl","output":"../escape"}\n',
+                  b'{"text":null}\n', b'{"text":" "}\n', b'{"text":"bowl"}', b'x'*4097+b'\n']
+        for index, line in enumerate(inputs):
+            output = self.root/f'bad_{index}'
+            with patch('online_semantic_memory.MobileClipEncoder', return_value=self.text_encoder()), redirect_stdout(io.StringIO()):
+                with self.assertRaises(ValueError):
+                    run_session(self.db, self.root/'model', output, 2, request_stream=io.BytesIO(line))
+            saved = json.loads((output/'session.json').read_text())
+            self.assertEqual(saved['status'], 'INCOMPLETE')
+            self.assertIn('error', saved)
+            self.assertEqual(signal.getitimer(signal.ITIMER_REAL), (0., 0.))
+
+    def test_session_eof_idle_timeout_and_output_collision(self):
+        from online_search_preview import SESSION_LIMITS, run_session
+        encoder = self.text_encoder()
+        with patch('online_semantic_memory.MobileClipEncoder', return_value=encoder), redirect_stdout(io.StringIO()):
+            output = self.root/'eof'
+            result = run_session(self.db, self.root/'model', output, 2, request_stream=io.BytesIO())
+            self.assertEqual(result['stop_reason'], 'input_closed')
+            original = (output/'session.json').read_bytes()
+            with self.assertRaises(FileExistsError):
+                run_session(self.db, self.root/'model', output, 2, request_stream=io.BytesIO())
+            self.assertEqual(original, (output/'session.json').read_bytes())
+            read_fd, write_fd = os.pipe()
+            try:
+                with os.fdopen(read_fd, 'rb') as reader, patch.dict(SESSION_LIMITS, idle_s=.03):
+                    with self.assertRaises(TimeoutError):
+                        run_session(self.db, self.root/'model', self.root/'timeout', 2, request_stream=reader)
+            finally:
+                os.close(write_fd)
+        self.assertEqual(json.loads((self.root/'timeout/session.json').read_text())['error']['type'], 'TimeoutError')
+        self.assertEqual(signal.getitimer(signal.ITIMER_REAL), (0., 0.))
+        for limit in (0, 33, True):
+            with self.assertRaises(ValueError):
+                run_session(self.db, None, self.root/'invalid', limit)
 
     def test_unlocalized_metadata_refuses_geometry_changed_reason_and_unknown_policy(self):
         self.enable_unlocalized()

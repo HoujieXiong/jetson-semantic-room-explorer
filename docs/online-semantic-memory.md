@@ -10,6 +10,10 @@ journal as observations and graph revisions. A text query reads one committed
 prefix and derives both geometry and semantic associations from that prefix.
 No saved final pose, prebuilt object index or future image is imported.
 
+The [bounded warm-query caller](warm-text-queries.md) now reuses a loaded text
+encoder while preserving per-request identity checks and fresh snapshots. It
+includes measured concurrent latency and identical-prefix GPU comparisons.
+
 ## Ownership and bounded scheduling
 
 `tests/check_concurrent_perception.py --memory-db PATH --semantic-model CHECKPOINT`

@@ -1,10 +1,14 @@
 """Plan and publish a bounded preview from one causal text/grid/graph snapshot."""
 
 import argparse
+from contextlib import redirect_stdout
 import hashlib
 import json
 from pathlib import Path
+import resource
+import signal
 import sqlite3
+import sys
 import time
 
 import numpy as np
@@ -148,13 +152,14 @@ def plan_snapshot(query, phrase, simulated_xy=None, *, now_ns=None):
     return result
 
 
-def run(database, model, phrase, output, simulated_xy=None, ros_preview=False, *, merge_duplicates=False):
+def run(database, model, phrase, output, simulated_xy=None, ros_preview=False, *, merge_duplicates=False, encoder=None):
     from online_semantic_memory import query_text
     output.mkdir(parents=True, exist_ok=False)
     report = {'status': 'INCOMPLETE', 'motion_executed': False}
     started = time.monotonic()
     try:
-        query = query_text(database, model, phrase, output/'query', planning=True, merge_duplicates=merge_duplicates)
+        query = query_text(database, model, phrase, output/'query', planning=True,
+                           merge_duplicates=merge_duplicates, encoder=encoder)
         decision = plan_snapshot(query, phrase, simulated_xy)
         report['decision'] = decision
         if ros_preview:
@@ -182,15 +187,92 @@ def run(database, model, phrase, output, simulated_xy=None, ros_preview=False, *
     return report
 
 
+SESSION_LIMITS = {'requests': 32, 'request_bytes': 4096, 'initialization_s': 60,
+                  'idle_s': 60, 'response_s': 45}
+
+
+def run_session(database, model, output, max_requests, *, request_stream=None, merge_duplicates=False):
+    """Bounded main-thread JSON-lines caller; owns one encoder and never publishes ROS commands."""
+    from online_semantic_memory import load_text_encoder
+    if type(max_requests) is not int or not 1 <= max_requests <= SESSION_LIMITS['requests']:
+        raise ValueError('Session request limit must be between 1 and 32')
+    output.mkdir(parents=True, exist_ok=False)
+    request_stream = sys.stdin.buffer if request_stream is None else request_stream
+    started = time.monotonic()
+    report = {'status': 'INCOMPLETE', 'requests': [], 'limits': dict(SESSION_LIMITS),
+              'max_requests': max_requests, 'motion_executed': False, 'ros_publication': False}
+    encoder = None
+
+    def timeout(signum, frame):
+        raise TimeoutError('Bounded query session exceeded its current stage deadline')
+
+    previous = signal.signal(signal.SIGALRM, timeout)
+    try:
+        signal.setitimer(signal.ITIMER_REAL, SESSION_LIMITS['initialization_s'])
+        with redirect_stdout(sys.stderr):
+            encoder = load_text_encoder(database, model)
+        report.update(encoder=encoder.identity, load_ms=encoder.load_ms,
+                      initialization_ms=(time.monotonic()-started)*1000)
+        print(json.dumps({'status': 'READY', 'initialization_ms': report['initialization_ms'],
+                          'load_ms': encoder.load_ms}), flush=True)
+        for index in range(1, max_requests+1):
+            signal.setitimer(signal.ITIMER_REAL, SESSION_LIMITS['idle_s'])
+            line = request_stream.readline(SESSION_LIMITS['request_bytes']+1)
+            if not line:
+                report['stop_reason'] = 'input_closed'
+                break
+            if len(line) > SESSION_LIMITS['request_bytes'] or not line.endswith(b'\n'):
+                raise ValueError('Request must be a newline-terminated JSON object of at most 4096 bytes')
+            request = json.loads(line)
+            if not isinstance(request, dict) or set(request) != {'text'}:
+                raise ValueError('Request must contain exactly one text field')
+            signal.setitimer(signal.ITIMER_REAL, SESSION_LIMITS['response_s'])
+            name = f'request_{index:03d}'
+            before = time.monotonic_ns()
+            with redirect_stdout(sys.stderr):
+                result = run(database, model, request['text'], output/name,
+                             merge_duplicates=merge_duplicates, encoder=encoder)
+            entry = {'text': request['text'], 'output': name,
+                     'before_monotonic_ns': before, 'after_monotonic_ns': time.monotonic_ns(),
+                     'status': result['status'], 'search_status': result['decision']['search_status'],
+                     'snapshot': result['decision']['snapshot']}
+            report['requests'].append(entry)
+            print(json.dumps(entry, allow_nan=False), flush=True)
+        else:
+            report['stop_reason'] = 'request_limit'
+        report['status'] = 'SESSION_COMPLETE'
+    except (ValueError, OSError, KeyError, RuntimeError, sqlite3.Error, KeyboardInterrupt) as error:
+        report['error'] = {'type': type(error).__name__, 'message': str(error)}
+        raise
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+        report['duration_ms'] = (time.monotonic()-started)*1000
+        report['peak_rss_kib'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if encoder is not None:
+            report['peak_cuda_allocated_bytes'] = encoder.torch.cuda.max_memory_allocated()
+            report['peak_cuda_reserved_bytes'] = encoder.torch.cuda.max_memory_reserved()
+        (output/'session.json').write_text(json.dumps(report, indent=2, allow_nan=False)+'\n')
+    return report
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('db', 'model', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
-    parser.add_argument('--text', required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--text')
+    mode.add_argument('--session-requests', type=int, help='Read up to 32 JSON-lines text requests from stdin with one loaded encoder')
     parser.add_argument('--simulated-start-xy', type=float, nargs=2, metavar=('X_M', 'Y_M'))
     parser.add_argument('--publish-preview', action='store_true')
     parser.add_argument('--merge-duplicate-tracks', action='store_true', help='Require repeated shared-frame RGB-D evidence before merging tracks')
     args = parser.parse_args()
+    if args.session_requests is not None:
+        if args.publish_preview or args.simulated_start_xy is not None:
+            parser.error('Session mode uses recorded starts and does not publish ROS previews')
+        run_session(args.db.resolve(), args.model.resolve(), args.output.resolve(), args.session_requests,
+                    merge_duplicates=args.merge_duplicate_tracks)
+        sys.exit(0)
     report = run(args.db.resolve(), args.model.resolve(), args.text, args.output.resolve(),
                  args.simulated_start_xy, args.publish_preview, merge_duplicates=args.merge_duplicate_tracks)
     print(json.dumps({'status': report['status'], 'decision': report['decision']['search_status']}))

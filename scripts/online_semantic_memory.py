@@ -302,26 +302,44 @@ def rank_snapshot(connection, context, events, remembered, text_vector, encoder_
     return result
 
 
-def query_text(database, model, phrase, output, *, planning=False, merge_duplicates=False):
-    from online_scene_memory import POLICY as MEMORY_POLICY, query_online
-    if not phrase.strip():
+def journal_encoder(database):
+    from online_scene_memory import POLICY as MEMORY_POLICY
+    with closing(sqlite3.connect(Path(database).resolve().as_uri()+'?mode=ro', uri=True,
+                                 timeout=MEMORY_POLICY['sqlite_timeout_s'])) as connection:
+        context = json.loads(connection.execute('SELECT context_json FROM metadata WHERE id=1').fetchone()[0])
+    if 'semantic_encoder' not in context:
+        raise ValueError('Journal has no declared semantic encoder')
+    return context['semantic_encoder']
+
+
+def load_text_encoder(database, model):
+    identity = journal_encoder(database)
+    encoder = MobileClipEncoder(model, square_pad=identity.get('square_pad', False))
+    if encoder.identity != identity:
+        raise ValueError('Journal semantic encoder or policy mismatch')
+    return encoder
+
+
+def query_text(database, model, phrase, output, *, planning=False, merge_duplicates=False, encoder=None):
+    """A supplied encoder is caller-owned; every request still validates and reads the journal."""
+    from online_scene_memory import query_online
+    if not isinstance(phrase, str) or not phrase.strip():
         raise ValueError('Provide a nonempty text phrase')
     output.mkdir(parents=True, exist_ok=False)
     started = time.monotonic()
     report = {'status': 'INCOMPLETE', 'text': phrase}
-    encoder = None
+    reused = encoder is not None
     try:
-        with closing(sqlite3.connect(Path(database).resolve().as_uri()+'?mode=ro', uri=True,
-                                     timeout=MEMORY_POLICY['sqlite_timeout_s'])) as connection:
-            context = json.loads(connection.execute('SELECT context_json FROM metadata WHERE id=1').fetchone()[0])
-        if 'semantic_encoder' not in context:
-            raise ValueError('Journal has no declared semantic encoder')
-        encoder = MobileClipEncoder(model, square_pad=context['semantic_encoder'].get('square_pad', False))
+        if encoder is None:
+            encoder = load_text_encoder(database, model)
+        if encoder.identity != journal_encoder(database):
+            raise ValueError('Journal semantic encoder or policy mismatch')
         vector, elapsed_ms = encoder.encode(phrase)
         result = query_online(database, text_vector=vector, encoder_identity=encoder.identity,
                               planning=planning, merge_duplicates=merge_duplicates)
         report.update(result, text=phrase, text_vector=vector.tolist(), text_encode_ms=elapsed_ms,
-                      encoder=encoder.identity, load_ms=encoder.load_ms)
+                      encoder=encoder.identity, load_ms=0. if reused else encoder.load_ms,
+                      encoder_reused=reused)
         report['status'] = result['semantic']['status']
         report['limitation'] = 'Ranks only committed crops of current geometric supports. Partial coverage and uncalibrated cosine scores do not prove identity or presence/absence. No navigation decision.'
         if 'unlocalized' in result['semantic']:
@@ -340,6 +358,7 @@ def query_text(database, model, phrase, output, *, planning=False, merge_duplica
         report['peak_rss_kib'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         if encoder is not None:
             report['peak_cuda_allocated_bytes'] = encoder.torch.cuda.max_memory_allocated()
+            report['peak_cuda_reserved_bytes'] = encoder.torch.cuda.max_memory_reserved()
         (output/'query.json').write_text(json.dumps(report, indent=2, allow_nan=False)+'\n')
     return report
 

@@ -4,6 +4,10 @@ Status: `VERIFIED` for causal decisions and bounded ROS previews during recorded
 RGB-D replay on Jetson Orin Nano. Physical navigation and live operation remain
 unverified.
 
+For repeated queries, the [bounded session mode](warm-text-queries.md) keeps one
+encoder loaded and reuses this planner with fresh snapshots. Session mode computes
+previews without ROS publication; the existing single-query CLI remains available.
+
 The online journal can retain received ROS occupancy grids alongside original
 observations, embeddings and graph revisions. A text query requests planning
 sources in the same SQLite read snapshot as its object associations. The online

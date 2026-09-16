@@ -840,54 +840,68 @@ is selected. Cold query processes still take 16–28 s; wrong localized fridge/t
 matches and bowl threshold failures remain. Actual live throughput and physical
 navigation remain unverified. See `docs/concurrent-unlocalized-retrieval.md`.
 
+### 4.33 Loaded Text Encoder With Fresh Per-Request Snapshots
+
+Status: `VERIFIED` for one bounded stationary replay at 0.25x and four
+identical-prefix GPU comparisons.
+
+The existing search CLI now accepts a bounded JSON-lines session that owns one
+encoder, checks full identity for each phrase and reads fresh committed evidence.
+After a separate 14.660 s startup, four full responses take
+3.445/1.513/1.190/0.822 s. Frozen-prefix vectors, rankings and crop identities
+exactly match cold CLI and original concurrent results. All 52 focused tests,
+159 source-crop checks and eight reopening comparisons pass. The run retains
+943 tracked odometry outputs, zero reported losses and 330 explicit perception
+drops. Wrong localized identity and invalid starts remain. See
+`docs/warm-text-queries.md`; no camera or navigation is used.
+
 ## 5. Current Next Task
 
-Milestone: **Reuse a loaded text encoder across bounded query requests**.
+Milestone: **Validate bounded warm queries through the existing moving recording**.
 
-Status: `PLANNED`. Unlocalized retrieval now passes the bounded concurrent
-baseline/enabled comparison recorded in the Progress Ledger. Cold query commands
-still take 16–28 s, including 11–18 s of model loading. Safe existing-data work and
-GitHub pushes remain authorized. Keep the camera closed until new operator
-readiness; never issue navigation commands. All required components are local.
+Status: `PLANNED`. Encoder reuse now passes the stationary recorded-data trial
+and identical-prefix GPU comparisons in Section 4.33 and the Progress Ledger.
+Safe existing-data work and GitHub pushes remain authorized. Keep the camera
+closed until fresh operator readiness; never issue navigation commands. The
+existing forward/backward recording is available locally; its roughly one-meter
+travel was estimated, so it is not a physical scale reference.
 
 Required observable result:
 
-1. Preserve original journals, feedback, cold-query reports and source identities.
-   Inspect `query_text`, `MobileClipEncoder`, search preview composition and the
-   recorded supervisor. Before editing, declare the smallest bounded caller that
-   can keep one encoder loaded for multiple actual text requests. Reuse current
-   query/report logic; avoid a new service framework or unneeded dependencies.
-2. Every request must encode its exact phrase and read a fresh committed journal
-   prefix. Verify the full image/text encoder identity, including padding, on each
-   request. Never cache a prior query's geometry, refresh old map timestamps,
-   reuse incompatible vectors or backfill historical queries. Preserve the cold
-   CLI, separate unlocalized views, fixed filters and all planning refusals.
-3. Predeclare functional and malformed/incompatible-input tests, explicit process
-   ownership, bounded requests/timeouts and clean shutdown. Prove that repeated
-   requests can see later committed evidence without changing earlier results.
-   On the same frozen prefixes, warm/cold text vectors, rankings and crop identities
-   must agree within a declared numerical tolerance, retaining any failures.
-4. Run a bounded existing stationary replay with SLAM, 1280 detection, complete
-   crops and unlocalized evidence. Use the same four phrases and declared query
-   checkpoints. Measure initialization separately from subsequent request latency,
-   including text encoding, snapshot work and full response time. Record RAM/CUDA,
-   source/semantic drops, tracking, queues and cleanup under the existing guard.
-5. Compare with the preserved cold measurements without claiming identical runtime
-   snapshots or attributing all frame drops to query startup. Most prior drops
-   occur outside query intervals. Run affected checks, independently verify source
-   and prefix contracts, review the full diff, update measured ledger claims and
-   publish the checkpoint. No new capture or navigation is required.
+1. Preserve all recordings, feedback, original journals and cold/warm reports.
+   Inspect the existing 899-pair moving-data harness and current bounded session.
+   Before changes, declare the smallest adaptation, exact text set, checkpoints,
+   resource limits and numerical/source acceptance. Reuse current producer,
+   complete-crop/unlocalized policy, retained-node mapping and query composition;
+   add no service framework or dependency without measured need.
+2. Run one bounded moving-data replay with concurrent SLAM, detection, semantic
+   writes and repeated actual text encodings from a single loaded query model.
+   Each query must see only its own committed prefix with full encoder identity.
+   Keep original image timestamps and source-time pose refusals. Do not import
+   final-map poses into earlier answers or confuse unlocalized views with targets.
+3. Verify changing graph revisions and object associations independently against
+   source RGB-D and received map/TF evidence. Reopen copied actual query prefixes;
+   later observations and poses must not change earlier answers. Preserve original
+   missing coverage, wrong matches, unknown rejection and all planning refusals.
+   Declare any preprocessing difference before comparing older moving results.
+4. Measure complete response time separately from initialization, tracking,
+   accepted/rejected poses, source/semantic drops, queues, RAM/CUDA and cleanup.
+   Respect the existing 1 GiB available-memory guard, request/process deadlines
+   and owned-child shutdown. Keep query ROS publication off. No physical motion,
+   navigation success or real-time throughput claim follows from slower replay.
+5. Provide one review of actual query crops, map/route decisions and explicit
+   failures without WebGL. Run affected checks, review the complete diff, update
+   measured ledger claims and publish the checkpoint. Do not request new operator
+   data unless the existing-data validation reaches a concrete external limit.
 
-Starting points: `docs/concurrent-unlocalized-retrieval.md`,
-`scripts/online_semantic_memory.py`, `scripts/semantic_memory.py`,
-`scripts/online_search_preview.py`, and the local supervisor/checkers under
-`data/outputs/unlocalized_concurrent/20260916/`.
-Wrong localized identity, marginal bowl scores, missing depth and live throughput
-remain known limitations; they are not prerequisites for this bounded latency step.
+Starting points: `docs/warm-text-queries.md`, `docs/online-semantic-memory.md`,
+`docs/online-search-preview.md`, local warm-query supervisor/checkers under
+`data/outputs/warm_queries/20260916/`, and the existing moving experiment under
+`data/outputs/online_semantic/line_20260915/attempt_02/`.
 
-Learning checkpoint: model initialization is a separate cost from answering a
-query. Reusing a model must still preserve each request's fresh evidence and
-identity checks; a faster response is not stronger evidence of recognition.
+Learning checkpoint: a useful query must remain tied to the correct time and map
+revision while the camera moves. Stationary latency and correct snapshot handling
+are necessary pieces, not an acceptance of reliable moving-scene recognition.
 
 ## 6. Target System Architecture
 
@@ -4939,6 +4953,102 @@ incorrect localized identity, invalid starts or cold query startup costs.
 
 Next action: reuse a loaded text encoder across bounded query requests and
 measure startup/response latency during the same recorded-data workload.
+
+### 2026-09-16: Loaded Text Encoder Answers Fresh Bounded Requests
+
+Status: `VERIFIED` for one 0.25x stationary replay and four same-prefix GPU
+comparisons. Recognition quality, real-time capture and navigation remain unverified.
+
+Changed: `query_text` and the existing search composition accept a caller-owned
+encoder. A bounded JSON-lines mode in `online_search_preview.py` loads it once,
+validates full journal identity before every encoding, and reuses fresh snapshot,
+ranking, rendering and planning functions. No geometry cache, model/ranking change,
+dependency or service framework is added. The cold CLI remains available. The
+session has no ROS publication or simulated-start mode. It owns 1–32 requests,
+4,096-byte lines, 60 s initialization/idle and 45 s response timers. The local
+supervisor independently bounds process deadlines and cleanup under a 1 GiB
+available-memory guard. Native signal deferral is not assumed to enforce a hard
+CUDA deadline by itself. Failures remain explicit and saved.
+
+Verified:
+
+- All 52 focused online tests pass in 11.757 s, including fresh SQLite commits,
+  unchanged earlier reports, exact phrases, padding/checkpoint/package/source
+  identity mismatches, malformed and oversized input, EOF, idle timeout, existing
+  output preservation and request limits. No camera is opened.
+- The same 944-pair stationary bag, retained-node mapping, 1280 detector,
+  complete-crop padding and unlocalized producer run with the four unchanged
+  phrases scheduled at 40/95/150/205 s after player-process launch. The producer
+  initializes first; the query model loads before SLAM/playback startup.
+  Launch-to-READY is 14.660 s, including 13.759 s model loading. Complete responses
+  are 3.445/1.513/1.190/0.822 s, versus preserved cold
+  28.419/19.173/16.324/16.319 s. First text inference takes 1346.255 ms; later
+  encodings take 18.396/25.672/19.382 ms. Snapshot work grows from 64.781 to
+  274.610 ms. Response median/P95 is 1.351/3.155 s across four, or 1.190/1.480 s
+  across the three later requests; these are small-sample statistics.
+- Actual committed prefixes advance 180/438/669/927, with graphs
+  175/427/658/927. Fridge selects six unlocalized fridge-region views, top `4:0`
+  at 0.285605, while retaining the wrong localized record. Bowl selects the
+  previously confirmed image region at 0.250959. Trash remains wrong; elephant
+  remains unselected. Final prefix 1200 / graph 1188 retains 45 fridge views and
+  two bowl-region records. Fridge/bowl/trash have no route, elephant refuses its
+  unknown start, and all closed decisions refuse stale maps. No goal/path is
+  published, selected or executed. Existing visual geometry refusals remain.
+- Runtime prefixes differ from cold measurements: fridge source coverage is
+  9.309 versus 14.866 s. Bowl selection changes with the acquired evidence, not
+  an altered model/threshold. This is not a matched-prefix recognition gain.
+- Four copied during-query prefixes are independently queried by a cold GPU CLI
+  and one reused GPU encoder. Predeclared tolerance is 1e-6 for vectors/scores,
+  with exact order/crop identity. Measured vector and semantic differences are
+  zero, including comparison with original concurrent reports; snapshot, geometry
+  and planning evidence are exact. Old timestamps are not refreshed. Standalone
+  cold processes take 13.293–15.930 s; warm calls take 0.179–0.452 s after separate
+  10.141 s initialization. These stale-map refusals skip route/frontier rendering
+  and have no concurrent SLAM, so they are not concurrent latency measurements.
+  Real tokenizer overflow and padding mismatch fail explicitly; a subsequent
+  normal API query succeeds with the same encoder after overflow.
+- The 402.068 s run receives all 944 sensor/perception pairs, processes 614 and
+  explicitly drops 330, with no inference failures or pending jobs. It retains
+  943 tracked odometry outputs, zero reported losses, one input without odometry
+  and 64 graph nodes. Source poses accept 609 frames and refuse five: one missing
+  source odometry and four missing map TF. Forty-five keyframes encode 159 crops
+  (96 localized, 63 unlocalized); 19 are refused (one pose, 18 dropped sources).
+- Independent bag pixels/depth units, source-time TF, scalar geometry/rankings
+  and 64 graph/64 grid witness messages verify all eight during/closed queries.
+  Eight copied-prefix/closed reopening comparisons pass. All 159 crops match
+  source pixels; all 157 common-source crops/vectors match the preserved cold
+  trial exactly. Maximum geometry/3D/visual scalar errors are
+  4.45e-16 m / 5.51e-8 / 4.96e-8, not physical accuracy. All 104 predeclared original
+  hashes and 15 archived runtime source hashes remain unchanged.
+- Writer/semantic pending/cache peaks are 7/1/32, within existing limits;
+  independent pending/inference/pose-wait peaks are 1/1/7. No semantic queue or
+  crop-budget omission occurs. Detection-plus-depth median/P95 is
+  107.026/136.682 ms; arrival-to-result is 492.288/1539.237 ms. Of 330 drops, 329
+  occur outside request-response intervals by frame arrival time; a loaded model
+  remains resident between requests. Two fewer drops than the cold run do not
+  establish a throughput gain or eliminate the existing scheduling limitation.
+- Peak system RAM is 5374 MB; query sampled RSS peaks at 1420520 KiB. Query CUDA
+  allocated/reserved peaks are 228483584/243269632 bytes; observer peaks are
+  330952704/379584512. GPU temperature peaks at 55.281 C; already nonzero swap
+  rises from 1703 to 1896 MB. Power mode remains 25 W. These measurements do not
+  establish a repeatable memory delta or long-duration leak acceptance.
+- Every owned process exits without forced termination, including four frozen
+  cold CLI children. Telemetry receives expected SIGINT. Final native inspection
+  finds no matching runtime process and 5246764 KiB available RAM. The offline
+  review has 12 query sections and 79 verified embedded PNGs.
+
+Evidence: `data/outputs/warm_queries/20260916/`, including predeclared acceptance,
+preserved hashes, supervisor/checker source, `unlocalized/`, `frozen/`, all query
+and failure reports, focused-test logs, `comparison.json`, `cleanup.json` and
+`review.html`. Original cold reports and operator feedback remain unchanged.
+Public commands and measurement boundaries are in `docs/warm-text-queries.md`.
+
+Learning checkpoint: reuse removes repeated initialization, while fresh evidence,
+first-inference costs, snapshot reconstruction and rendering remain separate.
+Faster responses do not strengthen object identity or make old maps actionable.
+
+Next action: validate the bounded query path with the existing moving recording,
+including changing views and map revisions, without requesting a new capture.
 
 ## 16. End-Of-Session Handoff Template
 

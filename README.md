@@ -127,6 +127,15 @@ per run. Source/prefix checks pass and no route is selected. This is 0.25x recor
 playback; cold query commands still take 16–28 seconds and incorrect localized
 matches remain unresolved.
 
+The [bounded reusable text encoder](docs/warm-text-queries.md) now answers four
+queries during the same stationary replay in 3.445, 1.513, 1.190 and 0.822 seconds,
+after a separate 14.660-second startup. Every request reads a fresh journal
+prefix; four identical-prefix GPU comparisons reproduce vectors, rankings and
+crop identities exactly. All 52 focused tests pass, with 943 tracked odometry
+outputs and zero reported losses. Perception still drops 330 frames, and incorrect
+localized matches remain; faster responses do not establish reliable recognition
+or navigation.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

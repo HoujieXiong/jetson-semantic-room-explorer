@@ -166,6 +166,6 @@ the supervisor refuses existing case directories. Public producer/query commands
 and policies are in [online semantic memory](online-semantic-memory.md) and
 [unlocalized visual evidence](unlocalized-visual-evidence.md).
 
-Next: measure a bounded query process that keeps the text encoder loaded across
-requests, preserving fresh journal reads and model identity checks, to reduce
-the measured startup delay without assuming it will eliminate frame drops.
+The [bounded reusable-encoder follow-up](warm-text-queries.md) now measures this
+startup reduction while preserving fresh reads and identity checks. That separate
+trial leaves all cold measurements here unchanged; frame drops remain.
