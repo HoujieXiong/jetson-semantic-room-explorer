@@ -5,6 +5,10 @@ two saved stationary prefixes and a regression on the existing motion recording.
 This consolidates duplicate proposals into provisional records; it does not
 establish physical identity, stable recognition or live navigation.
 
+The measurements below describe the original exact-sample rule. The subsequent
+[shared-depth-region extension](shared-depth-association.md) adds a calibrated
+region witness to the same optional mode and verifies the full recorded timeline.
+
 ## Evidence and association contract
 
 The [bounded bowl replay](bowl-replay.md) selected both a bowl record and a sink
@@ -17,7 +21,7 @@ physical accuracy or eight new operator annotations.
 
 The explicit `--merge-duplicate-tracks` option on the online semantic-query and
 search-preview CLIs derives the ordinary snapshot first, then checks different-
-label tracks that coexist in source frames. A merge requires:
+label tracks that coexist in source frames. The original witness requires:
 
 - At least two shared frames, with box IoU >= 0.9 and identical `pixel_uv` and
   `depth_m` in every shared frame. A conflicting shared frame blocks the merge.
@@ -120,6 +124,7 @@ stale planning evidence; do not refresh its timestamps to obtain a route. Review
 the generated `query/queries.html`, or the existing
 `data/outputs/duplicate_tracks/steady_20260916/prefix_871/queries.html`.
 
-Follow-up: the [temporal stability audit](query-stability.md) measures all saved
-graph/semantic prefixes. Bowl selection still drops out, and a later one-pixel
-sample change reverses merging. The optional mode remains disabled by default.
+Follow-up: the [temporal stability audit](query-stability.md) found a later
+one-pixel sample change that reversed merging. The
+[shared-depth extension](shared-depth-association.md) resolves that recorded split;
+bowl selection still drops out. The optional mode remains disabled by default.

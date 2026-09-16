@@ -11,7 +11,8 @@ import time
 
 import numpy as np
 
-from observe_rgbd_objects import source_association
+from observe_rgbd_objects import DEPTH_POLICY, source_association
+from rgbd_geometry import pinhole_matrix
 
 
 SCHEMA_VERSION = 1
@@ -19,7 +20,9 @@ POLICY = {'distance_gate_m': 0.35, 'same_frame_overlap_min_area': 0.5,
           'position_update': 'Equal mean of one representative per source frame',
           'representative_order': 'Descending detector confidence, then detection index'}
 COOBSERVED_POLICY = {'min_shared_frames': 2, 'min_box_iou': 0.9, 'same_sample_point_tolerance_m': 1e-6,
-    'depth': 'Identical sampled pixel and metric depth in every shared source frame',
+    'min_shared_inlier_fraction': 0.9, 'min_shared_inlier_pixels': DEPTH_POLICY['min_valid_pixels'],
+    'max_shared_region_spread_m': DEPTH_POLICY['min_outlier_gate_m'],
+    'depth': 'Identical sample or guaranteed shared inlier region with equal sampled metric depth in every shared frame',
     'group': 'Every pair must qualify; retain groups with conflicting or incomplete evidence',
     'geometry': 'Existing centroid and running representative distance gates',
     'identity': 'Provisional; keep the lowest original object ID and its detector label'}
@@ -179,6 +182,70 @@ def rebuild_objects(connection):
     connection.executemany('INSERT INTO associations VALUES (?, ?, ?, ?, ?, ?)', decisions)
 
 
+def shared_depth_region(left, right, frame):
+    """Bound shared source pixels from ROI sizes and inlier counts, without inventing a mask."""
+    result = {'status': 'REJECTED'}
+
+    def refuse(reason):
+        return {**result, 'reason': reason}
+
+    depths = [left['depth'], right['depth']]
+    if any(d['status'] != 'ACCEPTED' for d in depths):
+        return refuse('depth_not_accepted')
+    fields = ('roi_xyxy_exclusive', 'roi_pixels', 'valid_pixels', 'inlier_pixels',
+              'inlier_depth_p10_m', 'inlier_depth_p90_m', 'pixel_uv', 'depth_m', 'camera_point_m')
+    info = frame.get('camera_info', {})
+    if any(key not in info for key in ('width', 'height', 'k')) or any(key not in d for d in depths for key in fields):
+        return refuse('missing_depth_region_evidence')
+    rois, counts = [], []
+    for depth in depths:
+        roi, pixel = depth['roi_xyxy_exclusive'], depth['pixel_uv']
+        if (len(roi) != 4 or any(type(v) is not int for v in roi)
+                or not 0 <= roi[0] < roi[2] <= info['width'] or not 0 <= roi[1] < roi[3] <= info['height']
+                or len(pixel) != 2 or any(type(v) is not int for v in pixel)
+                or any(type(depth[k]) is not int for k in ('roi_pixels', 'valid_pixels', 'inlier_pixels'))):
+            raise ValueError('Invalid shared-depth ROI, pixel or count evidence')
+        area = (roi[2]-roi[0])*(roi[3]-roi[1])
+        if depth['roi_pixels'] != area or not 0 <= depth['inlier_pixels'] <= depth['valid_pixels'] <= area:
+            raise ValueError('Inconsistent shared-depth pixel counts')
+        rois.append(roi)
+        counts.append(depth['inlier_pixels'])
+    a, b = rois
+    common = [max(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), min(a[3], b[3])]
+    overlap = max(0, common[2]-common[0])*max(0, common[3]-common[1])
+    # A union B is contained in the ROI union: |A intersect B| >= |A|+|B|-|ROI union|.
+    lower = max(0, sum(counts)-(sum(d['roi_pixels'] for d in depths)-overlap))
+    fraction = lower/max(counts) if max(counts) else 0.
+    result.update(roi_intersection_xyxy_exclusive=common, shared_inlier_lower_bound=lower,
+                  shared_inlier_fraction_lower_bound=fraction)
+    if lower < COOBSERVED_POLICY['min_shared_inlier_pixels'] or fraction < COOBSERVED_POLICY['min_shared_inlier_fraction']:
+        return refuse('insufficient_guaranteed_shared_inliers')
+    if depths[0]['depth_m'] != depths[1]['depth_m']:
+        return refuse('different_sampled_depth')
+    for depth in depths:
+        lo, hi, z = depth['inlier_depth_p10_m'], depth['inlier_depth_p90_m'], depth['depth_m']
+        if (not all(math.isfinite(v) for v in (lo, hi, z)) or not 0 < lo <= z <= hi
+                or hi-lo > COOBSERVED_POLICY['max_shared_region_spread_m']):
+            return refuse('ambiguous_depth_spread')
+        u, v = depth['pixel_uv']
+        if not common[0] <= u < common[2] or not common[1] <= v < common[3]:
+            return refuse('sample_outside_shared_roi')
+    k = pinhole_matrix(info['k'])
+    for depth in depths:
+        u, v = depth['pixel_uv']
+        z = depth['depth_m']
+        projected = [(u-k[0, 2])*z/k[0, 0], (v-k[1, 2])*z/k[1, 1], z]
+        if not np.allclose(projected, depth['camera_point_m'], atol=COOBSERVED_POLICY['same_sample_point_tolerance_m'], rtol=0):
+            return refuse('inconsistent_calibrated_sample')
+    camera_distance = math.dist(depths[0]['camera_point_m'], depths[1]['camera_point_m'])
+    map_distance = math.dist(left['map_point_m'], right['map_point_m'])
+    result.update(camera_point_distance_m=camera_distance, map_point_distance_m=map_distance)
+    if (map_distance > POLICY['distance_gate_m'] or
+            abs(camera_distance-map_distance) > COOBSERVED_POLICY['same_sample_point_tolerance_m']):
+        return refuse('inconsistent_or_distant_map_points')
+    return {**result, 'status': 'SUPPORTED'}
+
+
 def merge_coobserved_tracks(connection):
     """Consolidate duplicate proposal tracks in a derived snapshot, retaining source evidence."""
     frames = {node: json.loads(payload) for node, payload in
@@ -213,8 +280,11 @@ def merge_coobserved_tracks(connection):
             evidence = {'node_id': node, 'detection_indices': [x['detection_index'], y['detection_index']],
                         'box_iou': iou, 'same_depth_sample': same_sample,
                         'map_point_distance_m': math.dist(x['map_point_m'], y['map_point_m'])}
-            if (iou >= COOBSERVED_POLICY['min_box_iou'] and same_sample
-                    and evidence['map_point_distance_m'] <= COOBSERVED_POLICY['same_sample_point_tolerance_m']):
+            supported = same_sample and evidence['map_point_distance_m'] <= COOBSERVED_POLICY['same_sample_point_tolerance_m']
+            if iou >= COOBSERVED_POLICY['min_box_iou'] and not supported:
+                evidence['shared_depth_region'] = shared_depth_region(x, y, frames[node])
+                supported = evidence['shared_depth_region']['status'] == 'SUPPORTED'
+            if iou >= COOBSERVED_POLICY['min_box_iou'] and supported:
                 witnesses.append(evidence)
             else:
                 conflicts.append(evidence)

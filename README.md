@@ -90,10 +90,18 @@ defaults remain unchanged; this does not establish stable recognition or motion.
 The [temporal stability audit](docs/query-stability.md) now covers 784 saved
 snapshots and 2,602 text rankings. Bowl-region selection improves from 105/126
 to 113/126 rankable samples with optional merging, but still drops below threshold.
-A later one-pixel depth-sample difference reverses the merge. Fridge/trash queries
-remain consistently wrong in the stationary scene; all 125 motion snapshots have
-identical rankings between modes. Runtime defaults remain unchanged. These are
+A later one-pixel depth-sample difference reversed the original merge. Fridge/trash
+queries remain consistently wrong in the stationary scene; all 125 motion snapshots
+have identical rankings between modes. Runtime defaults remain unchanged. These are
 correlated saved-data measurements, not recognition accuracy or live acceptance.
+
+The optional [shared-depth-region extension](docs/shared-depth-association.md)
+now resolves that recorded split: original depth pixels justify 798 shared inliers
+at the conflicting frame, and the final bowl-region record retains 44 independent
+frame supports. All 784 snapshots were rechecked; only 29 later optional-mode
+snapshots change, and 98 focused tests pass. Thirteen rankable bowl queries still
+fall below threshold. Fridge/trash failures and planning refusals remain; default
+association is unchanged.
 
 ## Goal
 

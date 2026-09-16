@@ -151,6 +151,8 @@ Run `measure.py`, `analyze.py`, `verify.py`, `refine_boundaries.py`, then `plot.
 with `.venv/bin/python` and `OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2`. Measurement
 has a 1,200 s bound, a 1 GiB available-RAM guard and a 2 GiB free-disk guard.
 
-Next: validate shared-depth-region evidence for near-identical proposals, then
-make the smallest justified optional association change that tolerates sampling
-jitter while preserving distinct-object refusals and the fixed query gates.
+Follow-up: the [shared-depth-region extension](shared-depth-association.md)
+resolves the recorded node-51 split and reruns this exact prefix schedule.
+The measurements above and their original artifacts retain the exact-sample rule;
+reproducing them requires its recorded runtime revision. Text-selection dropouts
+and stationary fridge/trash failures remain.

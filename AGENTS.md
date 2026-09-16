@@ -755,8 +755,9 @@ At 126 rankable complete-crop stationary samples, bowl-region selection is
 105/126 with original association and 113/126 with optional merging. Both modes
 still drop below 0.25. These correlated counts are not recognition accuracy.
 
-Merging starts at prefix 232 and reverses at 941: node 51 has 98.09% overlapping
-boxes and equal 1.439 m depths but a one-pixel horizontal sample difference,
+In the original exact-sample audit, merging starts at prefix 232 and reverses at
+941: node 51 has 98.09% overlapping boxes and equal 1.439 m depths but a one-pixel
+horizontal sample difference,
 projecting to 1.918 mm. The exact-sample rule rejects the merge. Stationary
 fridge/trash queries consistently select the previously rejected region. All
 125 motion snapshots have identical rankings between modes; early graph changes
@@ -769,48 +770,71 @@ thresholds, defaults and input hashes remain unchanged. See
 `docs/query-stability.md` and the latest ledger entry. Stable physical identity,
 recognition, live throughput and navigation remain unverified.
 
+### 4.29 Shared-Depth Association Evidence
+
+Status: `VERIFIED` for an optional saved-data correction. Original aligned RGB-D
+checks all 11 near-identical cross-label shared frames; node 51 has 798 guaranteed
+shared inliers, 97.6744% of the larger set, despite its one-pixel sample change.
+The existing optional mode now accepts a calibrated shared-region witness under
+explicit count, depth-spread and geometry gates. Default association is unchanged.
+
+Rechecking the same 784 snapshots / 2,602 rankings changes only 29 later optional
+complete-crop stationary snapshots. Merging survives through final: one bowl-
+region record retains 44 independent frame supports and scores 0.254142. It still
+keeps the canonical detector label sink. Bowl selection remains 113/126 rankable
+samples, with 13 threshold misses. Fridge/trash failures remain unchanged.
+
+All 98 focused tests pass. Independent reconstruction verifies 120 snapshots and
+400 standalone API queries; a real GPU final query matches exactly. All planning
+attempts refuse. Original data/feedback and previous rule artifacts are preserved;
+no camera, ROS publication or motion is used. See
+`docs/shared-depth-association.md` and the latest ledger entry. Stable recognition,
+physical identity, live throughput and navigation remain unverified.
+
 ## 5. Current Next Task
 
-Milestone: **Validate shared-depth-region evidence for duplicate association**.
+Milestone: **Audit depth support for the confirmed fridge region**.
 
-Status: `PLANNED`. The temporal stability audit is verified and its observed
-failures are recorded in the Progress Ledger. Safe saved-data work and GitHub
-pushes remain authorized. Keep the camera closed until new operator readiness;
-never issue navigation commands. No new recording is needed yet.
+Status: `PLANNED`. The shared-depth association correction is verified and
+recorded in the Progress Ledger. Safe saved-data work and GitHub pushes remain
+authorized. Keep the camera closed until new operator readiness; never issue
+navigation commands. Begin with existing local data.
 
 Required observable result:
 
 1. Preserve the original rejected queries, operator-confirmed node-21 crops,
-   all three measured journals, exact-sample merge results and stability evidence.
-   Later crops have no new human annotations; do not infer them from prior feedback.
-2. Inspect original aligned depth and RGB for node 51 and other shared-frame
-   bowl/sink witnesses. Determine whether their overlapping depth regions support
-   one surface despite the changed sample pixel. Use calibrated geometry and
-   depth quality; label similarity and text scores cannot justify association.
-3. Before editing, declare an acceptance check for the smallest justified optional
-   association change. It must keep one representative per source frame and reject
-   distinct nearby targets, containment/occlusion, conflicting depth and groups
-   without direct evidence. If source evidence is insufficient, retain ambiguity.
-4. Recheck the complete stationary graph/semantic timeline and the existing
-   motion recording, including prefixes 232, 871, 932, 941 and the final prefix.
-   Report whether the split is resolved and whether other associations change;
-   do not promise that fixing sample sensitivity will fix marginal text scores.
-5. Keep original depth/pose/keyframe gates, 0.25 / 0.02 text filters, causal support,
-   freshness, unknown-start and clearance refusals. Preserve fridge/trash failures
-   and keep the mode optional. Run focused tests for any code change, independent
-   source/fusion checks and complete diff review before updating the ledger and
-   publishing a verified checkpoint.
+   measured journals, and original/extended duplicate-association evidence.
+   Later crops have no new human annotations; do not infer them from feedback.
+2. Inspect original calibrated RGB-D for the confirmed fridge region and a bounded,
+   declared sample of its existing stationary observations. Map valid/invalid
+   pixels inside and around the original inner ROI and detection box; report
+   depth distributions, spatial concentration and temporal consistency. Distinguish
+   recorded invalid depth from inferred causes such as material or occlusion.
+3. Determine whether surviving pixels support the fridge surface or could belong
+   to boundaries/background/another object. Compare with existing depth-accepted
+   motion-recording fridge evidence where useful, without treating matching text
+   or detector labels as confirmed physical identity. Provide an inspectable
+   source RGB/depth overlay and explicit provenance, units and uncertainty.
+4. Report whether existing evidence justifies further localization work or a new
+   view is needed. Do not fill missing depth, silently enlarge the ROI, lower the
+   25% valid-depth gate, or promote an RGB-only match into a 3D target. A runtime
+   change requires a concrete source-supported acceptance check before editing;
+   an evidence-only result is sufficient if the missing data cannot be recovered.
+5. Preserve causal support, 0.25 / 0.02 text filters, freshness, unknown-start and
+   clearance refusals. Keep fridge/trash failures explicit. Review the complete
+   diff and update the ledger only with measurements; publish the verified audit.
 
-Starting points: `docs/query-stability.md`, `docs/coobserved-tracks.md`,
-`scripts/scene_memory.py`, `scripts/observe_rgbd_objects.py`,
-`data/outputs/query_stability/20260916/node51_evidence.json`,
-`data/outputs/query_stability/20260916/boundary_refinement.json`, and the retained
-stationary RGB-D bag/source observations. Use the existing local extraction tools.
+Starting points: `docs/candidate-audit.md`, `docs/bowl-replay.md`,
+`docs/shared-depth-association.md`, `scripts/observe_rgbd_objects.py`,
+`data/outputs/candidate_audit/steady_20260916/operator_positive_review.json`,
+the retained stationary RGB-D bag/journals, and the extraction code under
+`data/outputs/shared_depth/20260916/`. The true central-fridge detection failed
+depth in all 604 processed frames of the complete-crop replay, with valid fraction
+6.84–11.46%; this audit must explain the source support beyond repeating that count.
 
-Learning checkpoint: exact pixel identity is a conservative evidence condition,
-but depth sampling can move within the same observed surface. Any more tolerant
-association rule needs source evidence and distinct-object regressions, not a
-lower text threshold or a claim of permanent object identity.
+Learning checkpoint: a correct RGB crop does not guarantee a supported 3D target.
+Depth pixels must belong to the intended surface, not merely appear somewhere
+inside its detection rectangle.
 
 ## 6. Target System Architecture
 
@@ -4527,6 +4551,85 @@ Successful isolated queries are not evidence of stable recognition or identity.
 Next action: validate shared-depth-region evidence and implement only a justified
 optional association change for sampling jitter, with distinct-object refusals
 and the existing fixed query/planning gates preserved.
+
+### 2026-09-16: Shared Depth Regions Resolve The Recorded Duplicate-Track Split
+
+Status: `VERIFIED` for the optional saved-data correction and measured regressions.
+Stable recognition, physical identity and live navigation are not claimed.
+
+Changed: `scripts/scene_memory.py` extends the existing optional co-observed merge
+with a conservative lower bound on shared inlier pixels, computed from existing
+ROI areas/counts in one source depth frame. It requires >=20 guaranteed shared
+pixels, >=90% of the larger inlier set, equal sampled depth, central spread
+<=0.02 m, both samples inside the common ROI, calibrated projection agreement and
+consistent camera/map distances. The existing exact-sample witness, two-frame,
+box-IoU, complete-group, geometry and one-representative-per-frame rules remain.
+Missing region evidence refuses the new witness; malformed ROI/count evidence
+raises an error. Defaults, schemas, thresholds and raw journals remain unchanged.
+
+Verified:
+
+- Before editing, the acceptance contract and original runtime were saved under
+  `data/outputs/shared_depth/20260916/`. Original aligned RGB/depth extraction
+  checks every accepted mapped cross-label pair with box IoU >=0.9: 11 pairs in
+  11 frames. Source pixel hashes and every original depth summary reproduce
+  exactly. Independently reconstructed inlier sets validate the conservative
+  bound for all 11; the minimum lower-bound fraction is 0.922604.
+- Node 51 has 817/798 inliers in nearly identical ROIs; all 798 smaller-ROI pixels
+  are shared, giving a 0.976744 lower-bound fraction. Pixels [549,296]/[550,296]
+  both measure 1.439 m; common P10/P50/P90 is 1.433/1.439/1.447 m and calibrated
+  point separation is 1.918 mm. Source depth is uint16 millimeters, zero invalid,
+  on the aligned 1280x720 color grid. No new operator annotation is claimed.
+- All 57 memory and 41 online-memory/semantic/search tests pass. Five new tests
+  use actual controlled depth images and failure variants covering jitter,
+  sparse pixels, competing depth layers, contained boxes, inconsistent geometry
+  and calibration, missing/malformed evidence, one witness and later conflicts.
+  Existing nearby-object, incomplete-group and causal representative tests pass.
+- The same 392 graph/semantic/query prefixes yield 784 snapshots / 2,602 rankings.
+  All 392 default-mode results are unchanged. Optional results change only at
+  29 complete-crop stationary prefixes from 941 onward, only for the bowl/sink
+  group. All other records and all original-stationary/motion results match.
+  Merging remains active in 109 sampled prefixes from 232 through final, versus
+  80 under the previous rule. Prefixes 871/932 retain 31/32 supports. Final total
+  records/supports change from 5/94 to 4/83; bowl-region supports change from
+  18+37 to 44 independent frames, retaining canonical ID 2 / detector label sink.
+  Its final cosine is 0.254142; best crop remains `online.crops/37_1.png`.
+- Bowl selection remains 113/126 rankable sampled prefixes: 13 still miss the
+  unchanged 0.25 threshold. Stationary fridge/trash failures remain, as do the
+  motion recording's bottle/elephant refusals and early semantic gaps. These
+  correlated snapshot counts are not independent accuracy measurements.
+- Independent source transforms, inverse-intrinsics projection, matrix group
+  connectivity and scalar fusion verify 120 boundary snapshots, including 232,
+  871, 932, 941 and final. Maximum coordinate error is 8.881784197e-16 m and score
+  error 6.322654933e-8; 400 standalone API calls exactly match batched results.
+- A real GPU search CLI on the final journal matches the stored text vector,
+  snapshot, representatives and ranking exactly. Search takes 11.611 s including
+  10.756 s model load; snapshot query takes 368.188 ms. Peak RSS is 1,365,568 KiB
+  and allocated CUDA memory 228,483,584 bytes. This is one functional run.
+- All 784 planning decisions retain their refusals: 400 stale, 130 graph/grid
+  stamp mismatch, four missing graph, 250 incompatible older grid policy. The
+  GPU run refuses stale evidence. No camera, ROS publication or motion is used.
+  Native cleanup finds no matching runtime/audit processes and 4,913,916 KiB
+  available RAM; no long-duration leak claim is made.
+- Main audit takes 205.589 s / 188,068 KiB peak RSS; independent checks take
+  56.370 s. Baseline snapshots, original journals, rejected/confirmed feedback,
+  bag and models retain their hashes. Initial audit IoU truncation and a depth-
+  fixture expectation failure remain logged; corrected complete runs pass.
+
+Evidence: `data/outputs/shared_depth/20260916/`, especially `acceptance.json`,
+`raw_depth_audit.json`, `region_witnesses.json`, `timeline/measurement.json`,
+`timeline/verification.json`, `comparison.json`, `gpu_final/`, `cleanup.json`,
+source archives, exact check scripts and test logs. Inspected `shared_depth.png`
+and `review.html` show source regions and old/new traces; SVG is also available.
+Room images and generated outputs remain private. See
+`docs/shared-depth-association.md` for policy and reproduction.
+
+Learning checkpoint: a shared source region can justify removing duplicate votes
+when a selected pixel moves. Association consistency and reliable semantic
+recognition still require separate evidence.
+
+Next action: audit existing RGB-D support for the operator-confirmed fridge
+region to determine whether localization is justified or a new view is needed.
 
 ## 16. End-Of-Session Handoff Template
 
