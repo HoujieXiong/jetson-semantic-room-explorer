@@ -158,4 +158,8 @@ Only source, tests and documentation are committed.
 
 Follow-up: [stationary graph retention](stationary-memory.md) is verified in a
 matched saved-data replay. This does not retroactively change the live trial's
-losses, empty memory or refusal, and the changed configuration has not run live.
+losses, empty memory or refusal, and did not establish live behavior at that
+checkpoint. The later
+[current-pipeline live measurement](live-warm-queries.md) retains 56 map nodes and
+answers warm queries, while preserving transport loss and incorrect localized
+fridge identity.

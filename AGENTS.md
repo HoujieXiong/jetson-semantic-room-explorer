@@ -870,63 +870,77 @@ answers despite measured graph revisions. All planning refusals remain; the
 camera stays closed and no navigation is executed. See
 `docs/moving-warm-queries.md` and the Progress Ledger.
 
+### 4.35 Stationary Live Capture With Warm Queries
+
+Status: `VERIFIED` for one bounded live measurement with explicit failures.
+
+After operator readiness, the current pipeline receives/records 975 RGB-D pairs,
+processes 287 and explicitly drops 688. It retains 235 tracked odometry outputs,
+zero reported loss, 56 graph nodes and 75 source-verified crops. Four warm queries
+take 7.369/0.793/0.802/3.229 s after separate 11.059 s startup. Eight reopening
+comparisons and 52 tests pass. Unlocalized fridge imagery reaches the query, but
+the localized fridge candidate depicts the wrong bin/cabinet region; bowl/sink
+remain unselected. New crop identity feedback is pending; a comparison page and
+its exact local path were provided after the operator could not see the images. Only 76 processed frames receive source-time map poses. Strict
+bag/sensor completeness remains false. All route refusals remain; the camera is
+closed and no navigation occurred. See `docs/live-warm-queries.md` and the ledger.
+
 ## 5. Current Next Task
 
-Milestone: **Prepare and measure one bounded stationary live-camera acceptance**.
+Milestone: **Coordinate source-frame selection for useful live object memory**.
 
-Status: `PLANNED`. The current warm-query pipeline now passes stationary and
-moving recorded-data verification, including changing graph revisions and exact
-historical reopening. See Sections 4.33–4.34 and the Progress Ledger. Sustained
-live input remains unverified; earlier live failures are preserved.
+Status: `PLANNED`. The current pipeline has completed a bounded live warm-query
+measurement (Section 4.35 / Progress Ledger). Of 287 processed perception frames,
+209 lack their own odometry result and only 76 obtain source-time map poses.
+Thirty-four of 56 semantic keyframes refer to dropped observations. These are
+measured source-coverage limits, separate from the wrong localized fridge identity.
 
-Existing authorization covers safe local preparation, fixes, analysis and GitHub
-pushes. Keep the camera closed until fresh operator readiness. No new readiness
-has been requested or confirmed for this capture. Never issue navigation or motor
-commands. Do not require the operator to walk for this stationary measurement.
+Existing authorization covers safe saved-data experiments, focused fixes and
+GitHub updates. Both live attempts are closed; do not open the camera without
+fresh operator readiness. No navigation or motor commands. No new recording is
+required for this task. Crop identity feedback may arrive asynchronously; retain
+it against the exact saved images and do not infer human confirmation.
 
 Required observable result:
 
-1. Inspect the existing live-camera capture/observer harness, supported stream
-   contract, measured live transport failures and current warm session. Prepare
-   the smallest bounded adaptation using existing code and local models. Before
-   editing, declare files, exact phrases/checkpoints, recording duration, RAM/
-   request/process guards and cleanup. Preserve all prior data and feedback.
-2. Complete independent preparation before requesting the necessary operator
-   help: confirm that the camera is steady and the current scene is ready. Begin
-   capture only after that readiness; if unavailable, leave it closed and report
-   the concrete prepared command and remaining input. Readiness is a physical
-   collection condition, not a repeat request for already granted development
-   permission.
-3. Warm GPU models and establish subscribers before the bounded live workload,
-   using the existing validated camera/registration/timestamp/unit contract.
-   Retain source RGB-D, camera metadata, SLAM/TF, graph/grid witnesses, observations
-   and semantic outcomes with explicit live provenance. Do not quietly substitute
-   a recording or alter thresholds to obtain a positive query result.
-4. Submit actual text requests through one loaded encoder while live writes are
-   occurring. Verify full identity and fresh prefixes, source crop provenance,
-   separate unlocalized results and unchanged planning refusals. Keep query ROS
-   publication off. A visible candidate without supported geometry is not a 3D
-   target, and an invalid camera projection is not a robot start pose.
-5. Independently separate delivered/recorded/synchronized/processed/dropped input,
-   tracking and pose refusals, semantic coverage, queues, RAM/CUDA, response time
-   and owned-process cleanup. Preserve failures, including missing useful support.
-   Reopen copied actual prefixes, inspect all query crops and provide one review
-   without WebGL. New identity claims require operator feedback; unknown rejection
-   and physical navigation cannot be inferred from one stationary scene.
-6. Run affected checks, review the complete diff, record only measured status,
-   update README/Progress Ledger and publish a clean checkpoint. If transport or
-   resource limits prevent a useful live result, retain the evidence and identify
-   the measured next bottleneck without claiming real-time acceptance.
+1. Inspect the actual source-stamp overlap among RGB-D arrivals, admitted/dropped
+   inference, odometry outputs, mapped keyframes and semantic refusals in
+   `data/outputs/live_warm/20260916/attempt_02/`. Reuse existing scheduling and
+   verification code. Keep the initial failed attempt, old queries and operator
+   feedback unchanged. Before editing, explain the smallest measured change,
+   files, fixed baseline/candidate settings and acceptance checks in Chinese.
+2. Reconcile CameraInfo-derived counters with actual image-pair counters before
+   claiming a processing rate. The original report has 979 metadata pairs but
+   975 received image pairs; there are 235 odometry outputs and 740 image pairs
+   without one. Preserve original reports and strict metadata-loss failures.
+3. Test one justified, bounded coordination change on saved data so inference
+   can contribute useful observations with the correct source-time pose. Do not
+   attach a nearby/latest pose to another image, substitute final map poses,
+   invent calibration deliveries or alter recognition thresholds. Any replay
+   handling of missing recorded metadata must be explicit and independently
+   checked; the original bag is not a lossless PASSED reference.
+4. Compare a declared baseline and candidate at the same source load. Report
+   exact admitted/processed/dropped stamps, accepted poses, mapped/encoded source
+   overlap, semantic coverage, queue/latency distributions, RAM/CUDA and cleanup.
+   Improvement requires more useful correctly paired source evidence, not merely
+   a lower drop count or faster model-only timing. Do not call replay live input.
+5. Run actual fixed text queries with fresh snapshots, verify original crop
+   pixels and reopened answers, and retain wrong localized fridge selection,
+   unlocalized-depth refusals and all invalid-start/no-route results. Improved
+   source coverage does not establish object identity or navigation safety.
+6. Run focused tests and independent source/geometry checks, review the entire
+   diff, update README/Progress Ledger only from evidence and publish a clean
+   checkpoint. If the candidate fails, keep its measured failure and narrow the
+   next bottleneck rather than increasing buffers or changing thresholds blindly.
 
-Starting points: `docs/live-rgbd-search.md`, `docs/stationary-memory.md`,
-`docs/warm-text-queries.md`, `docs/moving-warm-queries.md`,
-`tests/check_concurrent_perception.py`, `scripts/online_search_preview.py`, local
-live trials under `data/outputs/live_search/steady_20260916/`, and the verified
-supervisor/checkers under `data/outputs/warm_moving/20260916/`.
+Starting points: `docs/live-warm-queries.md`, `docs/live-rgbd-search.md`,
+`tests/check_concurrent_perception.py`, `tests/check_rtabmap_odometry.py`,
+`scripts/online_semantic_memory.py`, the immutable live artifacts and local
+verification code under `data/outputs/live_warm/20260916/`.
 
-Learning checkpoint: recorded-data correctness is necessary but does not establish
-live delivery or resource behavior. The live acceptance must preserve both useful
-answers and explicit failures under actual camera timing.
+Learning checkpoint: bounded components still need to agree on which source
+frames they process. More independent detections do not automatically produce
+more usable map-frame memory.
 
 ## 6. Target System Architecture
 
@@ -5177,6 +5191,114 @@ evidence does not automatically supply a usable position or safe route.
 Next action: prepare a bounded stationary live-camera acceptance of the current
 pipeline, starting capture only after fresh operator readiness and keeping
 navigation disabled.
+
+### 2026-09-16: Current Pipeline Measured With Stationary Live Warm Queries
+
+Status: `VERIFIED` for bounded live measurement, independent source/query checks
+and exact reopening. Correct localized object retrieval, lossless transport,
+sustained throughput and navigation remain unverified.
+
+Changed: reused the local live supervisor and warm-query protocol with current
+1280 proposals, padded crops, unlocalized evidence and retained-node mapping.
+No runtime/model/threshold/dependency changes were needed. Source code, configs,
+models and prior recordings stay intact; public changes document measured results.
+
+Verified:
+
+- The operator replied ready for stationary capture. The predeclared camera
+  interval was approximately 70 s; exact phrases at 18/30/42/54 s after camera
+  process launch were `a fridge`, `a bowl`, `a kitchen sink`, `an elephant`.
+  Models/subscribers were ready first. Guards were 1 GiB available RAM, 3 GiB
+  disk, 75 s query initialization, 15 s per response, 150 s observer duration
+  and bounded 15/5/5 s process cleanup. No navigation or query ROS publication.
+- Attempt 01 is retained as `INCOMPLETE`. Four requests completed, then the old
+  live sampler mistook a query process exiting without VmRSS for a running
+  process error. Cleanup interrupted the observer; no forced termination or
+  lingering child occurred. Attempt 02 reused the existing warm sampler's
+  explicit Z/X exit-state handling. This private harness fix changes no policy.
+- Attempt 02 closed the camera after 70.484 s, recorded 65.232 s of source RGB,
+  and finished startup/observation/cleanup in 178.879 s. Actual hardware profiles
+  remain 1280x720 MJPG RGB and 640x576 Y16 native depth, requested 15 FPS, with
+  registered 1280x720 RGB8 / millimeter 16UC1 output, zero invalid. Observed RGB/
+  depth header rates are 14.931/14.932 Hz, skew median/max 2.675/3.622 ms.
+- Driver CSV has 994 frames per stream and zero SDK index gaps. Bag and observer
+  retain the same 975 image pairs, byte-for-byte; 19 CSV records per stream occur
+  after the last recorded image, none missing inside its interval. CSV is not
+  proof of DDS delivery. Recorded CameraInfo counts are 978 RGB/974 depth;
+  observer receives 979 each. One RGB metadata message is absent inside the bag,
+  with extra/missing boundary metadata also reported. Strict bag and sensor
+  completeness remain false; the loss-aware measurement preserves these failures.
+- All 975 perception groups have outcomes: 287 processed, 688 queue drops, zero
+  failed/pending. Source poses accept 76, refuse 209 missing odometry and two
+  missing map TF. All 235 odometry outputs are tracked; zero report loss. Actual
+  received image pairs without odometry are 740. The old report's 979 inputs/744
+  missing results count CameraInfo pairs, including four metadata-only stamps
+  after the final image. An initial independent-check assumption failed; its log
+  and the original measurement remain. Both populations are now independently
+  reconstructed and named, with no substitution for missing images.
+- Fifty-six graph/grid/mapping events and 56 final nodes yield 1199 journal
+  events. Twenty-one keyframes encode 75 crops, 30 localized and 45 unlocalized;
+  34 keyframes refuse dropped source observations and one refuses source pose.
+  Final prefix 1199 / graph 1190 has 21 eligible frames, three provisional
+  records and 30 geometric supports. Native settings confirm real time,
+  most-recent-frame odometry and retained stationary nodes, latch false.
+- One query encoder becomes READY in 11.059 s, including 10.125 s model load.
+  Four responses take 7.369/0.793/0.802/3.229 s at prefixes 194/455/673/828 and
+  graphs 186/438/655/813. First text inference takes 4.742 s; later encodings
+  take 29.344–39.684 ms. Snapshot work takes 108.362–2538.757 ms. This four-
+  request live sample is not a service guarantee or controlled replay comparison.
+- Fridge selects localized record 1 at 0.272432 and four unlocalized views, best
+  0.298652. Assistant inspection of exact source crops flags localized `8:2`
+  [199,317,360,704] as bin/cabinet, while unlocalized `8:0` [462,192,609,502]
+  depicts the fridge. Both share a source frame. The latter retains insufficient
+  valid depth and no target. The operator could not see the tool images; a
+  standalone comparison was saved and the desktop open command returned zero,
+  but the operator still could not see it. Its exact path/manual command were
+  provided. New identity feedback remains pending, without an accuracy claim. Bowl/sink/elephant
+  remain below threshold; bowl/sink visibility in this view is not established.
+- Fridge planning finds no route from an unknown start; other queries refuse
+  the unknown frontier start. No selection is published or executed. Four closed
+  queries reuse original GPU text vectors; fridge still selects the wrong
+  localized region (0.276445) plus 21 unlocalized views. All closed maps are stale
+  and refused. Eight copied-prefix/closed reopening comparisons are exact.
+- Every received image and all 75 crops match source pixels. Independent causal
+  TF, depth conversion, scalar geometry/semantic ranks and 56 raw grid/graph
+  witnesses pass. Maximum geometry/3D-score/visual-score errors are
+  4.45e-16 m / 4.99e-8 / 5.87e-8 within 1e-12 m / 1e-6 declared tolerances.
+  All 52 focused tests pass in 12.552 s. All 27 runtime, two model and four
+  preserved-input hashes match. All 56 unique ranked source crops are inspected.
+- Writer/semantic pending/cache peaks are 132/2/32; independent pending/inference/
+  pose-wait peaks are 1/1/8. Commit median/P95/max is 10.941/59.705/7149.619 ms,
+  with bounded batches of at most 16. Detection-plus-depth median/P95 is
+  130.830/229.580 ms; arrival-to-result is 2222.215/2544.566 ms. Query intervals
+  contain 55 processed/124 dropped arrivals; outside them are 232/564. Causation
+  of frame loss is not inferred from overlap.
+- Peak RAM is 5359 MB, minimum available RAM 2153648 KiB, query RSS 1423560 KiB.
+  Query CUDA allocated/reserved peaks are 228483584/243269632 bytes; observer
+  peaks are 330952704/379584512 bytes. GPU peaks at 55.625 C; existing swap
+  ranges 1829–1888 MB. Power stays 25 W. All owned processes exit, telemetry
+  with expected SIGINT, without forced termination. Final native cleanup finds
+  no runtime processes and 4791244 KiB available RAM. Long-run leaks are untested.
+- Nonzero depth coverage has median 47.41%; center median is 4.327 m with
+  outliers. Pixels and meter back-projections establish units, not physical
+  accuracy; no distance was measured. The current object-depth rejection policy
+  remains. Review has eight query sections, four map decisions and 59 PNGs with
+  no WebGL requirement, plus the direct A/B page and all-ranked-crop contact sheet.
+
+Evidence: `data/outputs/live_warm/20260916/`, including `acceptance.json`,
+`failed_attempts.json`, both attempts and immutable source snapshots,
+`accounting_note.json`, initial/updated check logs, `summary.json`, `cleanup.json`,
+`review.html`, `compare.html`, `ranked_views.png` and focused test output.
+See `docs/live-warm-queries.md`; no raw room data is committed.
+
+Learning checkpoint: real camera delivery can succeed while independently
+scheduled perception and odometry process different source frames. Matching
+source-time poses limits useful memory; accepted depth still does not establish
+correct object identity. Keep both failures separate from successful persistence.
+
+Next action: use this saved live recording to measure and improve shared source-
+frame selection between perception and SLAM, retaining identity errors and every
+pose/drop refusal. No new capture is required for that experiment.
 
 ## 16. End-Of-Session Handoff Template
 

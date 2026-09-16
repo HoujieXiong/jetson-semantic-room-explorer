@@ -146,6 +146,18 @@ All 481 crops match source pixels and twelve reopened snapshots reproduce the
 answers exactly. Planning still refuses unsafe or unsupported targets. This
 remains 0.25x replay, with no physical navigation or new operator identity labels.
 
+The current pipeline has now completed a bounded **stationary live warm-query
+measurement**: 975 recorded/received image pairs, 287 processed frames, 688 explicit
+drops and four actual requests taking 0.793–7.369 s after separate model startup.
+Seventy-five crops and eight reopening comparisons pass independent checks.
+Fridge imagery is retrieved without depth, while the localized fridge candidate
+still points to the wrong bin/cabinet region; bowl/sink remain unselected.
+Only 76 processed frames have valid source-time map poses. Transport metadata
+losses and all route refusals remain explicit. See the
+[live results, incorrect candidate and review](docs/live-warm-queries.md).
+This is measured live integration, not correct object navigation or sustained
+real-time acceptance.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
