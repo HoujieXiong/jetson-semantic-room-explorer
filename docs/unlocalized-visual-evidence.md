@@ -2,8 +2,9 @@
 
 Status: `VERIFIED` on Jetson Orin Nano for two bounded historical-source GPU
 experiments. Depth-rejected source crops can now appear in a separate text-query
-ranking. They have **no accepted 3D location or navigation target**. Concurrent
-SLAM/detection performance with this option remains unverified.
+ranking. They have **no accepted 3D location or navigation target**. A subsequent
+[concurrent playback comparison](concurrent-unlocalized-retrieval.md) also passes
+at 0.25x; live-camera throughput remains unverified.
 
 ## Minimal optional path
 
@@ -167,5 +168,6 @@ original source/implementation hashes, `prepare.py`, `trial.py`, `verify.py`,
 `gpu_cli/` and test logs. Original room images, crops, journals and generated
 reports remain untracked.
 
-Next: measure this optional path during a bounded concurrent replay with SLAM,
-detection and text queries, retaining existing source, timing and planning gates.
+The subsequent [concurrent trial](concurrent-unlocalized-retrieval.md) measures
+the same path with SLAM, detection and queries running together, retaining source,
+timing and planning gates. Its remaining query-startup cost motivates the next step.

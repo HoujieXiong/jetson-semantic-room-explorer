@@ -117,7 +117,15 @@ Two historical-source GPU experiments verify 447 source crops, including 127
 new visual observations; all 320 original vectors and localized rankings remain
 unchanged. The stationary `a fridge` query selects 44 views of the fridge region,
 while its old incorrect localized candidate remains a recorded failure. All 148
-focused tests pass. Concurrent performance with the new option remains unverified.
+focused tests pass. Live-camera throughput with the new option remains unverified.
+
+The path now also passes a [bounded concurrent playback comparison](docs/concurrent-unlocalized-retrieval.md).
+While SLAM and detection run, `a fridge` retrieves 10 unlocalized fridge-region
+views before playback ends. Both 944-pair trials have 943 tracked odometry outputs
+and zero reported tracking losses; perception still explicitly drops 332 frames
+per run. Source/prefix checks pass and no route is selected. This is 0.25x recorded
+playback; cold query commands still take 16–28 seconds and incorrect localized
+matches remain unresolved.
 
 ## Goal
 

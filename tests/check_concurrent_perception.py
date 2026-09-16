@@ -390,6 +390,9 @@ def main():
             if check is not None and report['status'] == 'INCOMPLETE':
                 report.update(check.incomplete_evidence(), perception=check.evidence())
             report['live_capture_executed'] = reference is None and check is not None and bool(check.rows)
+            if 'runtime' in report:
+                report['peak_cuda_allocated_bytes'] = torch.cuda.max_memory_allocated()
+                report['peak_cuda_reserved_bytes'] = torch.cuda.max_memory_reserved()
             args.output.write_text(json.dumps(report, indent=2, allow_nan=False)+'\n')
         finally:
             if node is not None:

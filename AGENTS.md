@@ -810,7 +810,7 @@ eliminating all depth holes. See `docs/fridge-depth-support.md` and the ledger.
 ### 4.31 Unlocalized RGB Evidence In Text Queries
 
 Status: `VERIFIED` for two historical-source GPU experiments with an optional
-producer policy; concurrent SLAM/detection performance remains unverified.
+producer policy. The subsequent concurrent comparison is recorded in Section 4.32.
 
 The existing bounded worker can encode depth-rejected crops after accepted
 proposals. Queries expose separate source views with timestamps, crop hashes,
@@ -824,52 +824,70 @@ focused tests, 44 reopened new queries and 29 original-query regressions pass.
 Real GPU CLI review and planning refusal are verified; no camera or motion is
 used. See `docs/unlocalized-visual-evidence.md` and the Progress Ledger.
 
+### 4.32 Unlocalized Retrieval During Concurrent Recorded Playback
+
+Status: `VERIFIED` for one ordered baseline/enabled comparison at 0.25x.
+
+Using the same 944-pair stationary recording and 1280/complete-crop settings,
+the enabled query retrieves ten unlocalized fridge-region views before playback
+ends and 45 after shutdown. Both trials have 943 tracked odometry outputs with
+zero reported losses and 64 map nodes. Perception processes 611/612 frames,
+explicitly drops 332 each, and the baseline additionally misses one synchronized
+group. New visual work adds 63 crops; all 252 crops across both runs are source-
+verified, and 91 common-source vectors are bit-identical. Sixteen query reports
+pass independent math/source checks and sixteen reopening comparisons. No route
+is selected. Cold query processes still take 16–28 s; wrong localized fridge/trash
+matches and bowl threshold failures remain. Actual live throughput and physical
+navigation remain unverified. See `docs/concurrent-unlocalized-retrieval.md`.
+
 ## 5. Current Next Task
 
-Milestone: **Measure unlocalized retrieval during concurrent recorded playback**.
+Milestone: **Reuse a loaded text encoder across bounded query requests**.
 
-Status: `PLANNED`. Optional unlocalized retrieval is verified on historical-source
-GPU experiments and recorded in the Progress Ledger. Its simultaneous SLAM,
-detection and query behavior has not been measured. Safe existing-data work and
+Status: `PLANNED`. Unlocalized retrieval now passes the bounded concurrent
+baseline/enabled comparison recorded in the Progress Ledger. Cold query commands
+still take 16–28 s, including 11–18 s of model loading. Safe existing-data work and
 GitHub pushes remain authorized. Keep the camera closed until new operator
-readiness; never issue navigation commands. Local recordings/models are sufficient.
+readiness; never issue navigation commands. All required components are local.
 
 Required observable result:
 
-1. Preserve original journals, experiments, operator feedback and query artifacts.
-   Inspect existing replay supervisors and the optional producer path before
-   changing code. Declare a bounded comparison using the stationary recording,
-   original 0.25x replay/configuration and complete-crop 1280 detector settings;
-   compare the new flag enabled/disabled without changing thresholds or models.
-2. Reuse the actual concurrent observer, RTAB-Map nodes, typed-message playback
-   and existing resource/timeout supervision. Use fresh outputs and retain all
-   refusals, transport gaps, cache evictions, pose/depth failures and worker
-   outcomes. Stop safely on the existing resource guard; no new manager framework.
-3. Query exact `a fridge`, `a bowl`, `a trash can` and `an elephant` at predeclared
-   during-playback checkpoints and after closing. Check whether the fridge-region
-   visual evidence becomes available before playback ends. A missing or wrong
-   result remains a measured failure; do not import final poses or future vectors
-   into an earlier result or force the confirmed crop into the active graph.
-4. Measure received/processed/dropped frames, tracking outcomes, keyframe/crop
-   availability, queue/cache peaks, latency distributions, RAM/CUDA use and clean
-   resource shutdown. Distinguish added encoding work from unrelated scheduling
-   variability and single-trial comparisons from stable throughput guarantees.
-5. Independently verify source pixels, encoder identity, committed-prefix timing
-   and reopened queries. Keep unlocalized views separate from object geometry;
-   retain explicit planning refusal and original map/start/clearance gates.
-   Run checks affected by any fixes, review the complete diff, update only measured
-   ledger claims and publish the verified checkpoint. No new recording is required.
+1. Preserve original journals, feedback, cold-query reports and source identities.
+   Inspect `query_text`, `MobileClipEncoder`, search preview composition and the
+   recorded supervisor. Before editing, declare the smallest bounded caller that
+   can keep one encoder loaded for multiple actual text requests. Reuse current
+   query/report logic; avoid a new service framework or unneeded dependencies.
+2. Every request must encode its exact phrase and read a fresh committed journal
+   prefix. Verify the full image/text encoder identity, including padding, on each
+   request. Never cache a prior query's geometry, refresh old map timestamps,
+   reuse incompatible vectors or backfill historical queries. Preserve the cold
+   CLI, separate unlocalized views, fixed filters and all planning refusals.
+3. Predeclare functional and malformed/incompatible-input tests, explicit process
+   ownership, bounded requests/timeouts and clean shutdown. Prove that repeated
+   requests can see later committed evidence without changing earlier results.
+   On the same frozen prefixes, warm/cold text vectors, rankings and crop identities
+   must agree within a declared numerical tolerance, retaining any failures.
+4. Run a bounded existing stationary replay with SLAM, 1280 detection, complete
+   crops and unlocalized evidence. Use the same four phrases and declared query
+   checkpoints. Measure initialization separately from subsequent request latency,
+   including text encoding, snapshot work and full response time. Record RAM/CUDA,
+   source/semantic drops, tracking, queues and cleanup under the existing guard.
+5. Compare with the preserved cold measurements without claiming identical runtime
+   snapshots or attributing all frame drops to query startup. Most prior drops
+   occur outside query intervals. Run affected checks, independently verify source
+   and prefix contracts, review the full diff, update measured ledger claims and
+   publish the checkpoint. No new capture or navigation is required.
 
-Starting points: `docs/unlocalized-visual-evidence.md`, `docs/bowl-replay.md`,
-`docs/online-semantic-memory.md`, `tests/check_concurrent_perception.py`,
-`data/outputs/unlocalized/20260916/`, and the existing stationary replay
-supervisor under `data/outputs/stationary_memory/steady_20260916/`.
-Wrong localized fridge/trash identity, marginal bowl scores and missing depth
-remain known limitations; resolving all of them is not this acceptance gate.
+Starting points: `docs/concurrent-unlocalized-retrieval.md`,
+`scripts/online_semantic_memory.py`, `scripts/semantic_memory.py`,
+`scripts/online_search_preview.py`, and the local supervisor/checkers under
+`data/outputs/unlocalized_concurrent/20260916/`.
+Wrong localized identity, marginal bowl scores, missing depth and live throughput
+remain known limitations; they are not prerequisites for this bounded latency step.
 
-Learning checkpoint: a source-valid query feature must also survive concurrent
-scheduling and delayed availability. Offline crop cost alone cannot establish
-that useful evidence reaches a query during playback.
+Learning checkpoint: model initialization is a separate cost from answering a
+query. Reusing a model must still preserve each request's fresh evidence and
+identity checks; a faster response is not stronger evidence of recognition.
 
 ## 6. Target System Architecture
 
@@ -4821,6 +4839,106 @@ and localizing it are distinct claims that the query output must preserve.
 
 Next action: measure this optional path in a bounded concurrent recorded-data
 trial with SLAM, detection and text queries, retaining all evidence/goal gates.
+
+### 2026-09-16: Unlocalized Fridge Evidence Reaches A Concurrent Playback Query
+
+Status: `VERIFIED` for one bounded, ordered baseline/enabled recorded-data pair
+at 0.25x. Real-time camera input, stable recognition and navigation are unverified.
+
+Changed: the existing observer report now saves peak allocated/reserved CUDA
+bytes after successful GPU initialization. No runtime scheduling, model, geometry,
+query filter or planning policy changes. Local ignored supervisors/checkers reuse
+the existing typed-message player, retained-node mapping, independent graph/grid
+receiver, 1 GiB memory guard, 45 s query timeout and bounded cleanup. The camera
+stays closed; query previews are computed without ROS goal/path publication.
+
+Verified:
+
+- Predeclared trials use the same 944-pair / 64.800277 s stationary recording,
+  0.25x playback, 1280 detector input and complete-crop padding. Only the producer
+  flag `--semantic-include-unlocalized` differs. Actual queried SLAM parameters
+  match except the fresh database path. Four exact phrases are scheduled at
+  40/95/150/205 s after player-process launch, before either run's playback ends.
+- Baseline/enabled runs take 419.192/398.774 s including startup, queries, drain
+  and cleanup. Sensor-contract checks receive all 944 pairs. Perception receives
+  943/944, processes 611/612 and explicitly drops 332/332, with zero failed or
+  pending jobs. Baseline's unmatched group remains recorded. Both have 943 tracked
+  odometry outputs, zero reported losses, one input without odometry output and
+  64 map nodes. Source poses accept 605/606 frames; both refuse two missing source
+  odometry and four missing source map TF cases.
+- The baseline encodes 43 keyframes / 92 crops and refuses 21 keyframes: one pose,
+  19 dropped observations and one missing source. The enabled run encodes 45
+  keyframes / 160 crops (97 localized, 63 unlocalized) and refuses 19: one pose
+  and 18 dropped observations. Every mapping has one explicit semantic outcome.
+  The different eligible source sets also add five localized crops; do not count
+  the entire 68-crop difference as optional visual work.
+- Enabled `a fridge` reads prefix 283 / graph 270 and selects ten visual views.
+  Top `4:0` scores 0.285605 and its source-verified crop shows the fridge door.
+  Query start/end is 38.927/67.345 s after actual playback starts. Final prefix
+  1200 selects 45 fridge-region views, top `58:0` at 0.288479. These are correlated
+  source observations with depth refusals, not object identities, new operator
+  confirmations or 3D targets. The original wrong localized candidate remains.
+- Both during-playback bowl queries remain below threshold; final bowl/sink
+  records pass at 0.253651/0.253645 baseline and 0.253827/0.254391 enabled. Duplicate
+  merging is deliberately not enabled. Trash retains the wrong localized region;
+  neither mode selects extra visual trash/bowl/elephant evidence. Elephant remains
+  unselected during and after playback. All failures are retained without tuning.
+- Actual query prefixes differ with scheduling: fridge source coverage is
+  13.058/14.866 s. This is not matched-prefix accuracy or isolated throughput
+  improvement. All 91 common-source proposals have identical crop hashes and
+  vectors. The entire 252-crop corpus matches original source pixels; independent
+  metric depth/source-time TF, point-list association, scalar fusion and visual
+  selection checks pass. Maximum coordinate error is 6.67e-16 m and visual cosine
+  error 4.96e-8; these are numerical rather than physical accuracy measurements.
+- All 16 during/closed query reports pass independent checks. Sixteen separate
+  reopening comparisons exactly reproduce copied during-query prefixes and closed
+  journals. Post-close API queries reuse exact recorded GPU text vectors; they
+  do not measure new text inference or backfill old events. Independent witnesses
+  verify 64 graph and 64 occupancy messages per run. All 38 declared original
+  inputs and 30 runtime source hashes remain unchanged.
+- Fridge/trash previews have no route; bowl/unknown frontier previews refuse the
+  start. Independent grid checks confirm unknown start cells. Visual selections
+  retain explicit `unlocalized_visual_evidence` refusal. Closed queries refuse
+  stale maps. No route is selected, published or executed in either run.
+- New visual crop encoding sums 5.927 s, with median/P95/max
+  88.797/142.961/164.901 ms. Detection-plus-depth median/P95 is
+  105.414/136.716 ms baseline and 105.079/138.905 ms enabled; arrival-to-result
+  median/P95 is 489.992/1604.385 and 491.204/1550.531 ms. Pose waiting contributes
+  median 372.635/368.774 ms. Most frame drops occur outside query-process intervals
+  (270/332 and 253/332, classified by arrival time); query startup is not established
+  as their sole cause.
+- Peak system RAM is 5,356/5,481 MB; observer CUDA allocated peaks are
+  328,331,264/329,904,128 bytes and reserved peaks 354,418,688/356,515,840.
+  Semantic cache peaks at 32 frames; pending peaks 2/1 within capacity eight.
+  Writer peaks 3/6 within capacity 16; independent pending/inference/pose-wait
+  interval peaks are 1/1/7. No semantic queue or crop-budget omission occurs.
+  Peak GPU temperatures are 55.375/55.218 C. Swap starts nonzero and rises to
+  1,728/1,871 MB. Post-run power mode is 25 W. This single ordered pair does not
+  establish a repeatable memory/throughput delta or long-duration leak behavior.
+- Eight cold GPU query commands take 16.319–28.419 s, including
+  10.951–18.387 s model load; snapshot computation takes 106–322 ms.
+  Closed API snapshots with existing text vectors take 318–403 ms. Model/process
+  startup is a measured delay suitable for the next bounded improvement.
+- All 44 relevant odometry/concurrency tests pass. All child processes exit
+  cleanly without forced termination; telemetry has its expected SIGINT exit.
+  Native post-check finds no matching runtime process and 4,824,140 KiB available
+  RAM. The combined review contains 83 valid embedded PNGs. Its first local
+  builder assumed an explicit HTML body tag; that helper failure is retained and
+  corrected, with runtime and native query pages unaffected.
+
+Evidence: `data/outputs/unlocalized_concurrent/20260916/`, including the predeclared
+`acceptance.json`, exact adapted supervisor/checkers, `baseline/`, `unlocalized/`,
+original source/config archives, raw graph/grid witnesses, closed/copied prefixes,
+per-run verification reports, `comparison.json`, `cleanup.json`, test logs and
+`review.html`. Room data and generated outputs remain private. See
+`docs/concurrent-unlocalized-retrieval.md` for measured limits and commands.
+
+Learning checkpoint: useful visual evidence can survive concurrent scheduling
+without accepted object depth. That success does not remove dropped frames,
+incorrect localized identity, invalid starts or cold query startup costs.
+
+Next action: reuse a loaded text encoder across bounded query requests and
+measure startup/response latency during the same recorded-data workload.
 
 ## 16. End-Of-Session Handoff Template
 

@@ -37,8 +37,9 @@ trial incomplete. Partial files from a failed job cannot supply a query vector.
 The optional `--semantic-include-unlocalized` producer flag also encodes
 depth-rejected proposals after accepted proposals within the same crop budget.
 Their source views appear in a separate ranking with no 3D object or navigation
-target. The new path passes two historical-source GPU experiments; simultaneous
-SLAM/detection performance remains unverified. See
+target. The new path passes two historical-source GPU experiments and a subsequent
+[bounded concurrent replay](concurrent-unlocalized-retrieval.md); live throughput
+remains unverified. See
 [unlocalized evidence, measured results and limitations](unlocalized-visual-evidence.md).
 
 Each successful keyframe stores original source/pixel identity, detector index,
