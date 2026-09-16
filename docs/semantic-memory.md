@@ -89,6 +89,20 @@ Query the already measured index and inspect the generated `queries.html`:
   --output data/outputs/mobileclip/manual_queries
 ```
 
+For an experimental index that keeps the complete crop before the official
+center crop, add `--square-pad` to **build**, using a fresh output directory.
+This centers the original RGB crop on a black square; odd extra padding goes to
+the bottom/right. Original crop PNGs stay unchanged. The saved encoder identity
+records `square_pad: true`; query and search automatically use that recorded mode
+and reject a mismatched identity. Existing indexes and the online consumer keep
+their original preprocessing. Rebuild an entire index to change its mode.
+
+On `line_20260915`, the optional mode has been verified with all 63 supports and
+11 existing queries. It preserves fridge selections and the four below-threshold
+controls, adds an unconfirmed bottle candidate, and removes one sink candidate.
+Some scores decline. See the [candidate audit](candidate-audit.md) for exact
+scores, source checks and limitations; this is not a general accuracy result.
+
 The HTML file embeds its images and uses no WebGL or video codecs. The measured
 11-query report is ready to view on the Jetson display:
 

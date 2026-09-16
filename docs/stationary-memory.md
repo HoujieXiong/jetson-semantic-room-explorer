@@ -202,5 +202,6 @@ and unchanged original artifacts. `operator_review.json` freezes the operator
 message, three negative cases, source identities, scores and hashes. No fresh
 model inference, camera capture or ROS publication was needed for this correction.
 
-Next: audit proposal coverage and depth rejection at these frozen query prefixes
-to choose a retrieval fix; keep these three operator-rejected crops as failures.
+Follow-up: the [candidate audit](candidate-audit.md) measures these exclusions and
+compares detector resolution and complete-crop encoding. The original three
+operator-rejected cases remain failures; experimental outputs are separate.

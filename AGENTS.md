@@ -695,47 +695,65 @@ limit makes this a bounded configuration, not a continuous deployment policy.
 See `docs/stationary-memory.md` and
 `data/outputs/stationary_memory/steady_20260916/operator_review_20260916/review.html`.
 
+### 4.25 Candidate Audit And Optional Complete-Crop Encoding
+
+Status: `VERIFIED` for saved-data diagnosis and the optional offline index mode.
+The operator confirmed the new displayed bowl/fridge crops; the original three
+negative cases remain failures. Higher-resolution proposals plus complete-crop
+encoding improve bowl scores on three diagnostic source frames, with two passing
+the unchanged filter. Fridge depth and trash proposals remain unresolved.
+
+`semantic_memory.py build --square-pad` records a distinct encoder identity and
+keeps the original crop evidence. A different existing recording verifies all
+63 supports, 17 objects and 11 queries; old rankings/vectors reproduce exactly.
+Fridge selections and negative controls persist, with mixed changes elsewhere.
+All 54 focused tests pass; real invalid-mode/identity cases refuse explicitly,
+and the search CLI preserves clearance/unknown-start refusals. Defaults and the
+online consumer are unchanged. See `docs/candidate-audit.md` and the latest
+Progress Ledger entry for measured values and limitations.
+
 ## 5. Current Next Task
 
-Milestone: **Operator-reviewed retrieval cases from the stationary recording**.
+Milestone: **Bounded saved-data bowl retrieval with complete-crop encoding**.
 
-Status: operator negative-case recording and corrected review presentation are
-`VERIFIED`; retrieval improvement remains `PLANNED`. The operator returned on
-2026-09-16 and rejected all three displayed query crops. Do not ask them to repeat
-that review or count the trash candidate as correct. Safe saved-data work and
+Status: `PLANNED`. The preceding candidate audit, operator-reviewed new targets
+and optional offline index mode are verified and recorded in the Progress Ledger.
+The original fridge/bowl/trash queries remain failures. Safe saved-data work and
 GitHub pushes remain authorized. Keep the camera closed until new operator
-readiness; never issue navigation commands. No new recording is currently needed.
+readiness; never issue navigation commands. No new recording is needed yet.
 
 Required observable result:
 
-1. Use the frozen negative cases in
-   `data/outputs/stationary_memory/steady_20260916/operator_review_20260916/`.
-   `operator_review.json` records zero accepted displayed crops, with the exact
-   user message, query prefixes, source identities and hashes. Separate these
-   operator judgments from detector labels and prior assistant visual judgments.
-2. Audit detector proposal coverage and depth rejection at those original
-   prefixes. Each has only one rankable object. The true fridge is detected in
-   RGB but fails depth; the bowl query has no passing candidate at its prefix.
-   Later bowl/sink labels overlap. Positive target boxes are not yet annotated;
-   do not invent operator annotations or count later observations as past success.
-3. Based on those cases, choose one minimal saved-data retrieval improvement and
-   state its acceptance result before editing. Reuse the current geometry and retrieval
-   code. Do not guess a depth through holes, lower thresholds to pass this scene,
-   merge records solely by label similarity or insert future graph/pose evidence.
-4. Preserve unknown-start, freshness, clearance and route refusals. The new
-   retention configuration is only measured at 0.25x; it has not run live and the
-   consumer refuses graphs over 600 nodes. A bounded fix is not continuous-room
-   navigation acceptance.
-5. Run the affected focused tests and independent saved-data checks, review the
-   complete diff, and record only measured outcomes before publishing a checkpoint.
+1. Retain the original negative cases in
+   `data/outputs/stationary_memory/steady_20260916/operator_review_20260916/`
+   and new positive crop acceptance in
+   `data/outputs/candidate_audit/steady_20260916/operator_positive_review.json`.
+   Do not ask the operator to repeat these reviews. Positive acceptance covers the
+   displayed node-21 bowl/fridge crops, not every adjacent source frame or depth.
+2. Use the existing bounded saved-data consumer to compare 1280 detector proposals
+   plus complete-crop encoding against the original 640/center-crop run. Make any
+   needed options explicit; preserve default behavior and encoder identity checks.
+   State acceptance before editing, then check the confirmed bowl against recorded
+   query cutoffs/source-time evidence. Do not count later observations as past
+   success or reuse diagnostic future evidence in causal memory.
+3. Keep thresholds and geometry gates unchanged. No guessing depth through holes,
+   label-only merging or bypassing keyframe/source-pose eligibility. Record whether
+   the bowl actually reaches the candidate memory and passes its query, including
+   every exclusion if it does not. Preserve fridge-depth and trash-proposal failures.
+4. Preserve freshness, unknown-start, clearance and route refusals. The stationary
+   retention configuration is only measured at 0.25x and the consumer rejects
+   graphs over 600 nodes. Measure resource use/drop counts for a bounded trial;
+   do not claim continuous live throughput or room navigation.
+5. Run focused tests and independent saved-data checks, review the complete diff,
+   and record only measured outcomes before publishing a checkpoint.
 
-Starting points: `docs/stationary-memory.md`, its local `comparison.json` and
-`operator_review_20260916/operator_review.json`, `scripts/online_semantic_memory.py`,
-`scripts/online_scene_memory.py`, and `scripts/rgbd_geometry.py`.
+Starting points: `docs/candidate-audit.md`, `docs/stationary-memory.md`,
+`scripts/semantic_memory.py`, `scripts/online_semantic_memory.py`,
+`tests/check_concurrent_perception.py`, and the saved local audit/replay evidence.
 
-Learning checkpoint: graph retention restores the ability to query observations;
-RGB recognition, valid depth, object identity and a safe path each need separate
-support. Operator-reviewed source images provide the next quality reference.
+Learning checkpoint: a passing isolated crop score must still survive proposal,
+source association, geometry, persistent fusion and timely query selection in
+the actual pipeline. Operator crop acceptance is not navigation acceptance.
 
 ## 6. Target System Architecture
 
@@ -4117,6 +4135,82 @@ the single-object candidate pool remain substantive failures.
 
 Next action: audit proposal coverage and depth rejection at the frozen query
 prefixes before choosing a retrieval change; retain all three negative cases.
+
+### 2026-09-16: Candidate Gates Audited; Optional Complete-Crop Index Verified
+
+Status: `VERIFIED` for saved-data diagnosis, operator acceptance of the new
+shown bowl/fridge crops, and an optional offline encoding mode. Original three
+queries remain failures; useful stationary/live retrieval is not yet accepted.
+
+Audit: exact prefixes 356/612/932 have 13/22/33 eligible keyframes and only one
+rankable object each. Every eligible true-fridge detection fails the unchanged
+25% valid-depth requirement (6.56-9.49% valid). No bowl-labeled observation occurs
+before any query; 1/1/25 sink-labeled bowl-region proposals have valid depth and
+poses but no matching keyframe, so are excluded. Actual YOLOv8n labels have no
+trash-can class. Source bytes/units/RGB ordering are correct; missing-depth
+physical causes and registration accuracy are not established.
+
+Same-source 640/1280 comparisons on nodes 14/9/21 use unchanged weights, confidence
+and depth policy. At 1280 all three have a new bowl-region proposal with 100%
+valid inner-ROI depth at 1.437 m. Labels are bowl/sink/bowl. The official S0 center
+crop retains about 44% of the wide proposal; original encoding scores for
+`a bowl` are 0.1384/0.1315/0.1365. Black square padding preserves all crop pixels
+before that transform, producing 0.2453/0.2531/0.2592. Two pass the unchanged 0.25
+filter. These are retrospective diagnostic candidates, not repaired past queries.
+Fridge depth and the falsely selected wrong region remain failures.
+
+Operator: after reporting "I cannot see it", the user viewed the new review on
+the Jetson monitor and replied "they are correct". Positive feedback is tied to
+the displayed node-21 bowl and central-fridge crops and page hashes. It does not
+accept the previous wrong crop or establish geometry/route validity. Other frames
+were not individually operator-labeled. The prior three negative cases remain
+immutable.
+
+Changed: `scripts/semantic_memory.py` adds optional `build --square-pad`, centers
+complete RGB8 crops on black squares with odd extra padding at bottom/right,
+records `square_pad: true` in encoder identity and restores it during query.
+Saved crop evidence remains rectangular and exact. Legacy encoder identities,
+text encoding, online defaults, detector size, thresholds and planners remain
+unchanged. Two focused pixel/invalid-mode tests are added. No new dependency.
+
+Verification: 15 semantic and 39 online-memory/semantic/search tests pass. A real
+Jetson GPU build on the different `line_20260915` recording preserves all 63 crop
+pixels and 17 geometric objects. Fresh CLIs reproduce every old ranking/text
+vector exactly and query all 11 frozen phrases with the new index. The three
+padded bowl vectors and three default image vectors reproduce the respective
+diagnostic/baseline values exactly. Native queries explicitly refuse non-boolean
+modes and inconsistent identities. Independent fusion/score error is at most
+4.36e-8/3.31e-8. Original indexes, memory, frames, crops and weights stay unchanged.
+
+Results: fridge synonyms still select ID 1; four negative controls remain below
+threshold. `a bottle` changes from no candidate at 0.245764 to unconfirmed ID 17
+at 0.258314. Sink selection changes from 9/10 to 9; white-fridge and red-chair
+scores decline. Transparent-bottle score 0.249786 still fails. No new operator
+labels establish general accuracy improvement, so padding stays opt-in.
+
+Build: 25.830 s total, 10.228 s load; first encode 478.962 ms, remaining 62 mean
+41.521 ms, median 40.274 ms and P95 52.721 ms. Peak RSS 1,455,984 KiB; CUDA allocation
+237,129,216 bytes. No concurrent SLAM/throughput claim. Existing text-to-search
+CLI accepts the new index: fridge ID 1 fails map clearance; fallback refuses
+recorded node 1 as `INVALID_START` / `unknown_cell`. No goal/path, ROS publication
+or motion. Native post-check finds no experiment/camera/SLAM processes and
+4,982,160 KiB available RAM; this is bounded cleanup evidence, not a leak benchmark.
+
+Evidence: `data/outputs/candidate_audit/steady_20260916/` contains original-source
+hashes, audit/resolution/crop/padding comparisons, `operator_positive_review.json`,
+predeclared `padding_acceptance.json`, source-check harnesses, the new index,
+old/new query reports, `padding_native_check.json`, `padding_verification.json`,
+`padding_search/`, `padding_cleanup.json` and test logs. Public details and exact
+scores are in `docs/candidate-audit.md`; CLI usage is in `docs/semantic-memory.md`.
+Private images and generated outputs remain ignored.
+
+Learning: a correct proposal can still lose its identifying pixels in encoder
+preprocessing; complete crops help these examples but cannot supply missing
+proposals, depth, retained source poses or a safe route.
+
+Next action: one bounded stationary saved-data replay combining 1280 proposals
+and complete-crop encoding, checking the confirmed bowl at the recorded query
+cutoffs while preserving all source/geometry/route gates and original negatives.
 
 ## 16. End-Of-Session Handoff Template
 

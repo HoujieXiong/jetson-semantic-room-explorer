@@ -13,7 +13,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))
-from semantic_memory import crop_rgb, rank_objects, read_index, unit_vector, write_index, write_query_review
+from semantic_memory import MobileClipEncoder, crop_rgb, rank_objects, read_index, square_pad_rgb, unit_vector, write_index, write_query_review
 from run_semantic_search import select_candidates
 
 
@@ -44,6 +44,26 @@ class SemanticMathTests(unittest.TestCase):
         for value in (np.zeros(512), np.ones(511), np.full(512, np.nan), np.full(512, np.inf), np.full(512, 1e30)):
             with self.assertRaises(ValueError):
                 unit_vector(value)
+
+    def test_square_padding_preserves_complete_wide_tall_and_square_rgb(self):
+        wide = np.full((2, 5, 3), [11, 23, 37], dtype=np.uint8)
+        padded = square_pad_rgb(wide)
+        self.assertEqual(padded.shape, (5, 5, 3))
+        np.testing.assert_array_equal(padded[1:3], wide)
+        self.assertFalse(padded[[0, 3, 4]].any())
+        tall = wide.transpose(1, 0, 2)
+        np.testing.assert_array_equal(square_pad_rgb(tall), padded.transpose(1, 0, 2))
+        square = np.arange(27, dtype=np.uint8).reshape(3, 3, 3)
+        np.testing.assert_array_equal(square_pad_rgb(square), square)
+
+    def test_padding_rejects_empty_or_non_rgb8_crops_and_invalid_modes(self):
+        for shape, dtype in [((0, 2, 3), np.uint8), ((2, 0, 3), np.uint8),
+                             ((2, 2), np.uint8), ((2, 2, 4), np.uint8), ((2, 2, 3), float)]:
+            with self.assertRaisesRegex(ValueError, 'nonempty RGB8'):
+                square_pad_rgb(np.zeros(shape, dtype=dtype))
+        for mode in (1, 'true', None):
+            with self.assertRaisesRegex(ValueError, 'must be a boolean'):
+                MobileClipEncoder(Path('unused.pt'), square_pad=mode)
 
     def test_semantic_ranking_is_independent_of_detector_label_and_keeps_geometry(self):
         objects = [({'object_id': 2, 'label': 'bottle', 'map_point_m': [1, 2, 3]}, axis(0), 1),

@@ -64,6 +64,14 @@ memory from 0 to 3 provisional records. The operator rejected all three displaye
 query crops: fridge and trash queries select the same wrong region, while the
 bowl query has no selected candidate. All routes refuse an unknown start.
 See [the comparison, depth limitations and local image review](docs/stationary-memory.md).
+The [candidate audit](docs/candidate-audit.md) now traces these failures to missing
+depth, unstable proposals, keyframe selection and crop preprocessing. A saved-frame
+1280-input/padded-crop experiment improves bowl-region scores; the operator
+confirmed the new displayed bowl and fridge crops. The optional offline
+`--square-pad` mode passes source/identity checks and an 11-query comparison on
+another recording, with mixed score changes. Stationary fridge-depth and trash
+failures remain unresolved. Runtime defaults stay unchanged; this is not live
+retrieval acceptance.
 
 ## Goal
 

@@ -68,9 +68,25 @@ def crop_rgb(rgb, box):
     return np.ascontiguousarray(rgb[y0:y1, x0:x1]), bounds.tolist()
 
 
+def square_pad_rgb(rgb):
+    """Keep all RGB8 crop pixels; center on black with odd extra padding at bottom/right."""
+    if (rgb.ndim != 3 or rgb.shape[2] != 3 or rgb.dtype != np.uint8
+            or min(rgb.shape[:2]) == 0):
+        raise ValueError('Expected a nonempty RGB8 crop')
+    height, width = rgb.shape[:2]
+    side = max(height, width)
+    square = np.zeros((side, side, 3), dtype=np.uint8)
+    top, left = (side-height)//2, (side-width)//2
+    square[top:top+height, left:left+width] = rgb
+    return square
+
+
 class MobileClipEncoder:
     """Concrete official S0 implementation shared by indexing and text queries."""
-    def __init__(self, checkpoint):
+    def __init__(self, checkpoint, *, square_pad=False):
+        if type(square_pad) is not bool:
+            raise ValueError('square_pad must be a boolean')
+        self.square_pad = square_pad
         started = time.monotonic()
         import torch
         import mobileclip
@@ -86,6 +102,8 @@ class MobileClipEncoder:
                                       ('torch', 'torchvision', 'mobileclip', 'timm', 'open-clip-torch',
                                        'pillow', 'numpy', 'ftfy', 'regex')},
                          'device': torch.cuda.get_device_name(0)}
+        if square_pad:
+            self.identity['square_pad'] = True
         self.model, _, self.preprocess = mobileclip.create_model_and_transforms(
             POLICY['model'], pretrained=str(checkpoint))
         self.model = self.model.to(POLICY['device']).eval()
@@ -99,6 +117,8 @@ class MobileClipEncoder:
         started = time.monotonic()
         if not image and len(self.tokenizer.tokenizer.encode(value))+2 > self.tokenizer.context_length:
             raise ValueError('Text exceeds MobileCLIP context; shorten the phrase rather than truncate it')
+        if image and self.square_pad:
+            value = square_pad_rgb(value)
         tensor = self.preprocess(Image.fromarray(value)).unsqueeze(0) if image else self.tokenizer([value])
         tensor = tensor.to(POLICY['device'])
         with self.torch.inference_mode():
@@ -137,7 +157,7 @@ def write_index(path, context, samples):
                  unit_vector(sample['vector']).astype('<f4').tobytes()))
 
 
-def build_index(memory, frames, model, output):
+def build_index(memory, frames, model, output, *, square_pad=False):
     from PIL import Image
     output.mkdir(parents=True, exist_ok=False)
     started = time.monotonic()
@@ -149,7 +169,7 @@ def build_index(memory, frames, model, output):
             check_schema(connection)
             supports = connection.execute("SELECT node_id, detection_index, object_id FROM associations WHERE decision IN ('new_object', 'nearest_match') ORDER BY node_id, detection_index").fetchall()
             evidence = {row[0]: json.loads(row[1]) for row in connection.execute('SELECT node_id, evidence_json FROM frames')}
-        encoder = MobileClipEncoder(model)
+        encoder = MobileClipEncoder(model, square_pad=square_pad)
         context = {**before, 'memory_context': remembered['context'], 'encoder': encoder.identity}
         report.update(context=context, load_ms=encoder.load_ms)
         (output/'crops').mkdir()
@@ -284,7 +304,7 @@ def query_index(index, memory, model, texts, output):
         report.update(context=context, index_sha256=file_hash(index/'index.db'))
         if file_hash(model) != context['model_sha256']:
             raise ValueError('Text encoder weights differ from image encoder')
-        encoder = MobileClipEncoder(model)
+        encoder = MobileClipEncoder(model, square_pad=context['encoder'].get('square_pad', False))
         if encoder.identity != context['encoder']:
             raise ValueError('Text/image encoder implementation or runtime differs')
         report['load_ms'] = encoder.load_ms
@@ -317,8 +337,11 @@ if __name__ == '__main__':
         command.add_argument('--'+('frames' if name == 'build' else 'index'), type=Path, required=True)
         if name == 'query':
             command.add_argument('--text', action='append', required=True)
+        else:
+            command.add_argument('--square-pad', action='store_true',
+                                 help='Center complete crops on black squares before official image preprocessing')
     args = parser.parse_args()
     common = (args.memory.resolve(), args.model.resolve(), args.output.resolve())
-    result = (build_index(common[0], args.frames.resolve(), common[1], common[2]) if args.command == 'build'
+    result = (build_index(common[0], args.frames.resolve(), common[1], common[2], square_pad=args.square_pad) if args.command == 'build'
               else query_index(args.index.resolve(), common[0], common[1], args.text, common[2]))
     print(json.dumps({'status': result['status'], 'output': str(args.output)}))
