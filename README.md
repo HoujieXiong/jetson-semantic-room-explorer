@@ -103,6 +103,14 @@ snapshots change, and 98 focused tests pass. Thirteen rankable bowl queries stil
 fall below threshold. Fridge/trash failures and planning refusals remain; default
 association is unchanged.
 
+The [fridge source-depth audit](docs/fridge-depth-support.md) now verifies 13
+original RGB-D frames. The confirmed stationary view has 1,059 valid inner-ROI
+pixels concentrated in small patches, while three existing motion views have
+45–83% valid depth with the same aligned resolution/calibration. The stationary
+view still fails the unchanged 25% gate; physical distance and the cause of missing
+returns remain unverified. Resolving every hole is not a prerequisite for further
+pipeline work, and no new recording or runtime change was needed for this audit.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

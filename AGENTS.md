@@ -791,50 +791,72 @@ no camera, ROS publication or motion is used. See
 `docs/shared-depth-association.md` and the latest ledger entry. Stable recognition,
 physical identity, live throughput and navigation remain unverified.
 
+### 4.30 Fridge Source-Depth Support
+
+Status: `VERIFIED` for an evidence-only audit of 13 original RGB-D frames.
+The confirmed stationary inner ROI has 1,059 valid aligned pixels (9.36%); 732
+belong to a persistent component around a small light patch on the door, with
+median depth 4.076 m. All 604 processed stationary observations remain below the
+existing 25% valid-depth gate. Three existing motion views have 45.23–82.52%
+valid depth with identical stored calibration and aligned dimensions.
+
+Independent spatial/temporal checks and original depth-summary reproduction pass;
+31 inputs and all 25 runtime files retain their hashes. No camera, inference,
+publication, motion or new dependency is used. The physical cause, true surface
+distance and stationary 3D localization remain unverified. No new recording is
+needed to continue the pipeline; the user explicitly prioritized progress over
+eliminating all depth holes. See `docs/fridge-depth-support.md` and the ledger.
+
 ## 5. Current Next Task
 
-Milestone: **Audit depth support for the confirmed fridge region**.
+Milestone: **Expose unlocalized visual evidence in text queries**.
 
-Status: `PLANNED`. The shared-depth association correction is verified and
-recorded in the Progress Ledger. Safe saved-data work and GitHub pushes remain
-authorized. Keep the camera closed until new operator readiness; never issue
-navigation commands. Begin with existing local data.
+Status: `PLANNED`. The bounded fridge-depth audit is verified and recorded in the
+Progress Ledger. The user authorized continued pipeline work without making hole
+removal a prerequisite. Safe saved-data work and GitHub pushes remain authorized.
+Keep the camera closed until new operator readiness; never issue navigation
+commands. Existing local recordings, encoder and weights are sufficient to start.
 
 Required observable result:
 
-1. Preserve the original rejected queries, operator-confirmed node-21 crops,
-   measured journals, and original/extended duplicate-association evidence.
-   Later crops have no new human annotations; do not infer them from feedback.
-2. Inspect original calibrated RGB-D for the confirmed fridge region and a bounded,
-   declared sample of its existing stationary observations. Map valid/invalid
-   pixels inside and around the original inner ROI and detection box; report
-   depth distributions, spatial concentration and temporal consistency. Distinguish
-   recorded invalid depth from inferred causes such as material or occlusion.
-3. Determine whether surviving pixels support the fridge surface or could belong
-   to boundaries/background/another object. Compare with existing depth-accepted
-   motion-recording fridge evidence where useful, without treating matching text
-   or detector labels as confirmed physical identity. Provide an inspectable
-   source RGB/depth overlay and explicit provenance, units and uncertainty.
-4. Report whether existing evidence justifies further localization work or a new
-   view is needed. Do not fill missing depth, silently enlarge the ROI, lower the
-   25% valid-depth gate, or promote an RGB-only match into a 3D target. A runtime
-   change requires a concrete source-supported acceptance check before editing;
-   an evidence-only result is sufficient if the missing data cannot be recovered.
-5. Preserve causal support, 0.25 / 0.02 text filters, freshness, unknown-start and
-   clearance refusals. Keep fridge/trash failures explicit. Review the complete
-   diff and update the ledger only with measurements; publish the verified audit.
+1. Preserve original journals, rejected/confirmed operator feedback, crop/vector
+   identities and geometry/query results. Do not retroactively add later vectors
+   to old query prefixes or infer new human labels from existing feedback.
+2. Inspect existing keyframe encoding, journal validation, semantic ranking and
+   review rendering. Before editing, declare the smallest optional vertical slice
+   that retains source RGB crops for depth-rejected proposals and exposes them to
+   exact-phrase text queries with explicit unconfirmed localization. Reuse the
+   existing worker, encoder, crop provenance and bounded processing where possible;
+   do not create a second scene-memory architecture or speculative object fusion.
+3. A returned visual observation must identify its original source frame, proposal,
+   crop, encoding availability and depth-rejection reason. It must not invent a
+   map point, object center, permanent physical identity or navigation goal. Keep
+   localized 3D candidates and unlocalized image evidence distinguishable in the
+   query output and review page. Expose original detector labels without treating
+   them or similarity scores as confirmation.
+4. Run a bounded existing-data trial with the local model, using the confirmed
+   fridge region as a review reference. Measure whether `a fridge` retrieves that
+   crop and retain failure if it does not. Compare bowl, previously wrong fridge/
+   trash regions and existing motion/unknown queries; do not tune text thresholds
+   or manually force the reference crop to win. Report additional crop work,
+   memory and latency without claiming live throughput from replay.
+5. Verify source pixels, encoder identity, prefix-only availability and explicit
+   refusal to plan from unlocalized evidence. Preserve original depth/pose gates,
+   one-frame geometric voting, 0.25 / 0.02 text filters, map freshness, unknown-start
+   and clearance checks. Run focused behavior/refusal tests and independent query
+   checks, review the full diff, then update the ledger and publish the checkpoint.
 
-Starting points: `docs/candidate-audit.md`, `docs/bowl-replay.md`,
-`docs/shared-depth-association.md`, `scripts/observe_rgbd_objects.py`,
+Starting points: `docs/fridge-depth-support.md`, `docs/online-semantic-memory.md`,
+`scripts/online_semantic_memory.py` (`encode_keyframe` currently selects only
+depth-accepted detections), `scripts/online_scene_memory.py`,
+`scripts/semantic_memory.py`, `scripts/online_search_preview.py`,
 `data/outputs/candidate_audit/steady_20260916/operator_positive_review.json`,
-the retained stationary RGB-D bag/journals, and the extraction code under
-`data/outputs/shared_depth/20260916/`. The true central-fridge detection failed
-depth in all 604 processed frames of the complete-crop replay, with valid fraction
-6.84–11.46%; this audit must explain the source support beyond repeating that count.
+and the preserved stationary/motion recordings and journals. Original false
+fridge/trash matches remain failures; optional RGB evidence is not verified yet.
 
-Learning checkpoint: a correct RGB crop does not guarantee a supported 3D target.
-Depth pixels must belong to the intended surface, not merely appear somewhere
-inside its detection rectangle.
+Learning checkpoint: seeing, recognizing and localizing an object are separate
+claims. Missing depth should remain explicit without erasing valid image evidence
+or making an unsupported 3D target available to the planner.
 
 ## 6. Target System Architecture
 
@@ -4630,6 +4652,78 @@ recognition still require separate evidence.
 
 Next action: audit existing RGB-D support for the operator-confirmed fridge
 region to determine whether localization is justified or a new view is needed.
+
+### 2026-09-16: Fridge Depth Support Audited Without Blocking Pipeline Work
+
+Status: `VERIFIED` for a bounded source-data audit. Runtime, models, camera
+profiles/resolutions and depth/query/planning thresholds remain unchanged.
+The user prioritized completing the pipeline without first eliminating depth
+holes; this audit does not make a new recording a prerequisite.
+
+Verified:
+
+- Predeclared selection covers the confirmed node-21 fridge crop, seven evenly
+  spaced frames plus valid-fraction extremes from the 604 processed stationary
+  observations, and first/middle/last eligible frozen motion frames (9/32/56).
+  Ten stationary RGB-D pairs are read from their original bag stamps with exact
+  pixel hashes; three existing motion NPZs pass frozen manifest, timestamp and
+  map/pose provenance checks. All 13 original depth summaries reproduce exactly.
+  Stored calibration and 1280x720 aligned dimensions are identical across them.
+- All 604 stationary inner ROIs retain `insufficient_valid_depth`: valid fraction
+  min/median/max is 6.8352/8.5841/11.4560% over 64.628 s source time, against the
+  unchanged 25% gate. The confirmed ROI `[705,264,778,419]` contains 1,059 valid
+  pixels and 10,256 zeros, with no out-of-range samples. Its raw valid depth
+  P10/P50/P90 is 4.072/4.080/4.1152 m. Counts refer to aligned pixels, not
+  independent native measurements or physical distance accuracy.
+- The confirmed ROI's largest four-connected component contains 732 pixels
+  (69.12% of valid support), at `[724,290,752,320]`, with depth P10/P50/P90
+  4.071/4.076/4.095 m. Assistant inspection places it around the small light
+  patch on the door. Large parts of the shiny-looking door are invalid. The
+  source supports a localized patch; it does not isolate the physical cause or
+  establish the fridge's full surface, true distance, center or navigation target.
+- The nine sampled stationary frames have largest components of 676–740 pixels
+  and inner-ROI medians of 4.073–4.083 m. In the fixed confirmed ROI, 2,737 pixels
+  are valid at least once, 638 in >=8/9 frames and 542 in every frame. For 1,673
+  pixels with >=3 measurements, median temporal P90-P10 is 0.0168 m. This is
+  fixed-pixel evidence with view jitter, not registered fusion or a noise test.
+- Diagnostic full-box/ring valid fractions are 36.36–37.99% / 79.01–82.30%.
+  These regions include additional boundaries/background and do not replace
+  the inner ROI. Motion nodes 9/32/56 have 52.22/45.23/82.52% valid inner depth;
+  existing robust inliers are 3,430/4,632/3,782 and selected depths
+  4.920/4.185/4.776 m. Nearer foreground returns in nodes 9/56 are removed by
+  the existing estimator. These views are comparisons, not new operator labels.
+- Same aligned dimensions/calibration with different coverage show that resolution
+  mismatch alone cannot explain this stationary pattern. The selected sources
+  do not separate sensor returns from alignment/filtering losses; physical cause
+  remains unverified. No hole filling, ROI expansion or threshold change is used.
+- Independent scalar counts/percentiles, flood-fill connectivity and temporal
+  loops reproduce the spatial and persistence results. Inverse-intrinsics versus
+  direct projection agrees within 6.67e-16 m. Confirmed crop pixels are exact;
+  31 declared inputs and all 25 runtime files retain their hashes. No runtime
+  unit suite is rerun for this evidence-only change.
+- Extraction takes 22.808 s, analysis 1.747 s / 87,004 KiB peak RSS, independent
+  verification 3.316 s. These are audit costs, not live throughput. No camera,
+  model inference, ROS publication, motion or dependency download is used.
+
+Decision: preserve the stationary depth rejection and unconfirmed localization;
+continue pipeline work using existing data. Resolving this fridge's holes is
+not required now. RGB evidence should be able to remain useful without being
+promoted into an unsupported 3D target.
+
+Evidence: `data/outputs/fridge_depth/20260916/`, including `acceptance.json`,
+`selected_sources.json`, source arrays, `extraction.json`,
+`stationary_timeline.json`, `analysis.json`, `temporal_support.npz`,
+`verification.json`, exact check scripts and logs. Inspected `fridge_depth.png`
+and `.svg` summarize source overlays and coverage; self-contained `review.html`
+contains all 13 RGB/depth panels without WebGL. Room data remains private.
+See `docs/fridge-depth-support.md` for the interpretation and viewing command.
+
+Learning checkpoint: valid-pixel coverage and support location both matter.
+A visible object can have useful RGB evidence while its automatic 3D localization
+remains unconfirmed; the pipeline should represent that state explicitly.
+
+Next action: expose depth-rejected RGB evidence in text queries with explicitly
+unconfirmed localization, preserving source provenance and all 3D planning gates.
 
 ## 16. End-Of-Session Handoff Template
 

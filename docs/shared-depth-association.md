@@ -131,5 +131,7 @@ Focused test commands used:
 .venv/bin/python -m unittest discover -s tests/online_memory -v
 ```
 
-Next: audit existing RGB-D support for the operator-confirmed fridge region to
-decide whether localization is justified or a new camera view is needed.
+Follow-up: the [fridge source-depth audit](fridge-depth-support.md) finds localized,
+persistent patches and denser support in existing motion views. The stationary
+fridge remains depth-rejected; resolving its holes is not a prerequisite for
+continuing the pipeline.
