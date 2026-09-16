@@ -3927,40 +3927,6 @@ latency and continuous live throughput. Next action: operator-assisted live
 validation with floor and familiar furniture visible; obtain readiness before
 physical capture and keep navigation/scale claims deferred.
 
-## 16. End-Of-Session Handoff Template
-
-Before ending a substantial Codex session, append or update the latest ledger
-entry using this structure:
-
-```text
-Date:
-Milestone:
-Status: VERIFIED | IMPLEMENTED | PLANNED | BLOCKED
-
-Changed:
-- Files and behavior changed.
-
-Verified:
-- Exact commands/tests run.
-- Important result values.
-
-Evidence:
-- Paths to logs, images, bags, benchmark summaries, or commits.
-
-Problems:
-- Exact failure and current diagnosis.
-
-Decisions:
-- Durable choices and why they were made.
-
-Next action:
-- One concrete task that can be resumed without reconstructing the conversation.
-```
-
-The repository, tests, and this ledger must be sufficient to resume the project
-after chat history is unavailable.
-
-
 ### 2026-09-15: Bounded Live RGB-D Measurement And Explicit Search Refusal
 
 Status: `VERIFIED` for measured live capture/concurrency, persistent source events
@@ -4015,3 +3981,36 @@ reopening. Journal SHA-256:
 No raw room data, weights or recordings are committed. The user has gone to bed
 and authorizes continued work using collected data; no further capture or
 operator movement is authorized without a new readiness confirmation.
+
+## 16. End-Of-Session Handoff Template
+
+Before ending a substantial Codex session, append or update the latest ledger
+entry using this structure:
+
+```text
+Date:
+Milestone:
+Status: VERIFIED | IMPLEMENTED | PLANNED | BLOCKED
+
+Changed:
+- Files and behavior changed.
+
+Verified:
+- Exact commands/tests run.
+- Important result values.
+
+Evidence:
+- Paths to logs, images, bags, benchmark summaries, or commits.
+
+Problems:
+- Exact failure and current diagnosis.
+
+Decisions:
+- Durable choices and why they were made.
+
+Next action:
+- One concrete task that can be resumed without reconstructing the conversation.
+```
+
+The repository, tests, and this ledger must be sufficient to resume the project
+after chat history is unavailable.
