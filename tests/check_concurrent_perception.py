@@ -28,6 +28,7 @@ from observe_rgbd_objects import DEPTH_POLICY, INFERENCE, infer_rgbd
 from rgbd_geometry import map_from_camera, pinhole_matrix
 from extract_mapped_rgbd import file_hash
 from online_scene_memory import OnlineMemoryWriter
+from online_semantic_memory import OnlineSemanticCapture, POLICY as SEMANTIC_POLICY
 
 
 class ConcurrentCheck(MappingCheck):
@@ -43,6 +44,7 @@ class ConcurrentCheck(MappingCheck):
         self.odom_by_stamp = {}
         self.callback_ms = []
         self.memory = None
+        self.semantic = None
         self.filters = {topic: message_filters.SimpleFilter() for topic in TOPICS if topic != '/tf_static'}
         self.sync = message_filters.ApproximateTimeSynchronizer(list(self.filters.values()), 10, 0.005)
         self.sync.registerCallback(self.pair)
@@ -87,6 +89,8 @@ class ConcurrentCheck(MappingCheck):
         super().mapping_stats(message)
         if self.memory is not None:
             self.memory.submit('mapping', self.mapping_info[-1], self.elapsed())
+        if self.semantic is not None:
+            self.semantic.request(self.mapping_info[-1])
 
     def map_graph(self, message):
         super().map_graph(message)
@@ -129,6 +133,8 @@ class ConcurrentCheck(MappingCheck):
             return
         # NumPy views retain the ROS message data buffers until the job completes.
         color = np.frombuffer(rgb.data, dtype=np.uint8).reshape(rgb.height, rgb.width, 3)
+        if self.semantic is not None:
+            self.semantic.remember(row, color)
         depth_mm = np.frombuffer(depth.data, dtype='<u2').reshape(depth.height, depth.width)
         self.pending = (row, color, depth_mm, k)
 
@@ -184,6 +190,8 @@ class ConcurrentCheck(MappingCheck):
                 self.memory.submit('observation', {**row, 'camera_info':
                     self.sensor.calibration['/camera/color/camera_info']}, self.elapsed())
             self.awaiting_pose.remove(row)
+        if self.semantic is not None:
+            self.semantic.pump(self.rows)
         if self.pending is None or self.active is not None or len(self.awaiting_pose) >= 8:
             return
         row, rgb, depth, k = self.pending
@@ -236,7 +244,10 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--duration', type=float, required=True)
     parser.add_argument('--memory-db', type=Path, help='Optional fresh causal observation/graph journal')
+    parser.add_argument('--semantic-model', type=Path, help='Optional MobileCLIP-S0 checkpoint; requires --memory-db')
     args = parser.parse_args()
+    if args.semantic_model is not None and args.memory_db is None:
+        parser.error('--semantic-model requires --memory-db')
     ready = args.output.with_suffix('.ready.json')
     if not np.isfinite(args.duration) or not 0 < args.duration <= 600 or args.output.exists() or ready.exists():
         parser.error('Use a new output path and a finite duration at most 600 seconds')
@@ -249,7 +260,7 @@ def main():
               'model_path': str(model_path), 'model_sha256': file_hash(model_path),
               'inference': INFERENCE, 'depth_policy': DEPTH_POLICY,
               'live_capture_executed': False, 'motion_executed': False}
-    check = node = executor = memory = None
+    check = node = executor = memory = semantic = None
     initialized = False
     try:
         os.environ['YOLO_OFFLINE'] = 'true'
@@ -269,17 +280,29 @@ def main():
                             'wall_ms': (time.monotonic()-started)*1000}
         report['runtime'] = {'torch': torch.__version__, 'ultralytics': ultralytics.__version__,
                             'opencv': cv2.__version__, 'gpu': torch.cuda.get_device_name(0)}
+        encoder = None
+        if args.semantic_model is not None:
+            from semantic_memory import MobileClipEncoder
+            encoder = MobileClipEncoder(args.semantic_model)
+            report['semantic_encoder'] = encoder.identity
+            report['semantic_load_ms'] = encoder.load_ms
         rclpy.init()
         initialized = True
         node = rclpy.create_node('concurrent_rgbd_check', parameter_overrides=[Parameter('use_sim_time', value=True)])
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='rgbd_inference')
         check = ConcurrentCheck(lambda *values: infer_rgbd(model, *values), executor)
         if args.memory_db is not None:
-            memory = OnlineMemoryWriter(args.memory_db, {
+            context = {
                 **{key: report[key] for key in ('reference_sha256', 'model_sha256', 'inference', 'depth_policy', 'runtime')},
                 'session_id': str(uuid.uuid4()), 'origin_monotonic_ns': int(check.begin*1e9),
-                'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map', 'point_unit': 'meter'})
+                'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map', 'point_unit': 'meter'}
+            if encoder is not None:
+                context.update(semantic_encoder=encoder.identity, semantic_policy=SEMANTIC_POLICY)
+            memory = OnlineMemoryWriter(args.memory_db, context)
             check.memory = memory
+            if encoder is not None:
+                semantic = OnlineSemanticCapture(encoder, memory, args.memory_db.with_suffix('.crops'), check.elapsed)
+                check.semantic = semantic
         check.subscribe(node)
         ready.write_text(json.dumps(report, indent=2)+'\n')
         print('READY: GPU warmup and subscriptions complete', flush=True)
@@ -289,6 +312,12 @@ def main():
             check.pump()
         if not node.get_clock().ros_time_is_active or node.get_clock().now().nanoseconds <= 0:
             raise ValueError('No active ROS simulated clock')
+        if semantic is not None:
+            if semantic.active is not None or semantic.pending:
+                raise RuntimeError('Pending semantic work at the bounded deadline')
+            semantic.close()
+            if file_hash(args.semantic_model) != encoder.identity['checkpoint_sha256']:
+                raise ValueError('Semantic checkpoint changed during the trial')
         if memory is not None:
             memory.close()
         report.update(check.finish(reference))
@@ -302,6 +331,14 @@ def main():
     finally:
         close_error = None
         try:
+            if semantic is not None:
+                try:
+                    semantic.close()
+                except (RuntimeError, ValueError, OSError) as error:
+                    close_error = error
+                    report.update(status='INCOMPLETE', semantic_error=str(error))
+                report['online_semantic'] = {**semantic.stats, 'policy': SEMANTIC_POLICY,
+                                             'closed': semantic.closed, 'active_at_close': semantic.active is not None}
             if memory is not None:
                 try:
                     memory.close()

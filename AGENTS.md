@@ -621,53 +621,71 @@ tests pass. Initial native-player/serialization failures remain INCOMPLETE.
 See `docs/online-scene-memory.md` and
 `data/outputs/online_memory/line_20260915/attempt_07/`.
 
+### 4.21 Causal Online MobileCLIP Retrieval
+
+Status: `VERIFIED` for bounded recorded-data text queries during concurrent
+SLAM/YOLO/MobileCLIP. Live real-time operation and changing-map search remain open.
+
+The fresh 899-pair replay stores 1,079 events, including 59 encoded keyframes,
+226 source-verified crops/vectors and one semantic refusal for an original bad
+pose. Query prefixes 141/504/856 precede playback end: fridge/refrigerator synonyms
+select the visible refrigerator, while elephant selects nothing. Bottle retrieval
+after playback remains below threshold and ranks an appliance crop first.
+Thresholds remain 0.25 and within 0.02 of the top score. No accuracy claim is made.
+
+Original vectors are reassociated with current geometric representatives in one
+read snapshot. Final memory has 16 provisional objects / 67 semantic supports;
+reopening reproduces results and original label journals stay compatible.
+Warm concurrent crop P50/P95 is 80.330/120.574 ms; full during-query CLI latency
+is 14.106–16.125 s including cold model/interpreter startup. System RAM peaks at
+5,136 MB. All 207 focused tests and independent crop/TF/fusion/ranking checks pass;
+workers and owned processes close. See `docs/online-semantic-memory.md` and
+`data/outputs/online_semantic/line_20260915/attempt_02/`.
+
 ## 5. Current Next Task
 
-Milestone: **Causal online MobileCLIP text retrieval on recorded RGB-D**.
+Milestone: **Causal text-query to ROS search preview on recorded RGB-D**.
 
-Status: `PLANNED`. Causal observation persistence and label queries during a
-bounded 899-pair replay are verified and recorded in the Progress Ledger. Saved
-MobileCLIP retrieval/ROS previews also work, but their indexes bind to frozen
-geometry and cannot be silently reused as an online semantic memory.
+Status: `PLANNED`. Concurrent observation persistence and MobileCLIP text queries
+are verified. Existing goal/route/frontier planners and ROS publication work with
+frozen geometry; they are not yet connected to the changing online map.
 
-The user requested pipeline-first work and deferred physical scale/return-error
-refinement. Continue safe autonomous work with existing local data. Official
-MobileCLIP/CuTR downloads and isolated required dependencies are already
-authorized. CuTR remains an offline comparison, not a baseline prerequisite.
-Do not gate integration on a new measured-motion capture; physical capture still
-requires operator readiness.
+Continue the user's pipeline-first direction using existing local recordings.
+Physical scale/return-error refinement is deferred. Safe autonomous work, existing
+model downloads and GitHub progress pushes are authorized. Do not require a new
+capture unless a concrete missing input prevents progress. Physical capture still
+requires operator readiness; no mobile base or motor command is involved.
 
 Required observable result:
 
-1. Answer a text-description query before a bounded replay ends, with source
-   crops/embeddings available by that decision and geometry from one named online
-   event-prefix/graph snapshot. Never import a future crop or final pose merely
-   because an existing frozen index contains it.
-2. Reuse the existing MobileCLIP preprocessing/model provenance, online journal
-   and association logic where contracts fit. Inspect current crop and index
-   ownership before editing; avoid a second semantic pipeline or fake frozen IDs.
-3. Preserve bounded inference/embedding queues, explicit missing/late/rejected
-   evidence and revision-scoped identities. Measure Jetson concurrency before
-   making latency/throughput claims; do not introduce CuTR into this run.
-4. Verify persistence/reopening, source pixel/crop identity, no future evidence,
-   graph revisions and an explicit no-result case. Compare actual text-query
-   rankings with saved source crops; do not equate an embedding match with a
-   verified object identity or safe navigation goal.
-5. Retain the frozen demo and causal label-query path, review the complete diff,
-   update measured progress and push a verified checkpoint. Ask only for missing
-   local inputs/equipment/authority; existing downloads and safe pushes are allowed.
+1. During a bounded replay, turn a causal text-query result into an independently
+   received ROS search decision, and a goal/path when geometry permits, using map,
+   start and observation evidence already available at decision time. Preserve
+   explicit no-goal/no-route decisions instead of weakening geometry checks.
+2. Inspect the current map/grid and frozen-planner contracts before editing.
+   Reuse existing clearance, stand-off, route/frontier and publication code where
+   their contracts fit. Do not attach final-map hashes to online geometry or
+   silently pass snapshot-scoped object IDs into an old frozen index/planner.
+3. Identify a consistent map/query snapshot and refuse missing, stale or mismatched
+   map/start evidence. Keep any simulated planning start explicit. Retain bounded
+   queues, timeouts and cleanup; measure cold query/model cost honestly.
+4. Verify source/prefix consistency, graph revisions, refusal behavior and received
+   ROS coordinates/path contents with focused and independent replay checks.
+   Maintain the existing frozen demo and online label/text-query commands.
+5. Review the complete diff, update measured progress and push a verified
+   checkpoint. Do not claim real-time operation, safe traversability or autonomous
+   navigation from a recorded-data preview.
 
 Starting points: `scripts/online_scene_memory.py`,
-`tests/check_concurrent_perception.py`, `scripts/semantic_memory.py`,
-`docs/online-scene-memory.md`, `docs/semantic-memory.md` and
-`data/outputs/online_memory/line_20260915/attempt_07/`.
-The current producer is a bounded measurement harness, not an indefinite node.
-Object IDs may change with graph revisions; new semantic evidence must remain
-attached to its original observation. No mobile base or motor command is involved.
+`scripts/online_semantic_memory.py`, `scripts/run_semantic_search.py`,
+`scripts/run_offline_search.py`, `scripts/publish_search_preview.py`,
+`tests/check_concurrent_perception.py`, `docs/online-semantic-memory.md` and
+`data/outputs/online_semantic/line_20260915/attempt_02/`.
+No CuTR integration or component optimization is required for this next slice.
 
-Learning checkpoint: visual meaning belongs to the original crop; its map
-position and object association can change. Query timing and revision provenance
-must keep those two forms of evidence consistent.
+Learning checkpoint: a text match proposes an object; map validity, start pose
+and route feasibility determine whether that proposal can become a useful goal.
+Their evidence must belong to a compatible decision-time snapshot.
 
 ## 6. Target System Architecture
 
@@ -1019,7 +1037,8 @@ resource tradeoffs.
 
 Status: `VERIFIED` for minimum saved-data text retrieval and query-to-preview
 integration with MobileCLIP-S0. The complete eleven-query set and failures are in
-`docs/semantic-memory.md`. Proposal coverage, retrieval/attribute quality,
+`docs/semantic-memory.md`. Causal text retrieval during concurrent recorded-data
+playback is also `VERIFIED`; see `docs/online-semantic-memory.md`. Proposal coverage, retrieval/attribute quality,
 calibrated unknown rejection and live operation remain `PLANNED`.
 
 Steps:
@@ -3658,6 +3677,109 @@ graph keyframes, and absence is not room-wide negative evidence. Identity, metri
 accuracy, continuous capture, online embeddings and changing-map routes remain
 unverified. Next action: integrate MobileCLIP text retrieval with these causal
 online snapshots using only already delivered image evidence.
+
+### 2026-09-15: Causal Online MobileCLIP Encoding And Text Queries
+
+Milestone: M6/M8 concurrent recorded-data semantic slice. Status: `VERIFIED`.
+No physical capture, movement, dependency download or CuTR execution occurs.
+
+Changed: `scripts/online_semantic_memory.py` adds one bounded keyframe encoding
+worker and text-query CLI. The existing concurrent producer optionally retains
+32 RGB frames, queues at most eight received mapping requests and encodes at most
+16 depth-accepted proposals per keyframe after its source pose is accepted.
+Missing/late/evicted source evidence, drops and refusals remain explicit.
+`online_scene_memory.py` commits semantic outcomes into the same event prefix,
+validating earlier mapping/observation evidence, timestamps, crop identity and
+normalized vectors. Queries reuse geometric associations and reassign original
+vectors under the current graph revision; IDs remain snapshot-scoped. Existing
+MobileCLIP preprocessing, ranking, selection and crop review are reused; the
+selection/review functions now have one shared owner. Old label/frozen APIs remain
+compatible. No new middleware or indefinite service is introduced.
+
+Environment: existing isolated `../mobileclip-env` and official S0 checkpoint
+SHA256 `809b408eff74f8058843e86a1f92967097d42ba782450e85b8f4867b7f0ca0b7`.
+Baseline Torch/YOLO/camera/SLAM configuration and original recording stay unchanged.
+Query phrases and existing thresholds (cosine 0.25, top window 0.02) are recorded
+before playback. They are not tuned to these results.
+
+Successful attempt 02 lasts 354.556 s including initialization, cold text-query
+processes and cleanup, at nominal 0.25x on the 60.224 s line recording. All four
+sensor streams deliver 899 matching messages; all 899 pairs synchronize.
+Perception: 893 processed, six explicit drops, zero inference failures; 888
+accepted poses, one missing-odometry and four missing-map-TF refusals. Odometry
+reports 898 tracked outputs, zero lost, one input without output. Map DB integrity
+passes with 60 nodes and 21 nodes in the last received graph.
+
+Semantic processing: 59 keyframes produce 226 original RGB crops/unit vectors;
+node 1 retains its original pose refusal. There is no semantic queue, selected
+RGB eviction or crop-budget loss. Cache peak is 32 frames with old-frame eviction;
+pending semantic requests peak at 1/8. Journal integrity passes with 1,079 events,
+8,724,480 bytes and SHA256
+`23991ad903fb09ee9567035bba2e4e0ef74eae976673c5f6295909c214a294ec`.
+The final active-graph snapshot has 20 eligible keyframes, 93 detections, 67
+geometric/semantic supports and 16 provisional objects.
+
+Decision-time results: initial `a fridge` returns NO_SEMANTIC_SUPPORT at prefix 0.
+During playback, `a fridge` at prefix/graph 141/130 ranks refrigerator ID 1 at
+0.294846 with four total available supports; `a refrigerator` at 504/490 ranks
+ID 1 at 0.296559 with 38 total supports. `an elephant` at 856/850 has 53 supports,
+top cosine 0.165465 and no selected candidate. All three decisions finish before
+playback ends, with no missing embeddings for their current geometric supports.
+After playback, `a bottle` at 1079/1065 has 67 supports but no passing candidate:
+an appliance crop ranks first at 0.245764, and a visible dispenser/bottle crop
+ranks third at 0.213572. Visual review confirms the fridge crops and retains the
+bottle failure. This small same-recording check is not a recognition benchmark.
+
+Timing/resources: first crop encode 517.881 ms; remaining 225 encodes P50/P95
+80.330/120.574 ms, excluding PNG saving. During-query model loads are
+10.740–12.538 s, text encodes 421.708–556.012 ms, and snapshot/ranking computation
+82.922/203.222/271.545 ms. Full CLI wall times are 14.914/16.125/14.106 s including
+Python startup; no warm query-service latency is claimed. Perception
+arrival-to-result P50/P95 is 496.530/556.319 ms and callback P95 19.608 ms.
+Writer queue peak is 2/16, commit P50/P95/max 11.557/23.568/111.558 ms;
+pending/inference/pose-wait peaks remain 1/1/7. Producer RSS peaks at 2,096,968 KiB;
+system RAM 5,136 MB and swap 880–948 MB, including existing system use. The 1 GiB
+available-memory guard never refuses. Jetson shared accounting is not additive.
+
+Independent verification decodes every selected source RGB and compares all 226
+PNG pixels, hashes, bounds and source stamps. It reconstructs causal TF and graph
+prefixes, independently associates points, and uses scalar sums for semantic
+fusion, best views, ranking and fixed-threshold selection. Maximum cosine error
+is 3.88e-8 and geometry error 8.89e-16 m (numerical consistency, not accuracy).
+The run includes 135 historical translation updates above 1 micrometer, largest
+0.003423 m. Fresh-process reopening reproduces all geometry/semantic results and
+leaves the journal byte-identical. The previous label-only journal still matches
+its original full query. Original bags, weights, old journal and frozen index
+hashes remain unchanged. All observer/SLAM/player/query processes exit 0;
+telemetry uses SIGINT; no forced termination or remaining owned PID.
+
+Tests: 25 online-memory, 40 odometry/concurrency, 39 memory/semantics and 103
+search tests pass (207 total). New known-vector cases cover delayed embeddings,
+concurrent commits during queries, graph-driven association changes, partial
+supports, mismatched models, future evidence, original pose refusals, altered
+crop/source pixels, duplicate outcomes, actual bounded worker/cache behavior,
+encoding failure and cleanup. Compilation and whitespace checks pass.
+
+Retained failure: attempt 01 stops before playback because `/proc` resource
+sampling races with a successfully completed initial query. Its query exits 0,
+the observer is interrupted cleanly and both writers/workers close. The local
+supervisor now records that specific exit-sampling race and checks the actual
+child exit code. No incomplete run was relabeled successful.
+
+Evidence: `data/outputs/online_semantic/line_20260915/` includes predeclared
+queries, focused logs, old-journal regression and attempts 01/02. Successful
+attempt 02 retains source/config/helper snapshots, actual commands, parameters,
+process/resource evidence, journal/crops, query JSON/embedded HTML,
+`verification.json`, `geometry_verification.json`, `semantic_verification.json`,
+`reopen_check.json` and `crop_review.json`. Commands and limits are documented in
+`docs/online-semantic-memory.md`.
+
+Learning/limits: visual meaning belongs to the original crop; object association
+and map position can change. A query must combine those signals from one available
+prefix. Partial coverage, YOLO proposal errors, bottle retrieval, physical metric
+accuracy, continuous live throughput and cold-start latency remain limitations.
+Next action: connect causal text queries to ROS search previews with matching map
+snapshots and explicit stale/missing-map refusals, without motor commands.
 
 ## 16. End-Of-Session Handoff Template
 

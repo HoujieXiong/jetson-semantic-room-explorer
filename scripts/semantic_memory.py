@@ -7,6 +7,7 @@ import base64
 import html
 import importlib.metadata
 import json
+import math
 from pathlib import Path
 import resource
 import sqlite3
@@ -26,6 +27,21 @@ POLICY = {'model': 'mobileclip_s0', 'dtype': 'float32', 'device': 'cuda:0',
           'fusion': 'Unit-normalized equal mean of unit support vectors',
           'text': 'Exact user phrase, without label substitution or prompt expansion',
           'score': 'Cosine similarity, not probability or proof of presence'}
+
+
+SELECTION_POLICY = {'min_cosine_similarity': .25, 'top_score_window': .02,
+                    'calibrated': False,
+                    'limitation': 'Experimental retrieval filter; passing scores do not establish identity or presence. No passing candidate does not prove absence.'}
+
+
+def select_candidates(ranking):
+    if not ranking:
+        return []
+    scores = [row['cosine_similarity'] for row in ranking]
+    if any(not math.isfinite(s) or not -1.000001 <= s <= 1.000001 for s in scores):
+        raise ValueError('Invalid cosine similarity')
+    threshold = max(SELECTION_POLICY['min_cosine_similarity'], max(scores)-SELECTION_POLICY['top_score_window'])
+    return [row['object_id'] for row in ranking if row['cosine_similarity'] >= threshold]
 
 
 def unit_vector(value):
@@ -218,6 +234,28 @@ def rank_objects(text_vector, objects, samples):
     return sorted(ranked, key=lambda row: (-row['cosine_similarity'], row['object_id']))
 
 
+def write_query_review(queries, crop_root, output, limitation):
+    """Embed verified source crops for inspecting ranked results without WebGL."""
+    cards = []
+    for row in queries:
+        cells = []
+        for candidate in row['ranking'][:3]:
+            path = crop_root/candidate['best_view']['crop']
+            if file_hash(path) != candidate['best_view']['crop_sha256']:
+                raise ValueError('Query review crop changed since indexing')
+            encoded = base64.b64encode(path.read_bytes()).decode('ascii')
+            cells.append(f'<td><img src="data:image/png;base64,{encoded}" alt="Recorded object crop">'
+                         f'<p>ID {candidate["object_id"]} | cosine {candidate["cosine_similarity"]:.3f}</p>'
+                         f'<p>Detector: {html.escape(candidate["detector_label"])}</p></td>')
+        cards.append('<h2>'+html.escape(row['text'])+'</h2><table><tr>'+''.join(cells)+'</tr></table>')
+    output.write_text('<!doctype html><html lang="en"><meta charset="utf-8">'
+        '<title>Semantic memory query review</title><style>body{font-family:sans-serif;max-width:1100px;margin:30px auto;background:#f4f5f7;color:#172033}'
+        'table{width:100%;table-layout:fixed;background:white}td{padding:16px;vertical-align:top}img{width:100%;height:180px;object-fit:contain}</style>'
+        '<h1>Semantic memory query review</h1><p>'+html.escape(limitation)+'</p>'
+        '<p>Top three ranked records per phrase. Scores are not confidence probabilities; detector labels can be wrong.</p>'
+        +''.join(cards)+'</html>')
+
+
 def query_index(index, memory, model, texts, output):
     if not texts or any(not isinstance(t, str) or not t.strip() for t in texts):
         raise ValueError('Provide nonempty text phrases')
@@ -241,24 +279,7 @@ def query_index(index, memory, model, texts, output):
         if file_hash(memory) != context['memory_sha256'] or file_hash(index/'index.db') != report['index_sha256']:
             raise ValueError('Memory/index changed during query')
         report['limitation'] = 'Scores rank existing YOLO-proposed memory only; no calibrated presence/absence decision. Missed detections cannot be retrieved. Geometry remains provisional.'
-        cards = []
-        for row in report['queries']:
-            cells = []
-            for candidate in row['ranking'][:3]:
-                path = index/candidate['best_view']['crop']
-                if file_hash(path) != candidate['best_view']['crop_sha256']:
-                    raise ValueError('Query review crop changed since indexing')
-                encoded = base64.b64encode(path.read_bytes()).decode('ascii')
-                cells.append(f'<td><img src="data:image/png;base64,{encoded}" alt="Recorded object crop">'
-                             f'<p>ID {candidate["object_id"]} | cosine {candidate["cosine_similarity"]:.3f}</p>'
-                             f'<p>Detector: {html.escape(candidate["detector_label"])}</p></td>')
-            cards.append('<h2>'+html.escape(row['text'])+'</h2><table><tr>'+''.join(cells)+'</tr></table>')
-        (output/'queries.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8">'
-            '<title>Semantic memory query review</title><style>body{font-family:sans-serif;max-width:1100px;margin:30px auto;background:#f4f5f7;color:#172033}'
-            'table{width:100%;table-layout:fixed;background:white}td{padding:16px;vertical-align:top}img{width:100%;height:180px;object-fit:contain}</style>'
-            '<h1>Semantic memory query review</h1><p>'+html.escape(report['limitation'])+'</p>'
-            '<p>Top three ranked records per phrase. Scores are not confidence probabilities; detector labels can be wrong.</p>'
-            +''.join(cards)+'</html>')
+        write_query_review(report['queries'], index, output/'queries.html', report['limitation'])
         report.update(status='RANKED', review='queries.html', review_sha256=file_hash(output/'queries.html'))
     except (ValueError, OSError, KeyError, RuntimeError, sqlite3.Error) as error:
         report['error'] = {'type': type(error).__name__, 'message': str(error)}

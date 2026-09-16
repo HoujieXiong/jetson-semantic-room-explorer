@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import math
 from pathlib import Path
 import sqlite3
 import time
@@ -10,22 +9,7 @@ import time
 from extract_mapped_rgbd import file_hash
 from publish_search_preview import publish, select_preview
 from run_offline_search import run_search
-from semantic_memory import query_index
-
-
-SELECTION_POLICY = {'min_cosine_similarity': .25, 'top_score_window': .02,
-                    'calibrated': False,
-                    'limitation': 'Experimental retrieval filter; passing scores do not establish identity or presence. No passing candidate does not prove absence.'}
-
-
-def select_candidates(ranking):
-    if not ranking:
-        return []
-    scores = [row['cosine_similarity'] for row in ranking]
-    if any(not math.isfinite(s) or not -1.000001 <= s <= 1.000001 for s in scores):
-        raise ValueError('Invalid cosine similarity')
-    threshold = max(SELECTION_POLICY['min_cosine_similarity'], max(scores)-SELECTION_POLICY['top_score_window'])
-    return [row['object_id'] for row in ranking if row['cosine_similarity'] >= threshold]
+from semantic_memory import SELECTION_POLICY, query_index, select_candidates
 
 
 def run(index, memory, model, mapping, text, output, node_id=None, simulated_xy=None, ros_preview=False):

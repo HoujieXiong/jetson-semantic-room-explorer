@@ -8,7 +8,9 @@ export or substitutes future poses into an earlier query.
 This is a bounded, recorded-data integration. It retains YOLO labels and the
 existing depth/association policies. Live camera operation, continuous operation,
 online MobileCLIP retrieval, route publication from the changing map and physical
-navigation remain separate work.
+navigation remain separate work. A subsequent
+[online MobileCLIP integration](online-semantic-memory.md) now verifies text
+queries during recorded-data playback; the original journal below stays intact.
 
 ## Data and revision contract
 
@@ -227,5 +229,6 @@ SIGINT. No failed run is relabeled successful.
 Remaining limits: only active-graph keyframes contribute to a query, object IDs
 are snapshot-scoped, and this journal contains no online text embeddings or route
 publication. Geometry/identity quality, physical scale, live camera throughput
-and continuous operation still need separate validation. Next action: integrate
-MobileCLIP text retrieval with these causal online snapshots.
+and continuous operation still need separate validation. The subsequent
+[MobileCLIP integration](online-semantic-memory.md) retains this label-query API
+and verifies text retrieval with additional causal semantic events.

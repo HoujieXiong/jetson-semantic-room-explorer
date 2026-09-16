@@ -169,6 +169,7 @@ model smoke test, the predeclared query set and focused test logs.
 `data/outputs/mobileclip/line_20260915/` contains both indexes, query reports,
 embedded crop HTML, independent `integration.json`, source-check harness, actual
 ROS receivers and `failures/verification.json`. CuTR feasibility now supports an
-[offline-only role](cutr-feasibility.md). The whole project still needs causal
-online memory/query decisions, concurrent semantic resource validation, quality
-evaluation and eventual mobile-base integration.
+[offline-only role](cutr-feasibility.md). Causal text queries and concurrent
+semantic resources are now separately verified on recorded data; see
+[online semantic memory](online-semantic-memory.md). Continuous live operation,
+changing-map search, quality evaluation and mobile-base integration remain open.

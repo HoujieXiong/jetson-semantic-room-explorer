@@ -39,7 +39,12 @@ Causal observation memory and label queries now also pass during a bounded
 their committed prefix and one received graph revision. A refrigerator is found
 before playback ends; reopening preserves 14 provisional active-graph objects.
 See [online memory, query timeline and measured limits](docs/online-scene-memory.md).
-Online text retrieval and live real-time operation remain unverified.
+MobileCLIP text queries now also pass during playback: 59 keyframes produce 226
+source-verified crops/vectors; refrigerator synonyms select the visible fridge,
+while unknown and bottle queries remain below the fixed threshold. CLI queries
+take 14–16 seconds including model startup. See
+[online text retrieval and its limitations](docs/online-semantic-memory.md).
+Live real-time operation and changing-map search routes remain unverified.
 
 ## Goal
 
@@ -735,7 +740,8 @@ jetson-semantic-room-explorer/
 - [X] Concurrent observations finalized into their own frozen memory and search
 - [X] New forward/backward capture through the full pipeline; zero reported tracking losses at 0.25x
 - [X] Causal persistent observations and label queries during bounded RGB-D replay
-- [ ] Online text retrieval and search routes from a changing map
+- [X] Causal MobileCLIP text retrieval during bounded RGB-D replay
+- [ ] Search routes and ROS previews from a changing map
 - [ ] Real-time SLAM/perception and continuous live operation
 - [ ] Physical navigation acceptance
 - [X] CuTR Jetson/Femto feasibility measured; retained as an offline research comparison

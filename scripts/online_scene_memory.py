@@ -16,6 +16,7 @@ import numpy as np
 from observe_rgbd_objects import DEPTH_POLICY, INFERENCE
 from rgbd_geometry import map_from_camera, match_source_stamp
 from scene_memory import SCHEMA, canonical, query_contents, rebuild_objects, require_hash
+from online_semantic_memory import rank_snapshot, validate_semantic
 
 
 POLICY = {'queue_capacity': 16, 'max_events': 20000, 'max_payload_bytes': 524288,
@@ -45,7 +46,9 @@ def validate_event(kind, payload, elapsed):
     if not np.isfinite(elapsed) or elapsed < 0:
         raise ValueError('Invalid event availability time')
     canonical(payload)
-    if kind == 'mapping':
+    if kind == 'semantic':
+        positive_int(payload['node_id'])
+    elif kind == 'mapping':
         positive_int(payload['node_id'])
         positive_int(payload['stamp_ns'])
     elif kind == 'graph':
@@ -165,6 +168,7 @@ class OnlineMemoryWriter:
                     connection.execute('CREATE TABLE events (seq INTEGER PRIMARY KEY, available_elapsed_s REAL NOT NULL, kind TEXT NOT NULL, payload_json TEXT NOT NULL)')
                     connection.execute('CREATE UNIQUE INDEX original_source ON events(json_extract(payload_json, "$.source_stamp_ns")) WHERE kind="observation"')
                     connection.execute('CREATE UNIQUE INDEX mapping_node ON events(json_extract(payload_json, "$.node_id")) WHERE kind="mapping"')
+                    connection.execute('CREATE UNIQUE INDEX semantic_node ON events(json_extract(payload_json, "$.node_id")) WHERE kind="semantic"')
                     connection.execute('PRAGMA user_version=1')
                     connection.execute('INSERT INTO metadata VALUES (1, ?)', (canonical(self.context),))
                 self.ready.set()
@@ -181,6 +185,8 @@ class OnlineMemoryWriter:
                     begin = time.monotonic()
                     payload = json.loads(serialized)
                     validate_event(kind, payload, elapsed)
+                    if kind == 'semantic':
+                        validate_semantic(connection, self.context, payload, elapsed)
                     if elapsed < previous or self.stats['events_committed'] >= POLICY['max_events']:
                         raise ValueError('Regressing availability time or online event limit exceeded')
                     if kind == 'graph' and payload['extrinsic']['status'] == 'ACCEPTED':
@@ -210,7 +216,7 @@ class OnlineMemoryWriter:
         self.check()
 
 
-def query_online(database, command='list', label=None):
+def query_online(database, command='list', label=None, *, text_vector=None, encoder_identity=None):
     """Read one committed event prefix, then derive associations in a private SQLite snapshot."""
     started = time.monotonic_ns()
     with closing(sqlite3.connect(Path(database).resolve().as_uri()+'?mode=ro', uri=True,
@@ -225,7 +231,7 @@ def query_online(database, command='list', label=None):
         events = connection.execute('SELECT seq, available_elapsed_s, kind, payload_json FROM events ORDER BY seq').fetchall()
     if len(events) > POLICY['max_events']:
         raise ValueError('Online memory event limit exceeded')
-    sources, mappings, graph = {}, {}, None
+    sources, mappings, graph, semantic = {}, {}, None, []
     for seq, elapsed, kind, serialized in events:
         payload = json.loads(serialized)
         if kind == 'observation':
@@ -234,6 +240,8 @@ def query_online(database, command='list', label=None):
             mappings[payload['node_id']] = (seq, payload)
         elif kind == 'graph':
             graph = (seq, payload)
+        elif kind == 'semantic':
+            semantic.append((seq, payload))
     snapshot = {'session_id': context['session_id'], 'event_seq': events[-1][0] if events else 0,
                 'available_elapsed_s': events[-1][1] if events else None,
                 'graph_seq': graph[0] if graph else None,
@@ -282,6 +290,10 @@ def query_online(database, command='list', label=None):
                              'observation_seq': source_seq, 'mapping_seq': mappings[node][0]})
         rebuild_objects(derived)
         result = query_contents(derived, command, label)
+        if text_vector is not None:
+            if command != 'list' or label is not None:
+                raise ValueError('Text retrieval requires the complete geometric snapshot')
+            result['semantic'] = rank_snapshot(derived, context, semantic, result, text_vector, encoder_identity)
     if graph is None:
         result['status'] = 'NO_GRAPH'
     result.update(snapshot=snapshot, included_frames=included, excluded_nodes=excluded,
