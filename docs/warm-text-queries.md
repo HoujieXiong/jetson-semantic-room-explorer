@@ -175,6 +175,6 @@ OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 .venv/bin/python \
   data/outputs/warm_queries/20260916/run_trial.py unlocalized
 ```
 
-Next: validate this bounded query path with the existing moving recording, where
-changing views and map revisions exercise the combined pipeline beyond the
-stationary latency measurement.
+The [moving-recording follow-up](moving-warm-queries.md) now verifies six queries
+across changing views and graph revisions, including a remembered bottle view
+without a 3D target. It preserves all stationary measurements here.

@@ -136,6 +136,16 @@ outputs and zero reported losses. Perception still drops 330 frames, and incorre
 localized matches remain; faster responses do not establish reliable recognition
 or navigation.
 
+The same path now passes a [moving-recording validation](docs/moving-warm-queries.md).
+One loaded encoder answers six queries as the camera view and map change;
+responses take 0.537–2.618 seconds after separate initialization. All 899 input
+pairs arrive, 893 are processed, six are explicitly dropped, and 898 odometry
+outputs report no tracking loss. Fridge/sink candidates and a remembered,
+unlocalized bottle view reach the queries; the unknown phrase selects nothing.
+All 481 crops match source pixels and twelve reopened snapshots reproduce the
+answers exactly. Planning still refuses unsafe or unsupported targets. This
+remains 0.25x replay, with no physical navigation or new operator identity labels.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
