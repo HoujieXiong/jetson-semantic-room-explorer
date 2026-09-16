@@ -1,0 +1,15 @@
+diff --git a/cubifyanything/cubify_transformer.py b/cubifyanything/cubify_transformer.py
+index e853739..9c5e87d 100644
+--- a/cubifyanything/cubify_transformer.py
++++ b/cubifyanything/cubify_transformer.py
+@@ -984,6 +984,9 @@ class EncoderProposals(Prompter):
+
+             K = info.image.K[-1:].repeat(len(output_), 1, 1)
++            # Jetson PyTorch can lack compatible cuSOLVER symbols; this is a
++            # small calibration matrix, so invert it explicitly on the CPU.
++            inverse_K = torch.linalg.inv(K.cpu()).to(K)
+             output_xyz = torch.bmm(
+-                torch.linalg.inv(K), torch.cat((output_.pred_z_scaled * output_.pred_proj_xy, output_.pred_z_scaled), dim=-1)[..., None])[..., 0]
++                inverse_K, torch.cat((output_.pred_z_scaled * output_.pred_proj_xy, output_.pred_z_scaled), dim=-1)[..., None])[..., 0]
+
+             output_.pred_xyz = output_xyz

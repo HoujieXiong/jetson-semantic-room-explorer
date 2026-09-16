@@ -29,6 +29,11 @@ provisional objects. A text phrase can drive candidate selection, map checks and
 ROS previews; retrieval quality remains limited (including failed bottle queries).
 See [semantic memory, query results and the browser review](docs/semantic-memory.md).
 
+CuTR RGB-D now runs on official samples and existing Femto frames. Warm inference
+is about 1.8 seconds; a concurrent SLAM trial stopped CuTR at the declared low-memory
+guard before its first result. It remains an offline research comparison. See
+[CuTR measurements, images and limitations](docs/cutr-feasibility.md).
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

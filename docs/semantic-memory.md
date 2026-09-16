@@ -168,6 +168,7 @@ Evidence: `data/outputs/mobileclip/setup_20260915/` contains installation plans,
 model smoke test, the predeclared query set and focused test logs.
 `data/outputs/mobileclip/line_20260915/` contains both indexes, query reports,
 embedded crop HTML, independent `integration.json`, source-check harness, actual
-ROS receivers and `failures/verification.json`. The whole project still needs
-CuTR feasibility, causal online memory/query decisions, concurrent resource
-validation, quality evaluation and eventual mobile-base integration.
+ROS receivers and `failures/verification.json`. CuTR feasibility now supports an
+[offline-only role](cutr-feasibility.md). The whole project still needs causal
+online memory/query decisions, concurrent semantic resource validation, quality
+evaluation and eventual mobile-base integration.

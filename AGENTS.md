@@ -578,45 +578,66 @@ no presence-probability or accuracy claim is made. See `docs/semantic-memory.md`
 `queries_final/queries.html` review. Original memory/map and baseline GPU packages
 are unchanged; weights/crops remain local.
 
+### 4.19 CuTR RGB-D Feasibility
+
+Status: `VERIFIED` for standalone inference and an evidence-based offline-only
+role. Concurrent CuTR integration and physical cuboid accuracy remain unverified.
+
+Official RGB-D weights run on three official and three Femto samples, with
+nine inferences per trial. The explicit small CPU calibration inverse patch avoids
+a local cuSOLVER symbol failure while preserving GPU model inference. Femto warm
+P50/P95 is 1.793/1.832 s; outputs contain 81/86/84 class-agnostic cuboids. Ten tests
+pass, and independent units, calibration, gravity, corner and map-transform checks
+pass. Repeated predictions match exactly. Gravity assumes map +Z up; it is not an
+IMU measurement. Overlapping/oversized boxes remain visible.
+
+A guarded concurrent SLAM/YOLO probe stops CuTR on SIGINT at 970,392 KiB available
+memory before its first completed inference. Baseline sensor/TF/depth/cleanup
+checks pass independently, but the outer supervisor remains INCOMPLETE after an
+exit-time VmRSS sampling race. No CuTR coexistence acceptance is claimed. Source,
+weights, minimal sample and three new packages are isolated from the baseline.
+See `docs/cutr-feasibility.md` and `data/outputs/cutr/`. CuTR is not imported into
+scene memory or used for search decisions.
+
 ## 5. Current Next Task
 
-Milestone: **M7 CuTR feasibility, followed by remaining live pipeline integration**.
+Milestone: **Causal online observation memory and queries on recorded RGB-D**.
 
-Status: `PLANNED` for measured CuTR inference/geometry acceptance. Source download
-and isolated data-reader preparation are underway; no successful inference is
-claimed yet. ROS preview publication and minimum saved-data M8 retrieval are
-verified and recorded below.
+Status: `PLANNED`. Minimum saved-data perception, memory, MobileCLIP retrieval and
+ROS previews are verified. M7 feasibility is complete as an offline-only decision;
+CuTR is not a prerequisite for the remaining baseline pipeline.
 
-The user explicitly requested pipeline-first work on 2026-09-15 and deferred
-physical scale/return-error refinement. Do not gate software integration on new
-measured-motion capture. Preserve all functional/quality limitations. The user
-explicitly authorized official MobileCLIP and CuTR source, model weights and
-required dependencies, plus a minimal official CuTR sample, in isolated environments.
+The user requested pipeline-first work and deferred physical scale/return-error
+refinement. Do not gate software integration on a new measured-motion capture.
+Official MobileCLIP/CuTR downloads and their isolated required dependencies are
+already authorized. Continue safe autonomous work using existing local data.
 
-Required sequence:
+Required observable result:
 
-1. Finish the official CuTR RGB-D checkpoint download (the first transfer was
-   interrupted; retain the failure). Check source/model licenses and exact
-   versions. Reuse local GPU PyTorch and keep the camera/SLAM baseline unchanged.
-2. Run a bounded headless official-sample trial, saving predictions, input shapes,
-   depth units, intrinsics/gravity, initialization time, warm P50/P95 and memory.
-3. If viable, adapt existing verified Femto RGB-D and compare multiple views with
-   YOLO-plus-depth. Treat gravity as an explicit input; the current bags have no
-   IMU stream, so any pose-derived gravity is an assumption, not a measurement.
-4. Measure alongside the existing recorded SLAM workload before selecting an
-   operational role. Preserve poor quality or resource failures. Do not introduce
-   a second production backend before the experiment supports it.
-5. Continue toward causal online memory/query decisions using existing bags.
-   Reuse measured code, run focused checks, review complete diffs, update evidence
-   and push verified checkpoints. Ask only for missing input/equipment/authority.
+1. During a bounded replay of the existing 899-pair line bag, persist accepted
+   observations and answer a query before playback ends, using only already
+   delivered frames, source-time poses and map information. No future final poses.
+2. Reuse the existing bounded inference/TF producer and SQLite/query logic where
+   their contracts fit. Inspect the frozen-memory schema before changing it;
+   do not fabricate frozen map hashes or mix map pose revisions silently.
+3. Preserve source timestamps, dropped/refused observations and explicit geometry
+   revision semantics. Keep callbacks, queues, writes and cleanup bounded.
+4. Verify reopened persistence, prefix-only query evidence, missing-pose behavior
+   and revision handling with focused tests and an independent replay check.
+   Retain the working frozen-data pipeline and all raw recording artifacts.
+5. Measure concurrent memory/latency, review the complete diff, update only measured
+   progress and push a verified checkpoint. Ask only for missing input/equipment
+   or authority. Live physical capture still requires operator readiness.
 
-Local preparation: `~/projects/ml-cubifyanything`, `~/projects/cutr-env`, and
-`data/outputs/cutr/setup_20260915/`. The official sample subset contains the first
-three complete frames (42 files), copied from a 16 MiB HTTP range of the archive.
-The original 2026-09-15 recording and all prior map/memory artifacts remain intact.
+Starting points: `tests/check_concurrent_perception.py`, `scripts/scene_memory.py`,
+`scripts/finalize_concurrent_observations.py`, `scripts/semantic_memory.py` and
+`data/outputs/concurrent_rgbd/line_20260915/`. The current producer is a bounded
+measurement harness, not an indefinite production node. Existing memory and
+semantic indexes bind to frozen final geometry; causal revision support is new
+work. Do not claim autonomous navigation without a mobile base.
 
-Learning checkpoint: CuTR proposes geometry; MobileCLIP supplies text similarity;
-neither replaces source-time poses, persistent association or checked planning.
+Learning checkpoint: online evidence must be available at decision time. A final
+optimized map can improve an offline replay but cannot justify an earlier decision.
 
 ## 6. Target System Architecture
 
@@ -929,7 +950,10 @@ Learning goal: data association, state estimation, persistence, and observabilit
 
 ### M7: Cubify Anything Feasibility Gate
 
-Status: `PLANNED`
+Status: `VERIFIED` as an offline research decision. Official/Femto inference,
+geometry contracts, same-frame baseline comparison and a guarded concurrency probe
+are measured. Low-memory refusal, 1.8 s latency and unvalidated box quality prevent
+promotion into the online backend. See `docs/cutr-feasibility.md`.
 
 Do this only after M2 provides trustworthy RGB-D frames. Start outside the main
 runtime dependency environment if necessary.
@@ -3427,6 +3451,91 @@ Evidence: `data/outputs/mobileclip/setup_20260915/` and
 
 Next action: complete the newly authorized CuTR official-sample feasibility trial
 in its isolated environment, then evaluate an explicit Femto input adapter.
+
+### 2026-09-15: CuTR Official/Femto Inference And Guarded Coexistence
+
+Milestone: M7 feasibility. Status: `VERIFIED` for the measured offline-only decision;
+concurrent integration and physical 3D-box accuracy remain unverified.
+
+Changed: added `scripts/benchmark_cutr.py`, ten focused tests, the explicit upstream
+calibration-inverse patch and `docs/cutr-feasibility.md`. The adapter reuses verified
+mapped RGB-D loading and official CuTR preprocessing. Outputs preserve all selected
+camera/map cuboids, source timestamps, intrinsics, sizes, depth units, assumed
+gravity, source/weight hashes and synchronized latency/memory. No production
+perception, camera, SLAM or memory policy changed.
+
+Source/dependencies: official commit `00e9cb1f9c1b478bf49e08fea4d88e486794cfc1`;
+396,866,874-byte RGB-D checkpoint SHA256
+`856b89c62c49d518998eeef52db16eadede5c354c6e2dfb291e16fd2887a4217`.
+Three complete official frames (42 files, 2,826,240-byte tar) were copied from a
+16 MiB range of the official archive; all payload hashes remain recorded.
+Source uses Apple Sample Code License, model research-only terms and data CC
+BY-NC-ND. The isolated environment adds only webdataset 0.2.86, tifffile 2025.5.10
+and braceexpand 0.1.7, reusing existing Torch/timm packages without changes.
+Interrupted downloads and editable-install failures remain in setup logs.
+
+Observed failure: the original GPU inference fails at final intrinsic inversion
+because local libtorch CUDA linalg requests missing cuSOLVER symbol
+`cusolverDnXsyevBatched_bufferSize`. The explicit patch inverts only the small
+calibration matrices on CPU; model inference remains CUDA FP32. System CUDA and
+baseline Torch are unchanged. The original failure report is preserved.
+
+Standalone verification: official RGB/depth sizes are 768x1024 and 192x256; Femto
+adapter sizes are 1024x576 and 256x144 after original registered 1280x720 input.
+Depth uses original nearest-exact uint16 pixels / 1,000 with zero invalid; intrinsic
+rows scale by 0.8/0.2. Source map +Z is explicitly assumed physical up; no IMU data
+exists. Three official and three Femto inputs each run three times. Official
+load 2.043 s, first inference 4.087 s, warm P50/P95 1.803/1.839 s, peak RSS
+3,949,600 KiB and CUDA allocated 2,095,106,048 bytes. Femto load 2.094 s, first
+3.450 s, warm P50/P95 1.793/1.832 s, RSS 3,865,600 KiB and CUDA allocated
+2,095,192,576 bytes. Accounting overlaps on Jetson and is not additive RAM.
+Timing excludes serialization/drawing/disk output. Threshold 0.25 selects official
+9/7/8 and Femto 81/86/84 proposals; repeated predictions are identical. Overlays
+show plausible structures plus overlapping/oversized boxes, not verified objects.
+Same-frame YOLO has 6/7/6 detections with 5/6/3 accepted depth surface points.
+
+Guarded concurrency: reused the 899-pair, 60.224 s source bag at 0.25x with native
+SLAM and GPU YOLO. A separate saved-frame CuTR probe starts at elapsed 45.404 s;
+it is not a causal CuTR subscriber. Predeclared minimum start headroom is
+2,800,000 KiB; stop threshold is 1,048,576 KiB, with 180 s deadline. Available RAM
+falls to 970,392 KiB at 63.486 s; controlled SIGINT stops CuTR at 66.161 s before
+one completed result. Tegrastats reports peak RAM 6,500 MB and swap 830 MB. This
+is a guard refusal, not an observed CUDA OOM or proof all configurations fail.
+
+The baseline saves all 899 source pairs, 893 processed, six explicit drops,
+zero inference failures, 887 accepted online poses and six refusals. Odometry
+reports 898 tracked, zero lost and one missing result; map integrity passes with
+60 nodes. Baseline children exit 0, CuTR/tegrastats on intentional SIGINT, with no
+forced kill or remaining owned PID. The supervisor report stays INCOMPLETE after
+an exit-time `/proc` VmRSS race, and post-loop parameter queries were not reached.
+The failed harness is preserved; its local fix is not claimed rerun. Independent
+verification reconstructs causal TF, checks original pixels/units/geometry and
+input hashes, and confirms cleanup without rewriting the failed report.
+
+Focused checks: ten tests pass in 0.255 s. Real-output independent corner error
+is at most 2.988e-7 m; upstream gravity agreement at most 2.636e-8 per element.
+All original-frame, resize, depth, intrinsics and map transforms pass. These are
+numerical consistency checks, not physical accuracy. A second final-script Femto
+trial reproduces all nine prediction lists exactly. Empty/nonfinite predictions,
+invalid input/poses/resolution, bounded work and output preservation are tested.
+The initial independent verifier's NumPy-integer JSON error is retained and fixed;
+original predictions were unchanged. Syntax and whitespace checks pass.
+
+Evidence: `data/outputs/cutr/setup_20260915/` (including geometry verification,
+unit tests, source/baseline/final checks); `official_20260915/attempt_01` and
+`attempt_02`; `femto_20260915/attempt_01`, `attempt_02` and `yolo_comparison`;
+`concurrent_20260915/attempt_01/` (original incomplete run, resource samples,
+measurement, controlled CuTR stop and independent `verification.json`). Data and
+weights stay ignored. Exact setup, run and image-viewing commands are documented.
+
+Decision/learning: keep CuTR offline. Its standalone approximately 0.56 Hz is below
+the approximately 1 Hz keyframe gate, concurrent headroom failed the declared
+safety guard, and domain/gravity/box quality remains unvalidated. Learned complete
+cuboids and measured visible surface points are different quantities. A successful
+model invocation is not evidence of a safe concurrent pipeline or accurate map.
+
+Next action: add causal persistent observations and queries during existing-bag
+playback, with explicit pose-revision handling and no final-map lookahead.
 
 ## 16. End-Of-Session Handoff Template
 
