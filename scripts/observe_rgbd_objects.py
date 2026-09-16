@@ -21,6 +21,13 @@ DEPTH_POLICY = {'inner_box_fraction': 0.5, 'max_depth_m': 5.0,
                 'min_outlier_gate_m': 0.02, 'max_inlier_p90_p10_m': 0.5}
 
 
+def inference_config(imgsz=INFERENCE['imgsz']):
+    """Explicit measured detector sizes; confidence and device stay fixed."""
+    if type(imgsz) is not int or imgsz not in (640, 1280):
+        raise ValueError('Detector imgsz must be 640 or 1280')
+    return {**INFERENCE, 'imgsz': imgsz}
+
+
 def depth_observation(depth_mm, k, box):
     """Choose an actual inner-ROI pixel near median depth, keeping rejection evidence."""
     k = pinhole_matrix(k)
@@ -132,13 +139,13 @@ def load_frame(manifest_path, node_id):
     return rgb, depth, k, transform, provenance
 
 
-def infer_rgbd(model, rgb, depth, k, transform=None):
+def infer_rgbd(model, rgb, depth, k, transform=None, *, imgsz=INFERENCE['imgsz']):
     """GPU inference and depth localization; an absent online pose leaves map points absent."""
     import cv2
     import torch
 
     begin = time.monotonic()
-    inference = INFERENCE
+    inference = inference_config(imgsz)
     # Ultralytics numpy inputs use OpenCV BGR; source NPZ arrays preserve RGB.
     bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     result = model.predict(source=bgr, imgsz=inference['imgsz'], conf=inference['confidence_threshold'],

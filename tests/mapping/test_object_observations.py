@@ -8,7 +8,7 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))
-from observe_rgbd_objects import depth_observation, source_association
+from observe_rgbd_objects import INFERENCE, depth_observation, inference_config, source_association
 from rgbd_geometry import map_from_camera
 
 
@@ -20,6 +20,16 @@ class ObjectObservationTests(unittest.TestCase):
 
     def observe(self):
         return depth_observation(self.depth, self.k, self.box)
+
+    def test_explicit_detector_sizes_preserve_default_and_reject_unsupported_values(self):
+        self.assertEqual(inference_config(), INFERENCE)
+        large = inference_config(1280)
+        self.assertEqual(large, {'imgsz': 1280, 'confidence_threshold': .25, 'device': 'cuda:0'})
+        large['confidence_threshold'] = .1
+        self.assertEqual(INFERENCE, {'imgsz': 640, 'confidence_threshold': .25, 'device': 'cuda:0'})
+        for size in (0, 641, 1920, True, 1280., '1280', None):
+            with self.assertRaises(ValueError):
+                inference_config(size)
 
     def test_center_pixel_has_metric_optical_depth(self):
         result = self.observe()

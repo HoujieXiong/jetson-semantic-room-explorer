@@ -3,6 +3,7 @@
 import argparse
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 import copy
 import hashlib
 import json
@@ -241,7 +242,7 @@ def rank_snapshot(connection, context, events, remembered, text_vector, encoder_
 
 
 def query_text(database, model, phrase, output, *, planning=False):
-    from online_scene_memory import query_online
+    from online_scene_memory import POLICY as MEMORY_POLICY, query_online
     if not phrase.strip():
         raise ValueError('Provide a nonempty text phrase')
     output.mkdir(parents=True, exist_ok=False)
@@ -249,7 +250,12 @@ def query_text(database, model, phrase, output, *, planning=False):
     report = {'status': 'INCOMPLETE', 'text': phrase}
     encoder = None
     try:
-        encoder = MobileClipEncoder(model)
+        with closing(sqlite3.connect(Path(database).resolve().as_uri()+'?mode=ro', uri=True,
+                                     timeout=MEMORY_POLICY['sqlite_timeout_s'])) as connection:
+            context = json.loads(connection.execute('SELECT context_json FROM metadata WHERE id=1').fetchone()[0])
+        if 'semantic_encoder' not in context:
+            raise ValueError('Journal has no declared semantic encoder')
+        encoder = MobileClipEncoder(model, square_pad=context['semantic_encoder'].get('square_pad', False))
         vector, elapsed_ms = encoder.encode(phrase)
         result = query_online(database, text_vector=vector, encoder_identity=encoder.identity, planning=planning)
         report.update(result, text=phrase, text_vector=vector.tolist(), text_encode_ms=elapsed_ms,

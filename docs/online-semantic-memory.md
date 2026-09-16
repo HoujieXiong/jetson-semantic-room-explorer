@@ -85,6 +85,15 @@ export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2
   --output data/outputs/online_semantic/manual/measurement.json
 ```
 
+For the bounded stationary comparison, add `--imgsz 1280 --semantic-square-pad`
+to the observer command. The size is explicitly recorded in the journal;
+confidence, device and depth gates stay fixed. `--semantic-square-pad` requires
+`--semantic-model` and records the encoder identity used for the complete crop.
+Text-query CLIs read that identity before model loading and verify it again at
+the committed query snapshot. Existing journals keep their original mode; mixing
+encoder identities is refused. Defaults remain 640 and official center cropping.
+See [the bounded bowl replay](bowl-replay.md) for measured results and limitations.
+
 It requires the recorded SLAM nodes and player. The local bounded supervisor
 starts/stops them, uses the previously verified typed-message player and launches
 independent queries during playback:

@@ -102,6 +102,23 @@ class OnlineMemoryTests(unittest.TestCase):
         self.assertNotIn('reference_sha256', saved)
         self.assertEqual(online.query_online(path)['status'], 'NO_GRAPH')
 
+    def test_explicit_large_detector_journal_preserves_gates_and_refuses_policy_changes(self):
+        provenance = {**context(), 'inference': {**INFERENCE, 'imgsz': 1280}}
+        path = self.db.with_name('large.db')
+        writer = online.OnlineMemoryWriter(path, provenance)
+        writer.close()
+        with closing(sqlite3.connect(path)) as connection:
+            saved = json.loads(connection.execute('SELECT context_json FROM metadata').fetchone()[0])
+        self.assertEqual(saved['inference'], provenance['inference'])
+        self.assertEqual(saved['depth_policy'], DEPTH_POLICY)
+        self.assertEqual(online.query_online(path)['status'], 'NO_GRAPH')
+        for key, value in [('imgsz', 641), ('confidence_threshold', .1), ('device', 'cpu')]:
+            invalid = {**provenance, 'inference': {**provenance['inference'], key: value}}
+            refused = self.db.with_name('refused.db')
+            with self.assertRaises(ValueError):
+                online.OnlineMemoryWriter(refused, invalid)
+            self.assertFalse(refused.exists())
+
     def test_live_burst_is_bounded_and_original_live_failure_stays_readable(self):
         provenance = context()
         del provenance['reference_sha256']

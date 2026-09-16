@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
 from check_femto_rosbag import ContractCheck, TOPICS, comparison_key, distribution
 from check_rtabmap_mapping import MappingCheck, pose_values
 from check_rtabmap_odometry import stamp_ns
-from observe_rgbd_objects import DEPTH_POLICY, INFERENCE, infer_rgbd
+from observe_rgbd_objects import DEPTH_POLICY, INFERENCE, infer_rgbd, inference_config
 from rgbd_geometry import map_from_camera, pinhole_matrix
 from extract_mapped_rgbd import file_hash
 from online_scene_memory import OnlineMemoryWriter
@@ -261,10 +261,18 @@ def main():
     parser.add_argument('--duration', type=float, required=True)
     parser.add_argument('--memory-db', type=Path, help='Optional fresh causal observation/graph journal')
     parser.add_argument('--semantic-model', type=Path, help='Optional MobileCLIP-S0 checkpoint; requires --memory-db')
+    parser.add_argument('--semantic-square-pad', action='store_true', help='Keep complete image crops; requires --semantic-model')
+    parser.add_argument('--imgsz', type=int, default=INFERENCE['imgsz'], help='Detector input size: 640 (default) or 1280')
     parser.add_argument('--capture-occupancy', action='store_true', help='Journal received /map grids; requires --memory-db')
     args = parser.parse_args()
     if args.semantic_model is not None and args.memory_db is None:
         parser.error('--semantic-model requires --memory-db')
+    if args.semantic_square_pad and args.semantic_model is None:
+        parser.error('--semantic-square-pad requires --semantic-model')
+    try:
+        inference = inference_config(args.imgsz)
+    except ValueError as error:
+        parser.error(str(error))
     if args.capture_occupancy and args.memory_db is None:
         parser.error('--capture-occupancy requires --memory-db')
     ready = args.output.with_suffix('.ready.json')
@@ -280,7 +288,7 @@ def main():
     report = {'status': 'INCOMPLETE', source_key: file_hash(source_path),
               'input_mode': 'replay' if reference is not None else 'live', 'use_sim_time': reference is not None,
               'model_path': str(model_path), 'model_sha256': file_hash(model_path),
-              'inference': INFERENCE, 'depth_policy': DEPTH_POLICY,
+              'inference': inference, 'depth_policy': DEPTH_POLICY,
               'live_capture_executed': False, 'motion_executed': False}
     check = node = executor = memory = semantic = None
     initialized = False
@@ -295,8 +303,8 @@ def main():
             raise RuntimeError('CUDA unavailable; no CPU fallback')
         model = YOLO(str(model_path))
         started = time.monotonic()
-        model.predict(np.zeros((720, 1280, 3), dtype=np.uint8), imgsz=INFERENCE['imgsz'],
-                      conf=INFERENCE['confidence_threshold'], device=INFERENCE['device'], save=False, verbose=False)
+        model.predict(np.zeros((720, 1280, 3), dtype=np.uint8), imgsz=inference['imgsz'],
+                      conf=inference['confidence_threshold'], device=inference['device'], save=False, verbose=False)
         torch.cuda.synchronize()
         report['warmup'] = {'synthetic_zero_rgb': True, 'observations_retained': False,
                             'wall_ms': (time.monotonic()-started)*1000}
@@ -305,14 +313,14 @@ def main():
         encoder = None
         if args.semantic_model is not None:
             from semantic_memory import MobileClipEncoder
-            encoder = MobileClipEncoder(args.semantic_model)
+            encoder = MobileClipEncoder(args.semantic_model, square_pad=args.semantic_square_pad)
             report['semantic_encoder'] = encoder.identity
             report['semantic_load_ms'] = encoder.load_ms
         rclpy.init()
         initialized = True
         node = rclpy.create_node('concurrent_rgbd_check', parameter_overrides=[Parameter('use_sim_time', value=reference is not None)])
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='rgbd_inference')
-        check = ConcurrentCheck(lambda *values: infer_rgbd(model, *values), executor)
+        check = ConcurrentCheck(lambda *values: infer_rgbd(model, *values, imgsz=inference['imgsz']), executor)
         if args.memory_db is not None:
             context = {
                 **{key: report[key] for key in (source_key, 'input_mode', 'use_sim_time', 'model_sha256', 'inference', 'depth_policy', 'runtime')},

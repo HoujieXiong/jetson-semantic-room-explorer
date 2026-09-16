@@ -73,6 +73,13 @@ another recording, with mixed score changes. Stationary fridge-depth and trash
 failures remain unresolved. Runtime defaults stay unchanged; this is not live
 retrieval acceptance.
 
+The [bounded bowl replay](docs/bowl-replay.md) now verifies that 1280 proposals
+and complete-crop encoding reach an actual query during playback. Bowl-region
+records score 0.251707/0.250144 and also pass at the original source-time cutoff;
+all 94 crops match source pixels. Scores are marginal and bowl/sink records likely
+duplicate one object. All routes still refuse an unknown start; fridge and trash
+failures persist. The trial remains 0.25x saved-data verification.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

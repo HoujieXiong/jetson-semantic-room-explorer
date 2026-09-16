@@ -227,7 +227,7 @@ This bounded snapshot is not a leak benchmark.
 [Semantic-memory commands](semantic-memory.md) show how to use the opt-in mode.
 No new capture was needed.
 
-Next: run a bounded stationary replay with 1280 proposals and complete-crop
-encoding, retaining the original query cutoffs and all geometry/route gates, to
-check whether the confirmed bowl becomes queryable during playback. Fridge-depth
-and trash-proposal failures remain open.
+Follow-up: the [bounded bowl replay](bowl-replay.md) now verifies that these
+explicit options can reach an actual online query and pass at the original source
+cutoff. The result has small score margins and duplicate bowl/sink records;
+fridge-depth and trash-proposal failures remain open.

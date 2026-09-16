@@ -708,52 +708,64 @@ keeps the original crop evidence. A different existing recording verifies all
 63 supports, 17 objects and 11 queries; old rankings/vectors reproduce exactly.
 Fridge selections and negative controls persist, with mixed changes elsewhere.
 All 54 focused tests pass; real invalid-mode/identity cases refuse explicitly,
-and the search CLI preserves clearance/unknown-start refusals. Defaults and the
-online consumer are unchanged. See `docs/candidate-audit.md` and the latest
+and the search CLI preserves clearance/unknown-start refusals. Defaults remain
+unchanged; the following milestone extends explicit options to the online consumer.
+See `docs/candidate-audit.md` and the latest
 Progress Ledger entry for measured values and limitations.
+
+### 4.26 Bounded Bowl Retrieval During Recorded Playback
+
+Status: `VERIFIED` for one 944-pair, 0.25x concurrent trial using explicit
+1280 proposals and complete-crop encoding. An actual `a bowl` query selects
+bowl/sink records at 0.251707/0.250144; both best crops cover the previously
+confirmed bowl region. Their 28/11 supports are causal, source-checked evidence,
+not two confirmed targets. The original source-time cutoff also selects the
+region at 0.251519/0.250144, while the old query still selects nothing.
+
+All 94 crops, 64 graph/grid witnesses, geometry, scalar ranking, legacy queries,
+resource cleanup and 83 focused tests pass. There are 604 processed and 340
+explicitly dropped frames; peak system RAM is 5,436 MB. Every route refuses an
+unknown start, with zero published goals/paths. Fridge depth and trash retrieval
+remain failed; small score margins and duplicate records remain unresolved.
+Defaults are unchanged. See `docs/bowl-replay.md` and the latest ledger entry.
 
 ## 5. Current Next Task
 
-Milestone: **Bounded saved-data bowl retrieval with complete-crop encoding**.
+Milestone: **Resolve duplicate bowl/sink records using source and geometry evidence**.
 
-Status: `PLANNED`. The preceding candidate audit, operator-reviewed new targets
-and optional offline index mode are verified and recorded in the Progress Ledger.
-The original fridge/bowl/trash queries remain failures. Safe saved-data work and
+Status: `PLANNED`. The bounded bowl replay and original source-time comparison
+are verified and recorded in the Progress Ledger. Safe saved-data work and
 GitHub pushes remain authorized. Keep the camera closed until new operator
 readiness; never issue navigation commands. No new recording is needed yet.
 
 Required observable result:
 
-1. Retain the original negative cases in
-   `data/outputs/stationary_memory/steady_20260916/operator_review_20260916/`
-   and new positive crop acceptance in
-   `data/outputs/candidate_audit/steady_20260916/operator_positive_review.json`.
-   Do not ask the operator to repeat these reviews. Positive acceptance covers the
-   displayed node-21 bowl/fridge crops, not every adjacent source frame or depth.
-2. Use the existing bounded saved-data consumer to compare 1280 detector proposals
-   plus complete-crop encoding against the original 640/center-crop run. Make any
-   needed options explicit; preserve default behavior and encoder identity checks.
-   State acceptance before editing, then check the confirmed bowl against recorded
-   query cutoffs/source-time evidence. Do not count later observations as past
-   success or reuse diagnostic future evidence in causal memory.
-3. Keep thresholds and geometry gates unchanged. No guessing depth through holes,
-   label-only merging or bypassing keyframe/source-pose eligibility. Record whether
-   the bowl actually reaches the candidate memory and passes its query, including
-   every exclusion if it does not. Preserve fridge-depth and trash-proposal failures.
-4. Preserve freshness, unknown-start, clearance and route refusals. The stationary
-   retention configuration is only measured at 0.25x and the consumer rejects
-   graphs over 600 nodes. Measure resource use/drop counts for a bounded trial;
-   do not claim continuous live throughput or room navigation.
-5. Run focused tests and independent saved-data checks, review the complete diff,
-   and record only measured outcomes before publishing a checkpoint.
+1. Preserve the original three operator-rejected cases, the confirmed node-21
+   bowl/fridge crops and the new `bowl_1280_pad_01` trial unchanged. The operator
+   has not separately labeled its new query crops. Do not invent that feedback.
+2. Audit the two selected bowl/sink records at actual bowl query prefix 871 and
+   source-bounded prefix 932. Use original image overlap, depth, source-time poses
+   and graph evidence to determine which supports describe the same surface and
+   which remain ambiguous. A detector label or text score alone is insufficient.
+3. State a minimal association acceptance check before editing. Reuse existing
+   memory code and retain provenance; avoid duplicate votes for the same object
+   in one frame without merging distinct nearby targets or inventing identity.
+   If the available evidence does not justify a merge, report ambiguity explicitly.
+4. Keep the 0.25 / 0.02 semantic filters, valid-depth rules, causal source support,
+   freshness, unknown-start and clearance/route refusals unchanged. Preserve
+   fridge-depth and trash-proposal failures. No live throughput/navigation claim.
+5. Check the actual saved prefixes and another existing recording for regression,
+   run focused tests and independent source/fusion checks, review the complete
+   diff, and update the ledger with measured results before publishing a checkpoint.
 
-Starting points: `docs/candidate-audit.md`, `docs/stationary-memory.md`,
-`scripts/semantic_memory.py`, `scripts/online_semantic_memory.py`,
-`tests/check_concurrent_perception.py`, and the saved local audit/replay evidence.
+Starting points: `docs/bowl-replay.md`, `scripts/scene_memory.py`,
+`scripts/online_scene_memory.py`, `scripts/online_semantic_memory.py`,
+`data/outputs/bowl_replay/steady_20260916/cutoff_verification.json`, and
+`data/outputs/stationary_memory/steady_20260916/bowl_1280_pad_01/`.
 
-Learning checkpoint: a passing isolated crop score must still survive proposal,
-source association, geometry, persistent fusion and timely query selection in
-the actual pipeline. Operator crop acceptance is not navigation acceptance.
+Learning checkpoint: successful retrieval can still return multiple records for
+one physical object. Source evidence, instance association, text selection and
+safe motion are separate acceptance conditions.
 
 ## 6. Target System Architecture
 
@@ -4211,6 +4223,88 @@ proposals, depth, retained source poses or a safe route.
 Next action: one bounded stationary saved-data replay combining 1280 proposals
 and complete-crop encoding, checking the confirmed bowl at the recorded query
 cutoffs while preserving all source/geometry/route gates and original negatives.
+
+### 2026-09-16: Bowl Reaches A Causal Query With Complete-Crop Encoding
+
+Status: `VERIFIED` for one bounded saved-data retrieval trial and source-time
+comparison. Stable recognition, unique identity, live throughput and navigation
+remain unverified. The original negative cases and operator-positive review stay
+unchanged; new crop identity is an assistant/source-pixel check, not fresh user
+feedback.
+
+Changed: `observe_rgbd_objects.py` provides explicit 640/1280 inference settings;
+`tests/check_concurrent_perception.py` passes `--imgsz` consistently to warmup,
+inference and journal context and accepts `--semantic-square-pad`. The writer in
+`online_scene_memory.py` accepts those sizes while retaining confidence/device/
+depth constraints. `online_semantic_memory.py` reads the saved encoder mode before
+loading and verifies it again at the query snapshot. Defaults, thresholds, source
+association and route gates stay unchanged. No new dependency or service. Tests
+cover size validation, persisted policy, invalid CLI combinations, missing
+semantic identity and mode mismatch. Public details: `docs/bowl-replay.md`.
+
+Measured: the exact 944-pair stationary subset runs at 0.25x, with retained mapping
+nodes and three real concurrent queries. Duration 420.316 s. All 944 groups match;
+604 are processed and 340 explicitly dropped, with zero failed/pending jobs at
+close. Poses: 598 accepted, six refused (two missing odometry, four missing map
+TF). Odometry: 943 tracked, zero lost, one input without result. Final graph: 64
+nodes; journal: 1,200 events. Forty-four keyframes encode 94 crops; 20 keyframes
+are refused (19 dropped sources, one refused pose). Final five provisional records
+are not five confirmed physical objects. Writer queue peaks at 3/16.
+
+Actual query prefixes 276/543/871 select the old wrong fridge/trash region at
+0.274371/0.253444, and bowl/sink records at 0.251707/0.250144. The latter best views
+are nodes 37/44 at [499,274,585,312] and [506,274,592,312], covering the confirmed
+bowl region. They have 28/11 supports and likely represent one physical bowl.
+No threshold was lowered; margins are small. Every selected route refuses an
+unknown start. Each independent receiver records one decision, zero goals and
+zero paths; no motion occurs. All 604 true central-fridge detections still fail
+depth (6.84-11.46% valid versus 25% required); no trash-can class was added.
+
+Timing control: actual queries use source data 4.286/4.286/3.282 s earlier than
+original wall-scheduled queries. Six separate contiguous journal copies stop
+before any event later than each original source cutoff, with only established
+nanosecond header-roundtrip tolerance. At bowl cutoff 1789529900158789000 ns,
+the old prefix 932 still selects nothing at 0.157531. New prefix 932 selects the
+bowl/sink region at 0.251519/0.250144; 40 region proposals have valid depth/pose,
+eligible keyframes and committed vectors. Region overlap is a static-image audit
+proxy, not per-frame user labels. These are retrospective prefix reads, clearly
+separate from actual online queries; current planning correctly refuses stale
+map evidence.
+
+Verification: 28 mapping, 40 online and 15 semantic tests pass; updated semantic
+contract assertions pass a focused rerun. All 94 crop pixels match original bag
+images; all 64 graph/grid revisions match independent ROS witnesses. Original
+source-time TF, depth units and projections agree within 8.89e-16 m numerically.
+Independent scalar scores agree within 4.92e-8; all six cutoff snapshots agree
+with independent geometry/fusion. Closed and prior journals reopen unchanged.
+A real GPU query reproduces the entire legacy snapshot/ranking/text vector and
+planning evidence; that old identity is refused by the padded journal. Input,
+model and operator-review hashes remain unchanged.
+
+Resource evidence: detection plus depth mean/median/P95 is 108.044/105.111/138.971
+ms; arrival-to-result mean/median/P95 is 709.809/494.721/1553.313 ms. Query CLI times
+28.234/20.771/21.480 s include independent model loads. Peak system RAM 5,436 MB;
+GPU temperature 58.312 C; preexisting swap 1,068 MB rises to 1,437 MB. All owned
+processes exit without forced cleanup or leftovers; telemetry stops by expected
+SIGINT. Post-check: 5,227,320 KiB available RAM, 25 W mode. No real-time or
+long-duration leak claim.
+
+Evidence: `data/outputs/stationary_memory/steady_20260916/bowl_1280_pad_01/`
+contains exact commands, configs/source copies, telemetry, original events,
+query reports, independent witnesses and verification reports.
+`data/outputs/bowl_replay/steady_20260916/` contains predeclared acceptance, source
+cutoffs, independent math, legacy regression, summary, cleanup and test logs.
+Its source-verified `review.html` opened successfully on the Jetson display.
+Journal SHA256: e2c793d624dc93524cd88f8761377da595acffdb45e29f2cb10125c268d65daa.
+Private images and generated outputs stay ignored.
+
+Learning: preserving a whole object crop can make the existing causal pipeline
+retrieve it, but marginal scores and duplicate label-bound records remain quality
+problems. Correct RGB retrieval cannot fill depth holes or establish a safe route.
+
+Next action: audit and minimally correct the duplicate bowl/sink associations
+using original image overlap and 3D evidence, with distinct-object regressions;
+never merge solely by label similarity.
 
 ## 16. End-Of-Session Handoff Template
 

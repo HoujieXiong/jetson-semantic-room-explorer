@@ -13,7 +13,7 @@ import time
 
 import numpy as np
 
-from observe_rgbd_objects import DEPTH_POLICY, INFERENCE
+from observe_rgbd_objects import DEPTH_POLICY, inference_config
 from rgbd_geometry import map_from_camera, match_source_stamp
 from scene_memory import SCHEMA, canonical, query_contents, rebuild_objects, require_hash
 from online_semantic_memory import rank_snapshot, validate_semantic
@@ -129,7 +129,8 @@ def validate_event(kind, payload, elapsed):
 class OnlineMemoryWriter:
     """One bounded queue and SQLite-owning thread; overflow/failure aborts the trial."""
     def __init__(self, database, context):
-        if context['inference'] != INFERENCE or context['depth_policy'] != DEPTH_POLICY:
+        if (context['inference'] != inference_config(context['inference']['imgsz'])
+                or context['depth_policy'] != DEPTH_POLICY):
             raise ValueError('Online memory requires the measured perception policy')
         sources = [key for key in ('reference_sha256', 'live_config_sha256') if key in context]
         if len(sources) != 1:

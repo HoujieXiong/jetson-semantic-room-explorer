@@ -17,7 +17,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))
 from online_scene_memory import OnlineMemoryWriter, query_online
-from online_semantic_memory import OnlineSemanticCapture, POLICY, encode_keyframe
+from online_semantic_memory import OnlineSemanticCapture, POLICY, encode_keyframe, query_text
 from test_online_scene_memory import STAMP, context, graph, observation
 
 
@@ -166,6 +166,11 @@ class OnlineSemanticTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'encoder or policy mismatch'):
             query_online(old, text_vector=axis(0), encoder_identity=IDENTITY)
         self.assertEqual(query_online(old)['status'], 'NO_GRAPH')
+        with self.assertRaisesRegex(ValueError, 'no declared semantic encoder'):
+            query_text(old, self.root/'missing_model.pt', 'a bowl', self.root/'refused_query')
+        self.assertTrue((self.root/'refused_query/query.json').exists())
+        with self.assertRaisesRegex(ValueError, 'encoder or policy mismatch'):
+            query_online(self.db, text_vector=axis(0), encoder_identity={**IDENTITY, 'square_pad': True})
 
     def test_missing_source_or_future_evidence_fails_writer(self):
         row = self.source()
