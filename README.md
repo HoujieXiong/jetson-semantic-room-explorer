@@ -24,6 +24,11 @@ ROS 2 goal/path preview publication is also verified against independent
 subscribers, including explicit refusal and timeout cases. See the
 [ROS preview commands](docs/ros-search-preview.md).
 
+Persistent image-text retrieval is now verified on 63 source observations and 17
+provisional objects. A text phrase can drive candidate selection, map checks and
+ROS previews; retrieval quality remains limited (including failed bottle queries).
+See [semantic memory, query results and the browser review](docs/semantic-memory.md).
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.
@@ -91,7 +96,7 @@ Planned stack:
 - RTAB-Map RGB-D SLAM
 - YOLO object detection
 - Cubify Transformer RGB-D 3D detection, experimental
-- Lightweight text-aligned semantic embeddings, planned
+- MobileCLIP-S0 text-aligned embeddings, minimum saved-data integration verified
 - ONNX
 - TensorRT FP16
 - OpenCV

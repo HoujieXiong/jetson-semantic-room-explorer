@@ -9,8 +9,7 @@ import time
 import numpy as np
 
 from extract_mapped_rgbd import file_hash
-from preview_search_goal import POLICY, load_grid, render_overlay, select_goal
-from scene_memory import query
+from preview_search_goal import POLICY, load_grid, query_candidates, render_overlay, select_goal
 
 
 CARDINAL_DIRECTIONS = ((-1, 0), (1, 0), (0, -1), (0, 1))
@@ -117,7 +116,8 @@ def load_goal_preview(path, memory, mapping):
         raise ValueError('Expected a completed metric preview with the current goal policy')
     if file_hash(memory) != source['memory_sha256']:
         raise ValueError('Memory changed since the goal preview')
-    remembered = query(memory, 'find', source['query_label'])
+    object_ids = source.get('selected_object_ids')
+    remembered = query_candidates(memory, source['query_label'], object_ids)
     if (remembered['context'] != source['memory_context'] or remembered['objects'] != source['object_candidates']
             or remembered['status'] != source['query_status']):
         raise ValueError('Goal preview differs from the original memory evidence')
@@ -132,7 +132,8 @@ def load_goal_preview(path, memory, mapping):
         if row['object_id'] != obj['object_id'] or any(row.get(key) != value for key, value in expected.items()):
             raise ValueError('Saved goal decision does not reproduce the current map checks')
     status = 'PREVIEW_READY' if any(row['goal'] for row in source['results']) else 'NO_GOAL'
-    if source['status'] != status or (not remembered['objects'] and source.get('reason') != 'target_not_in_memory'):
+    reason = 'target_not_in_memory' if object_ids is None else 'no_selected_objects'
+    if source['status'] != status or (not remembered['objects'] and source.get('reason') != reason):
         raise ValueError('Inconsistent saved no-goal outcome')
     return source, grid, clearance
 

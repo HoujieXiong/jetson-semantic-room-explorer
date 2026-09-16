@@ -1,0 +1,115 @@
+"""Known crop pixels, semantic fusion/ranking and persistent evidence boundaries."""
+
+from contextlib import closing
+import json
+from pathlib import Path
+import sqlite3
+import sys
+import tempfile
+import unittest
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))
+from semantic_memory import crop_rgb, rank_objects, read_index, unit_vector, write_index
+from run_semantic_search import select_candidates
+
+
+def axis(index):
+    value = np.zeros(512, dtype=np.float32)
+    value[index] = 1
+    return value
+
+
+class SemanticMathTests(unittest.TestCase):
+    def test_clipped_fractional_crop_preserves_rgb_pixels_and_exclusive_bounds(self):
+        rgb = np.arange(4*5*3, dtype=np.uint8).reshape(4, 5, 3)
+        crop, box = crop_rgb(rgb, [-2, 1.2, 3.1, 8])
+        self.assertEqual(box, [0, 1, 4, 4])
+        np.testing.assert_array_equal(crop, rgb[1:4, 0:4])
+        self.assertTrue(crop.flags.c_contiguous)
+
+    def test_invalid_or_outside_crops_fail(self):
+        rgb = np.zeros((4, 5, 3), dtype=np.uint8)
+        for box in ([5, 0, 9, 2], [0, 0, 0, 1], [0, 0, float('nan'), 1], [0, 1, 2]):
+            with self.assertRaises(ValueError):
+                crop_rgb(rgb, box)
+        with self.assertRaises(ValueError):
+            crop_rgb(rgb.astype(float), [0, 0, 2, 2])
+
+    def test_normalization_and_degenerate_embeddings(self):
+        np.testing.assert_array_equal(unit_vector(axis(2)*3), axis(2))
+        for value in (np.zeros(512), np.ones(511), np.full(512, np.nan), np.full(512, np.inf), np.full(512, 1e30)):
+            with self.assertRaises(ValueError):
+                unit_vector(value)
+
+    def test_semantic_ranking_is_independent_of_detector_label_and_keeps_geometry(self):
+        objects = [({'object_id': 2, 'label': 'bottle', 'map_point_m': [1, 2, 3]}, axis(0), 1),
+                   ({'object_id': 1, 'label': 'microwave', 'map_point_m': [4, 5, 6]}, axis(1), .7)]
+        samples = [(2, {'crop': 'bottle.png'}, axis(0)), (1, {'crop': 'container.png'}, axis(1))]
+        result = rank_objects(axis(1), objects, samples)
+        self.assertEqual([r['object_id'] for r in result], [1, 2])
+        self.assertEqual([r['cosine_similarity'] for r in result], [1, 0])
+        self.assertEqual(result[0]['geometry']['map_point_m'], [4, 5, 6])
+        self.assertEqual(result[0]['best_view']['crop'], 'container.png')
+
+    def test_equal_scores_tie_by_id_and_missing_support_fails(self):
+        objects = [({'object_id': i, 'label': 'chair'}, axis(0), 1) for i in (2, 1)]
+        samples = [(i, {}, axis(0)) for i in (2, 1)]
+        self.assertEqual([r['object_id'] for r in rank_objects(axis(0), objects, samples)], [1, 2])
+        with self.assertRaisesRegex(ValueError, 'supporting views'):
+            rank_objects(axis(0), objects, samples[:1])
+
+    def test_threshold_keeps_ambiguity_and_can_select_nothing(self):
+        ranking = [{'object_id': i, 'cosine_similarity': s} for i, s in [(1, .4), (2, .39), (3, .3)]]
+        self.assertEqual(select_candidates(ranking), [1, 2])
+        self.assertEqual(select_candidates([{'object_id': 1, 'cosine_similarity': .24}]), [])
+        self.assertEqual(select_candidates([]), [])
+        with self.assertRaises(ValueError):
+            select_candidates([{'object_id': 1, 'cosine_similarity': float('nan')}])
+
+
+class SemanticPersistenceTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name)
+        self.samples = [{'node_id': i+1, 'detection_index': 0, 'object_id': 7,
+                         'source_stamp_ns': (i+1)*10**9, 'vector': axis(i)} for i in range(2)]
+
+    def test_reopened_fusion_retains_both_views_and_known_agreement(self):
+        path = self.root/'index.db'
+        write_index(path, {'test': 'identity'}, self.samples)
+        with closing(sqlite3.connect(path)) as connection:
+            self.assertEqual(connection.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+            vector, count, agreement = connection.execute('SELECT vector, support_count, view_consistency FROM objects').fetchone()
+            value = np.frombuffer(vector, dtype='<f4')
+            self.assertAlmostEqual(value[0], 2**-.5)
+            self.assertAlmostEqual(value[1], 2**-.5)
+            self.assertEqual(count, 2)
+            self.assertAlmostEqual(agreement, 2**-.5)
+            self.assertEqual(connection.execute('SELECT count(*) FROM samples').fetchone()[0], 2)
+        with self.assertRaises(FileExistsError):
+            write_index(path, {}, self.samples)
+
+    def test_same_frame_support_is_not_double_counted(self):
+        self.samples[1].update(node_id=1, detection_index=1)
+        with self.assertRaises(sqlite3.IntegrityError):
+            write_index(self.root/'index.db', {}, self.samples)
+
+    def test_cancelling_views_and_empty_index_fail(self):
+        self.samples[1]['vector'] = -axis(0)
+        with self.assertRaisesRegex(ValueError, 'cancelling'):
+            write_index(self.root/'cancelled.db', {}, self.samples)
+        with self.assertRaisesRegex(ValueError, 'No supporting'):
+            write_index(self.root/'empty.db', {}, [])
+
+    def test_incomplete_index_never_becomes_queryable(self):
+        (self.root/'build.json').write_text(json.dumps({'status': 'INCOMPLETE'}))
+        with self.assertRaisesRegex(ValueError, 'Incomplete'):
+            read_index(self.root, self.root/'missing_memory.db')
+        self.assertFalse((self.root/'missing_memory.db').exists())
+
+
+if __name__ == '__main__':
+    unittest.main()

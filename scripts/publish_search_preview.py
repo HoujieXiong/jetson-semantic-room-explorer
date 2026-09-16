@@ -86,7 +86,14 @@ def messages(decision, stamp):
     return result
 
 
+def validate_duration(duration_s, subscriber_timeout_s):
+    if not (math.isfinite(duration_s) and .1 <= duration_s <= 60
+            and math.isfinite(subscriber_timeout_s) and .1 <= subscriber_timeout_s <= 60):
+        raise ValueError('Publication and subscriber waits must each be between 0.1 and 60 seconds')
+
+
 def publish(decision, duration_s, subscriber_timeout_s, report):
+    validate_duration(duration_s, subscriber_timeout_s)
     import rclpy
     from rclpy.context import Context
     from rclpy.duration import Duration
@@ -139,9 +146,7 @@ def publish(decision, duration_s, subscriber_timeout_s, report):
 
 
 def run(memory, mapping, label, output, node_id=None, simulated_xy=None, duration_s=5, subscriber_timeout_s=10):
-    if not (math.isfinite(duration_s) and .1 <= duration_s <= 60
-            and math.isfinite(subscriber_timeout_s) and .1 <= subscriber_timeout_s <= 60):
-        raise ValueError('Publication and subscriber waits must each be between 0.1 and 60 seconds')
+    validate_duration(duration_s, subscriber_timeout_s)
     output.mkdir(parents=True, exist_ok=False)
     report = {'status': 'INCOMPLETE', 'dry_run': True, 'motion_executed': False,
               'requested_duration_s': duration_s, 'subscriber_timeout_s': subscriber_timeout_s}

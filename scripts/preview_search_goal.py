@@ -191,7 +191,7 @@ def render_overlay(grid, label, obj, decision, eligible, path, route=None):
                     ax.set_xlim(min(ax.get_xlim()[0], start[0]-.2), max(ax.get_xlim()[1], start[0]+.2))
                     ax.set_ylim(min(ax.get_ylim()[0], start[1]-.2), max(ax.get_ylim()[1], start[1]+.2))
             ax.set_title('Full occupancy export' if index == 0 else 'Target detail')
-        title = f'{label}: not present in saved memory' if obj is None else f'Object {obj["object_id"]}: {obj["label"]} | '+(
+        title = f'{label}: no object candidate' if obj is None else f'Object {obj["object_id"]}: {obj["label"]} | '+(
             'cell-only goal preview' if decision['goal'] else 'No goal: '+decision['reason'].replace('_', ' '))
         if route is None:
             subtitle = 'Offline map checks; route, visibility and physical clearance unverified'
@@ -209,7 +209,21 @@ def render_overlay(grid, label, obj, decision, eligible, path, route=None):
         plt.close(figure)
 
 
-def preview(memory, mapping, label, output):
+def query_candidates(memory, label, object_ids=None):
+    if object_ids is None:
+        return query(memory, 'find', label)
+    if (any(type(i) is not int or i <= 0 for i in object_ids) or len(set(object_ids)) != len(object_ids)):
+        raise ValueError('Expected unique positive object IDs')
+    result = query(memory)
+    objects = {obj['object_id']: obj for obj in result['objects']}
+    if any(i not in objects for i in object_ids):
+        raise ValueError('Selected object ID is absent from this memory')
+    result['objects'] = [objects[i] for i in object_ids]
+    result['status'] = 'FOUND' if object_ids else 'NO_SELECTED_OBJECTS'
+    return result
+
+
+def preview(memory, mapping, label, output, object_ids=None):
     output.mkdir(parents=True, exist_ok=False)
     started = time.monotonic()
     report = {'status': 'INCOMPLETE', 'dry_run': True, 'query_label': label, 'policy': POLICY,
@@ -217,7 +231,9 @@ def preview(memory, mapping, label, output):
               'limitation': 'Cell-only planar preview; no route, visibility, current localization, robot footprint or physical traversability verification. No motion commands.'}
     try:
         memory_hash = file_hash(memory)
-        result = query(memory, 'find', label)
+        result = query_candidates(memory, label, object_ids)
+        if object_ids is not None:
+            report['selected_object_ids'] = object_ids
         report.update(memory_path=str(memory), memory_sha256=memory_hash,
                       memory_context=result['context'], query_status=result['status'],
                       object_candidates=result['objects'])
@@ -233,7 +249,7 @@ def preview(memory, mapping, label, output):
             render_overlay(grid, label, obj, decision, eligible, output/decision['overlay'])
             report['results'].append(decision)
         if not result['objects']:
-            report['reason'] = 'target_not_in_memory'
+            report['reason'] = 'target_not_in_memory' if object_ids is None else 'no_selected_objects'
             report['overview'] = 'overview.png'
             render_overlay(grid, label, None, None, None, output/'overview.png')
         if file_hash(memory) != memory_hash:

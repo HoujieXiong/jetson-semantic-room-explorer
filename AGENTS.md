@@ -560,44 +560,63 @@ and corrected. See `docs/ros-search-preview.md` and
 `data/outputs/search_publication/validation_20260915/attempt_02/integration.json`.
 This does not establish live localization, physical accuracy or navigation.
 
+### 4.18 Persistent Image-Text Memory And Semantic Search
+
+Status: `VERIFIED` for minimum saved-data MobileCLIP indexing, ranking and ROS
+preview integration. Retrieval quality and live throughput remain unverified.
+
+The isolated official S0 encoder indexes 63 accepted supports from 19 nodes into
+17 existing objects, preserving per-view crops/vectors and source hashes. The
+second build reproduces all per-view vector bytes. Independent source-pixel,
+scalar fusion and eleven-query ranking checks pass. Final warm crop encoding has
+median 37.245 ms and P95 51.758 ms. All 39 memory and 103 search tests pass, plus
+five native refusal cases. Three GPU text-to-ROS cases retain geometric failures
+and unknown-target fallback; independent receivers match and all contexts close.
+The fixed query set includes poor bottle retrieval and unvalidated attributes;
+no presence-probability or accuracy claim is made. See `docs/semantic-memory.md`,
+`data/outputs/mobileclip/line_20260915/integration.json`, and its embedded-image
+`queries_final/queries.html` review. Original memory/map and baseline GPU packages
+are unchanged; weights/crops remain local.
+
 ## 5. Current Next Task
 
-Milestone: **Complete the pipeline interfaces and M8 open-vocabulary memory**.
+Milestone: **M7 CuTR feasibility, followed by remaining live pipeline integration**.
 
-Status: ROS 2 preview publication is `VERIFIED`; MobileCLIP-backed persistent
-text queries remain `PLANNED`. The official S0 GPU smoke test is measured locally.
+Status: `PLANNED` for measured CuTR inference/geometry acceptance. Source download
+and isolated data-reader preparation are underway; no successful inference is
+claimed yet. ROS preview publication and minimum saved-data M8 retrieval are
+verified and recorded below.
 
 The user explicitly requested pipeline-first work on 2026-09-15 and deferred
-physical scale/return-error refinement. Do not gate software integration on a
-new measured-motion capture. Preserve the estimated-distance trial and its
-limitations; deferring accuracy does not establish physical accuracy. The user
-also authorized downloading official MobileCLIP-S0 weights and required
-inference dependencies in a separate environment.
+physical scale/return-error refinement. Do not gate software integration on new
+measured-motion capture. Preserve all functional/quality limitations. The user
+explicitly authorized official MobileCLIP and CuTR source, model weights and
+required dependencies, plus a minimal official CuTR sample, in isolated environments.
 
 Required sequence:
 
-1. Reuse the checked memory/map/search stages to publish bounded ROS 2 preview
-   decisions, target poses and paths. Retain no-route outcomes and simulated-start
-   provenance. Verify actual subscriber messages and cleanup without a mobile base.
-2. In an isolated environment, run the official MobileCLIP-S0 encoder on existing
-   object crops. Preserve source association and model identity, measure Jetson
-   latency/memory, and leave the existing camera/SLAM/GPU baseline environment intact.
-3. Persist per-observation semantic vectors, fuse supporting views, and rank
-   remembered objects for a documented text-query set. Keep semantic similarity
-   separate from geometric support; include synonyms, attributes and absent targets.
-4. Connect accepted semantic query candidates to the existing search interface.
-   Preserve ambiguous/unknown outcomes; do not reinterpret ranking as proof that
-   an object exists. Run focused tests and actual saved-data integration, review
-   the complete diff, update measured evidence, and push verified checkpoints.
+1. Finish the official CuTR RGB-D checkpoint download (the first transfer was
+   interrupted; retain the failure). Check source/model licenses and exact
+   versions. Reuse local GPU PyTorch and keep the camera/SLAM baseline unchanged.
+2. Run a bounded headless official-sample trial, saving predictions, input shapes,
+   depth units, intrinsics/gravity, initialization time, warm P50/P95 and memory.
+3. If viable, adapt existing verified Femto RGB-D and compare multiple views with
+   YOLO-plus-depth. Treat gravity as an explicit input; the current bags have no
+   IMU stream, so any pose-derived gravity is an assumption, not a measurement.
+4. Measure alongside the existing recorded SLAM workload before selecting an
+   operational role. Preserve poor quality or resource failures. Do not introduce
+   a second production backend before the experiment supports it.
+5. Continue toward causal online memory/query decisions using existing bags.
+   Reuse measured code, run focused checks, review complete diffs, update evidence
+   and push verified checkpoints. Ask only for missing input/equipment/authority.
 
-Continue safe authorized work autonomously. CuTR feasibility, causal online
-memory/search, real-time throughput, quality evaluation and physical navigation
-remain separate outstanding work; do not call the full project complete based on
-this saved-data integration. Ask only when missing input or equipment prevents the
-next concrete check. No new camera recording is needed for the steps above.
+Local preparation: `~/projects/ml-cubifyanything`, `~/projects/cutr-env`, and
+`data/outputs/cutr/setup_20260915/`. The official sample subset contains the first
+three complete frames (42 files), copied from a 16 MiB HTTP range of the archive.
+The original 2026-09-15 recording and all prior map/memory artifacts remain intact.
 
-Learning checkpoint: source-grounded geometry, persistent semantics and an
-explicit query-to-goal interface are separate contracts in the complete pipeline.
+Learning checkpoint: CuTR proposes geometry; MobileCLIP supplies text similarity;
+neither replaces source-time poses, persistent association or checked planning.
 
 ## 6. Target System Architecture
 
@@ -941,7 +960,10 @@ resource tradeoffs.
 
 ### M8: Open-Vocabulary Semantic Layer
 
-Status: `PLANNED`
+Status: `VERIFIED` for minimum saved-data text retrieval and query-to-preview
+integration with MobileCLIP-S0. The complete eleven-query set and failures are in
+`docs/semantic-memory.md`. Proposal coverage, retrieval/attribute quality,
+calibrated unknown rejection and live operation remain `PLANNED`.
 
 Steps:
 
@@ -3350,6 +3372,61 @@ now owns an executor bound to its context. No camera or motor commands ran.
 
 Next action: persist and evaluate MobileCLIP crop embeddings and text queries,
 then connect semantic candidates to the existing preview pipeline.
+
+### 2026-09-15: MobileCLIP Persistence And Text-To-ROS Search
+
+Milestone: M8 minimum integration. Status: `VERIFIED`.
+
+Changed: `semantic_memory.py` builds a separate frozen SQLite index with original
+RGB crops and 512-dimensional support vectors, fuses views without changing
+geometric identity, and produces text rankings plus self-contained HTML review.
+`run_semantic_search.py` selects explicit candidate IDs and reuses existing goal,
+route, frontier and optional ROS preview code. The existing planner now supports
+validated ID subsets; empty subsets retain `NO_SELECTED_OBJECTS`, not a fabricated
+semantic absence claim. Ten semantic and three planner tests were added.
+
+Dependencies: user-authorized official MobileCLIP commit
+`48faa0fea4b08d74188b3841771aca6ff2c92852`, S0 checkpoint SHA256
+`809b408eff74f8058843e86a1f92967097d42ba782450e85b8f4867b7f0ca0b7`,
+215,934,653 bytes. New inference dependencies are isolated in
+`~/projects/mobileclip-env`, pinned by `requirements-semantic.txt`; original
+Jetson Torch 2.8.0/torchvision 0.23.0/NumPy 1.26.4 are reused. Software is MIT;
+weights have upstream research-only terms. No model or room data is committed.
+
+Verified: all 39 memory tests (0.768 s) and 103 search tests (29.003 s) pass.
+Two GPU index builds encode all 63 geometric supports from 19 source nodes into
+17 records, with identical per-view vector bytes. Independent crop pixels,
+bounds, source stamps, file hashes, unit norms, scalar mean fusion and every
+query score/order pass. Final build takes 23.732 s, including 10.096 s model load.
+The 62 image calls after the first have median 37.245 ms / P95 51.758 ms. Peak RSS
+is 1,478,696 KiB; PyTorch peak allocated GPU memory 237,129,216 bytes. These are
+separate accounting measures, not additive Jetson system RAM. Ten warm text calls
+range 14.559–29.448 ms; cold text call is 350.967 ms. No concurrent SLAM ran in
+these measurements. Five native failure cases refuse changed memory/index,
+wrong weights, excessive token length and output reuse, preserving originals.
+
+The eleven-query set and 0.25 cosine / 0.02 top-window filter were declared before
+scores were observed. Refrigerator/fridge retrieve ID 1; kitchen sink selects
+9/10. Bottle/drinking-container/transparent-bottle retrieval fail the filter.
+White-refrigerator attribute correctness is unverified; four unknown controls
+remain below threshold. These results establish integration, not reliable semantic
+recognition or absence detection. Existing YOLO errors remain visible in crops.
+
+Three complete GPU/ROS runs verify fridge (ID 1, insufficient-clearance goal,
+frontier published), sink (IDs 9/10, no route, decision only), and elephant (no
+selected object, frontier published). Independent receivers get five copies of
+each applicable message; all path points/stamps/terminal goals and semantic
+provenance match. All publisher contexts close. Original source hashes remain
+unchanged. The HTML review embeds 33 crop images across all eleven queries.
+
+Evidence: `data/outputs/mobileclip/setup_20260915/` and
+`data/outputs/mobileclip/line_20260915/`, including `index_02`, `queries_final`,
+`integration.json`, independent harnesses, ROS receipts and
+`failures/verification.json`. Commands and complete results are documented in
+`docs/semantic-memory.md`.
+
+Next action: complete the newly authorized CuTR official-sample feasibility trial
+in its isolated environment, then evaluate an explicit Femto input adapter.
 
 ## 16. End-Of-Session Handoff Template
 

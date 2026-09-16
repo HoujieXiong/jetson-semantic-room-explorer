@@ -215,6 +215,27 @@ class OfflineSearchTests(SearchFixture):
                 run_search(self.memory, self.mapping, 'chair', self.output, **start)
             self.assertFalse(self.output.exists())
 
+    def test_selected_ids_use_geometry_without_substituting_text_for_labels(self):
+        result = run_search(self.memory, self.mapping, 'a place to sit', self.output,
+                            simulated_xy=[1.05, 1.55], object_ids=[2])
+        self.assertEqual(result['query']['candidate_ids'], [2])
+        self.assertEqual(result['selected_object_ids'], [2])
+        self.assertEqual(result['status'], 'ROUTE_READY')
+        self.assertEqual(result['outcomes'][0]['object_id'], 2)
+
+    def test_empty_selection_explores_without_claiming_semantic_absence(self):
+        result = run_search(self.memory, self.mapping, 'an unknown description', self.output,
+                            simulated_xy=[1.05, 1.55], object_ids=[])
+        self.assertEqual(result['query']['status'], 'NO_SELECTED_OBJECTS')
+        self.assertEqual(result['branch_reason'], 'no_selected_objects')
+        self.assertEqual(result['status'], 'EXPLORATION_READY')
+
+    def test_invalid_selected_ids_are_explicit_errors(self):
+        for i, ids in enumerate(([1, 1], [999], [True], [-1])):
+            with self.assertRaises(ValueError):
+                run_search(self.memory, self.mapping, 'text', self.root/str(i),
+                           simulated_xy=[1.05, 1.55], object_ids=ids)
+
 
 if __name__ == '__main__':
     unittest.main()

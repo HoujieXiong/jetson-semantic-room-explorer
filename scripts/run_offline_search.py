@@ -12,7 +12,7 @@ from preview_search_goal import preview
 from preview_search_route import preview_route
 
 
-def run_search(memory, mapping, label, output, node_id=None, simulated_xy=None):
+def run_search(memory, mapping, label, output, node_id=None, simulated_xy=None, object_ids=None):
     if (node_id is None) == (simulated_xy is None):
         raise ValueError('Provide exactly one recorded camera node or simulated start')
     requested_start = {'node_id': node_id, 'simulated_xy_m': simulated_xy}
@@ -28,7 +28,10 @@ def run_search(memory, mapping, label, output, node_id=None, simulated_xy=None):
               'outcomes': [],
               'limitation': 'Frozen-data planning only. Simulated starts are test fixtures; recorded camera projections are not current robot localization. Physical visibility, traversal and object identity remain unverified.'}
     try:
-        source = preview(memory, mapping, label, output/'goal')
+        source = (preview(memory, mapping, label, output/'goal') if object_ids is None
+                  else preview(memory, mapping, label, output/'goal', object_ids))
+        if object_ids is not None:
+            report['selected_object_ids'] = object_ids
         report['stages'][0]['status'] = source['status']
         report['query'] = {'status': source['query_status'],
                            'candidate_ids': [obj['object_id'] for obj in source['object_candidates']],
