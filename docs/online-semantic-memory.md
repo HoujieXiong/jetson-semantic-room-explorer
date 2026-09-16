@@ -26,13 +26,20 @@ encoding job. A request waits at most five seconds for its source observation to
 be finalized. Dropped source frames, original pose refusals, missing/evicted RGB,
 queue overflow and shutdown cancellation retain explicit reasons.
 
-Only originally accepted poses and depth-accepted proposals can be encoded.
+By default, only originally accepted poses and depth-accepted proposals can be encoded.
 The crop implementation, RGB ordering, official preprocessing, vector dimension,
 weights/source/package identity and text tokenizer are shared with
 [the frozen semantic path](semantic-memory.md). At most 16 crops are encoded per
 keyframe in confidence order; remaining detections retain `crop_budget` omissions.
 This caps work even on a crowded frame. Inference errors propagate and make the
 trial incomplete. Partial files from a failed job cannot supply a query vector.
+
+The optional `--semantic-include-unlocalized` producer flag also encodes
+depth-rejected proposals after accepted proposals within the same crop budget.
+Their source views appear in a separate ranking with no 3D object or navigation
+target. The new path passes two historical-source GPU experiments; simultaneous
+SLAM/detection performance remains unverified. See
+[unlocalized evidence, measured results and limitations](unlocalized-visual-evidence.md).
 
 Each successful keyframe stores original source/pixel identity, detector index,
 clipped exclusive crop bounds, lossless PNG/file/pixel hashes, normalized 512-D

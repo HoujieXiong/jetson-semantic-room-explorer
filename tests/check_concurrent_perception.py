@@ -28,7 +28,7 @@ from observe_rgbd_objects import DEPTH_POLICY, INFERENCE, infer_rgbd, inference_
 from rgbd_geometry import map_from_camera, pinhole_matrix
 from extract_mapped_rgbd import file_hash
 from online_scene_memory import OnlineMemoryWriter
-from online_semantic_memory import OnlineSemanticCapture, POLICY as SEMANTIC_POLICY
+from online_semantic_memory import OnlineSemanticCapture, POLICY as SEMANTIC_POLICY, UNLOCALIZED_POLICY
 from online_search_preview import GRID_POLICY, occupancy_payload
 
 
@@ -262,6 +262,7 @@ def main():
     parser.add_argument('--memory-db', type=Path, help='Optional fresh causal observation/graph journal')
     parser.add_argument('--semantic-model', type=Path, help='Optional MobileCLIP-S0 checkpoint; requires --memory-db')
     parser.add_argument('--semantic-square-pad', action='store_true', help='Keep complete image crops; requires --semantic-model')
+    parser.add_argument('--semantic-include-unlocalized', action='store_true', help='Also encode depth-rejected source views without 3D targets; requires --semantic-model')
     parser.add_argument('--imgsz', type=int, default=INFERENCE['imgsz'], help='Detector input size: 640 (default) or 1280')
     parser.add_argument('--capture-occupancy', action='store_true', help='Journal received /map grids; requires --memory-db')
     args = parser.parse_args()
@@ -269,6 +270,8 @@ def main():
         parser.error('--semantic-model requires --memory-db')
     if args.semantic_square_pad and args.semantic_model is None:
         parser.error('--semantic-square-pad requires --semantic-model')
+    if args.semantic_include_unlocalized and args.semantic_model is None:
+        parser.error('--semantic-include-unlocalized requires --semantic-model')
     try:
         inference = inference_config(args.imgsz)
     except ValueError as error:
@@ -327,7 +330,8 @@ def main():
                 'session_id': str(uuid.uuid4()), 'origin_monotonic_ns': int(check.begin*1e9),
                 'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map', 'point_unit': 'meter'}
             if encoder is not None:
-                context.update(semantic_encoder=encoder.identity, semantic_policy=SEMANTIC_POLICY)
+                context.update(semantic_encoder=encoder.identity,
+                               semantic_policy=UNLOCALIZED_POLICY if args.semantic_include_unlocalized else SEMANTIC_POLICY)
             if args.capture_occupancy:
                 context['grid_policy'] = GRID_POLICY
                 check.capture_occupancy = True
@@ -372,7 +376,7 @@ def main():
                 except (RuntimeError, ValueError, OSError) as error:
                     close_error = error
                     report.update(status='INCOMPLETE', semantic_error=str(error))
-                report['online_semantic'] = {**semantic.stats, 'policy': SEMANTIC_POLICY,
+                report['online_semantic'] = {**semantic.stats, 'policy': semantic.policy,
                                              'closed': semantic.closed, 'active_at_close': semantic.active is not None}
             if memory is not None:
                 try:

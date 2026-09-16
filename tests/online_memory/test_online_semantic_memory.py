@@ -17,7 +17,8 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))
 from online_scene_memory import OnlineMemoryWriter, query_online
-from online_semantic_memory import OnlineSemanticCapture, POLICY, encode_keyframe, query_text
+from online_semantic_memory import OnlineSemanticCapture, POLICY, UNLOCALIZED_POLICY, encode_keyframe, query_text, validate_semantic
+from semantic_memory import write_query_review
 from test_online_scene_memory import STAMP, context, graph, observation
 
 
@@ -74,12 +75,15 @@ class OnlineSemanticTests(unittest.TestCase):
         self.seq += 1
         self.flush()
 
-    def source(self, node=1, pose='ACCEPTED'):
+    def source(self, node=1, pose='ACCEPTED', *, unlocalized=False):
         stamp = STAMP+(node-1)*10**9
         row = observation(stamp, pose)
         row['rgb_pixels_sha256'] = hashlib.sha256(self.rgb.tobytes()).hexdigest()
         row['camera_info'] = {'width': 5, 'height': 4}
         row['detections'][0]['box_xyxy'] = [1.2, .2, 4.5, 3.5]
+        if unlocalized:
+            row['detections'][0]['depth'] = {'status': 'REJECTED', 'reason': 'insufficient_valid_depth', 'valid_fraction': .1}
+            row['detections'][0].pop('map_point_m', None)
         self.send('mapping', {'node_id': node, 'stamp_ns': stamp})
         self.send('observation', row)
         self.rows.append(row)
@@ -88,12 +92,134 @@ class OnlineSemanticTests(unittest.TestCase):
     def encoded(self, row, node=1, vector=None):
         self.crops.mkdir(exist_ok=True)
         self.clock += .1
-        result = encode_keyframe(KnownEncoder(vector), row, self.rgb, node, self.crops, lambda: self.clock)
+        result = encode_keyframe(KnownEncoder(vector), row, self.rgb, node, self.crops, lambda: self.clock,
+                                 policy=self.writer.context['semantic_policy'])
         result['requested_elapsed_s'] = self.clock
         return result
 
     def query(self, vector=None):
         return query_online(self.db, text_vector=axis(0) if vector is None else vector, encoder_identity=IDENTITY)
+
+    def enable_unlocalized(self):
+        self.writer.close()
+        self.db = self.root/'visual.db'
+        self.writer = OnlineMemoryWriter(self.db, {**context(), 'semantic_encoder': IDENTITY,
+                                                  'semantic_policy': UNLOCALIZED_POLICY})
+
+    def test_unlocalized_views_keep_pixels_provenance_and_causal_availability_without_geometry(self):
+        self.enable_unlocalized()
+        row = self.source(unlocalized=True)
+        self.send('graph', graph({1: [1, 0, 0]}))
+        before = self.query()
+        self.assertEqual(before['semantic']['unlocalized']['missing_supports'][0]['reason'], 'embedding_not_committed')
+        self.send('semantic', self.encoded(row))
+        after = self.query()
+        self.assertEqual(after['objects'], [])
+        self.assertEqual(after['semantic']['selected_object_ids'], [])
+        visual = after['semantic']['unlocalized']
+        self.assertEqual(visual['selected_observation_ids'], ['1:0'])
+        candidate = visual['ranking'][0]
+        self.assertNotIn('geometry', candidate)
+        self.assertNotIn('object_id', candidate)
+        self.assertEqual(candidate['localization_status'], 'UNLOCALIZED')
+        self.assertEqual(candidate['depth_rejection_reason'], 'insufficient_valid_depth')
+        view = candidate['best_view']
+        self.assertLess(view['observation_seq'], view['semantic_event_seq'])
+        self.assertEqual(view['semantic_event_seq'], after['snapshot']['event_seq'])
+        self.assertEqual(view['source_stamp_ns'], STAMP)
+        np.testing.assert_array_equal(np.array(Image.open(self.root/view['crop'])), self.rgb[:, 1:5])
+        self.assertEqual(before['semantic']['unlocalized']['ranking'], [])
+        self.assertEqual(self.query(axis(1))['semantic']['unlocalized']['selected_observation_ids'], [])
+        page = self.root/'review.html'
+        write_query_review([{'text': 'example', 'ranking': [], 'selected_object_ids': [], 'unlocalized': visual}], self.root, page, 'test')
+        self.assertIn('No localized candidate selected', page.read_text())
+        self.assertIn('3D location unavailable', page.read_text())
+        self.assertIn('Source view 1:0', page.read_text())
+        row2 = self.source(2, unlocalized=True)
+        self.send('semantic', self.encoded(row2, 2))
+        self.send('graph', graph({1: [1, 0, 0], 2: [1, 0, 0]}))
+        self.assertEqual(self.query()['semantic']['unlocalized']['selected_observation_ids'], ['1:0', '2:0'])
+        self.send('graph', graph({2: [1, 0, 0]}))
+        final = self.query()
+        self.assertEqual(final['semantic']['unlocalized']['selected_observation_ids'], ['2:0'])
+        self.writer.close()
+        self.assertEqual(self.query()['semantic'], final['semantic'])
+
+    def test_default_mode_does_not_encode_or_accept_depth_rejected_crops(self):
+        row = self.source(unlocalized=True)
+        self.assertEqual(self.encoded(row)['samples'], [])
+        visual = encode_keyframe(KnownEncoder(), row, self.rgb, 1, self.crops, lambda: self.clock, policy=UNLOCALIZED_POLICY)
+        visual['requested_elapsed_s'] = self.clock
+        with closing(sqlite3.connect(self.db)) as connection:
+            with self.assertRaisesRegex(ValueError, 'conflicting source identity'):
+                validate_semantic(connection, self.writer.context, visual, self.clock+1)
+        self.send('graph', graph({1: [1, 0, 0]}))
+        self.assertNotIn('unlocalized', self.query()['semantic'])
+
+    def test_text_query_reports_visual_only_result_without_a_localized_candidate(self):
+        self.enable_unlocalized()
+        row = self.source(unlocalized=True)
+        self.send('graph', graph({1: [1, 0, 0]}))
+        self.send('semantic', self.encoded(row))
+        with patch('online_semantic_memory.MobileClipEncoder') as constructor:
+            encoder = constructor.return_value
+            encoder.identity, encoder.load_ms = IDENTITY, 0.
+            encoder.encode.return_value = (axis(0), 1.)
+            encoder.torch.cuda.max_memory_allocated.return_value = 0
+            result = query_text(self.db, self.root/'known_encoder', 'a fridge', self.root/'query')
+        self.assertEqual(result['status'], 'UNLOCALIZED_CANDIDATES_SELECTED')
+        self.assertEqual(result['semantic']['selected_object_ids'], [])
+        self.assertEqual(result['semantic']['unlocalized']['selected_observation_ids'], ['1:0'])
+        self.assertIn('No localized candidate selected', (self.root/'query/queries.html').read_text())
+
+    def test_unlocalized_metadata_refuses_geometry_changed_reason_and_unknown_policy(self):
+        self.enable_unlocalized()
+        row = self.source(unlocalized=True)
+        result = self.encoded(row)
+        with closing(sqlite3.connect(self.db)) as connection:
+            for key,value in [('map_point_m', [1,2,3]), ('object_id', 1), ('geometry', {}),
+                              ('localization_status', 'LOCALIZED'), ('depth_rejection_reason', 'other')]:
+                altered = copy.deepcopy(result); altered['samples'][0][key] = value
+                with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'Unlocalized crop'):
+                    validate_semantic(connection, self.writer.context, altered, self.clock+1)
+            altered = copy.deepcopy(result); del altered['samples'][0]['depth_rejection_reason']
+            with self.assertRaisesRegex(ValueError, 'Unlocalized crop'):
+                validate_semantic(connection, self.writer.context, altered, self.clock+1)
+            with self.assertRaisesRegex(ValueError, 'capture policy'):
+                validate_semantic(connection, {**self.writer.context, 'semantic_policy': {**UNLOCALIZED_POLICY, 'workers': 2}}, result, self.clock+1)
+
+    def test_optin_worker_and_crop_budget_keep_geometric_priority(self):
+        self.enable_unlocalized()
+        row = self.source(unlocalized=True)
+        capture = OnlineSemanticCapture(KnownEncoder(), self.writer, self.crops, lambda: self.clock)
+        self.addCleanup(capture.close)
+        capture.remember(row, self.rgb)
+        capture.request({'node_id': 1, 'stamp_ns': STAMP})
+        capture.pump(self.rows)
+        capture.close()
+        self.seq += 1
+        self.flush()
+        self.assertEqual(capture.stats['encoded_unlocalized_crops'], 1)
+        original = observation(STAMP+10**9)
+        original.update(camera_info={'width': 5, 'height': 4}, rgb_pixels_sha256=hashlib.sha256(self.rgb.tobytes()).hexdigest())
+        first = original['detections'][0]; first['box_xyxy'] = [0,0,5,4]
+        original['detections'] = [{**copy.deepcopy(first), 'detection_index': i, 'detection_confidence': .8-i*.01} for i in range(17)]
+        rejected = copy.deepcopy(row['detections'][0]); rejected.update(detection_index=17, detection_confidence=1.)
+        original['detections'].append(rejected)
+        self.send('mapping', {'node_id': 2, 'stamp_ns': STAMP+10**9})
+        self.send('observation', original)
+        result = self.encoded(original, 2)
+        self.assertEqual([s['detection_index'] for s in result['samples']], list(range(16)))
+        self.assertEqual([s['detection_index'] for s in result['skipped_detections']], [16,17])
+        altered = copy.deepcopy(result); altered['samples'].reverse()
+        with closing(sqlite3.connect(self.db)) as connection:
+            with self.assertRaisesRegex(ValueError, 'geometric priority'):
+                validate_semantic(connection, self.writer.context, altered, self.clock+1)
+        self.send('semantic', result)
+        self.send('graph', graph({2: [1, 0, 0]}))
+        visual = self.query()['semantic']['unlocalized']
+        self.assertEqual(visual['ranking'], [])
+        self.assertEqual(visual['missing_supports'][0]['reason'], 'crop_budget')
 
     def test_coobserved_merging_uses_only_prefix_witnesses_and_one_vector_per_frame(self):
         earlier = None

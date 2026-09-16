@@ -111,6 +111,14 @@ view still fails the unchanged 25% gate; physical distance and the cause of miss
 returns remain unverified. Resolving every hole is not a prerequisite for further
 pipeline work, and no new recording or runtime change was needed for this audit.
 
+Optional [unlocalized RGB retrieval](docs/unlocalized-visual-evidence.md) now
+preserves depth-rejected crops in a separate text-query result with no 3D target.
+Two historical-source GPU experiments verify 447 source crops, including 127
+new visual observations; all 320 original vectors and localized rankings remain
+unchanged. The stationary `a fridge` query selects 44 views of the fridge region,
+while its old incorrect localized candidate remains a recorded failure. All 148
+focused tests pass. Concurrent performance with the new option remains unverified.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

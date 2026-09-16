@@ -147,6 +147,28 @@ class OnlineSearchTests(unittest.TestCase):
         self.assertIsNone(result['selection']['object_id'])
         self.assertEqual(result['semantic_selection']['selected_object_ids'], [])
 
+    def test_unlocalized_selection_cannot_supply_an_object_goal_or_trigger_frontier(self):
+        self.send('occupancy', occupancy())
+        query = self.query(axis(1))
+        query['semantic']['unlocalized'] = {'selected_observation_ids': ['1:7']}
+        result = plan_snapshot(query, 'a fridge')
+        self.assertEqual(result['search_status'], 'REFUSED')
+        self.assertEqual(result['reason'], 'unlocalized_visual_evidence')
+        self.assertIsNone(result['selection'])
+        self.assertIsNone(result['branch'])
+        self.assertEqual(result['outcomes'], [])
+        self.assertEqual(result['unlocalized_selection']['planning_status'], 'REFUSED')
+        localized = self.query()
+        original = plan_snapshot(localized, 'a bottle')
+        localized['semantic']['unlocalized'] = query['semantic']['unlocalized']
+        combined = plan_snapshot(localized, 'a bottle')
+        for decision in (original, combined):
+            for outcome in decision['outcomes']:
+                outcome['route'].pop('planning_ms', None)
+        self.assertEqual(combined['selection'], original['selection'])
+        self.assertEqual(combined['outcomes'], original['outcomes'])
+        self.assertEqual(combined['unlocalized_selection']['reason'], 'unlocalized_visual_evidence')
+
     def test_grid_integrity_orientation_dimensions_and_values(self):
         original = occupancy()
         for key, value in [('cells_sha256', '0'*64), ('width', 59), ('width', 100000),

@@ -25,15 +25,24 @@ POLICY = {'rgb_cache_frames': 32, 'pending_keyframes': 8, 'workers': 1,
           'source_wait_s': 5., 'max_crops_per_keyframe': 16,
           'selection': 'Received mapped keyframes with originally accepted poses; depth-accepted proposals in confidence order',
           'fusion': 'Only currently associated geometric representatives with committed vectors; report missing supports'}
+UNLOCALIZED_POLICY = {**POLICY,
+    'selection': 'Received mapped keyframes with accepted poses; depth-accepted proposals first, then depth-rejected proposals, each in confidence order',
+    'unlocalized': 'Separate source-view RGB evidence; no object identity, geometry, fusion or navigation target'}
 
 
-def encode_keyframe(encoder, row, rgb, node, crops, elapsed):
+def encoding_detections(row, policy):
+    if policy not in (POLICY, UNLOCALIZED_POLICY):
+        raise ValueError('Unsupported semantic capture policy')
+    return sorted((d for d in row['detections'] if d['depth']['status'] == 'ACCEPTED' or policy == UNLOCALIZED_POLICY),
+                  key=lambda d: (d['depth']['status'] != 'ACCEPTED', -d['detection_confidence'], d['detection_index']))
+
+
+def encode_keyframe(encoder, row, rgb, node, crops, elapsed, *, policy=POLICY):
     from PIL import Image
     started = elapsed()
     if hashlib.sha256(rgb.tobytes()).hexdigest() != row['rgb_pixels_sha256']:
         raise ValueError('Cached RGB pixels differ from the original observation')
-    detections = sorted((d for d in row['detections'] if d['depth']['status'] == 'ACCEPTED'),
-                        key=lambda d: (-d['detection_confidence'], d['detection_index']))
+    detections = encoding_detections(row, policy)
     samples = []
     for detection in detections[:POLICY['max_crops_per_keyframe']]:
         index = detection['detection_index']
@@ -47,6 +56,9 @@ def encode_keyframe(encoder, row, rgb, node, crops, elapsed):
             'crop': str(Path(crops.name)/path.name), 'crop_sha256': file_hash(path),
             'rgb_pixels_sha256': hashlib.sha256(crop.tobytes()).hexdigest(),
             'encode_ms': duration, 'vector': unit_vector(vector).tolist()})
+        if detection['depth']['status'] == 'REJECTED':
+            samples[-1].update(localization_status='UNLOCALIZED',
+                               depth_rejection_reason=detection['depth']['reason'])
     return {'status': 'ENCODED', 'node_id': node, 'source_stamp_ns': row['source_stamp_ns'],
             'source_rgb_pixels_sha256': row['rgb_pixels_sha256'], 'samples': samples,
             'skipped_detections': [{'detection_index': d['detection_index'], 'reason': 'crop_budget'}
@@ -58,6 +70,8 @@ class OnlineSemanticCapture:
     """A bounded RGB cache and one encoder worker; caller owns all journal writes."""
     def __init__(self, encoder, memory, crops, elapsed):
         self.encoder, self.memory, self.crops, self.elapsed = encoder, memory, Path(crops), elapsed
+        self.policy = memory.context['semantic_policy']
+        encoding_detections({'detections': []}, self.policy)
         self.crops.mkdir(exist_ok=False)
         self.images, self.pending = OrderedDict(), OrderedDict()
         self.active = None
@@ -65,6 +79,8 @@ class OnlineSemanticCapture:
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='mobileclip_keyframe')
         self.stats = {'cache_peak': 0, 'cache_evictions': 0, 'pending_peak': 0,
                       'encoded_keyframes': 0, 'encoded_crops': 0, 'rejections': {}, 'encode_ms': []}
+        if self.policy == UNLOCALIZED_POLICY:
+            self.stats['encoded_unlocalized_crops'] = 0
 
     def remember(self, row, rgb):
         self.images[row['source_stamp_ns']] = rgb
@@ -94,6 +110,8 @@ class OnlineSemanticCapture:
         self.memory.submit('semantic', result, self.elapsed())
         self.stats['encoded_keyframes'] += 1
         self.stats['encoded_crops'] += len(result['samples'])
+        if self.policy == UNLOCALIZED_POLICY:
+            self.stats['encoded_unlocalized_crops'] += sum(s.get('localization_status') == 'UNLOCALIZED' for s in result['samples'])
         self.stats['encode_ms'].extend(s['encode_ms'] for s in result['samples'])
         self.active = None
 
@@ -127,7 +145,7 @@ class OnlineSemanticCapture:
                 del self.pending[node]
             elif self.active is None:
                 self.active = (request, self.executor.submit(encode_keyframe, self.encoder,
-                    copy.deepcopy(row), self.images[stamp], node, self.crops, self.elapsed))
+                    copy.deepcopy(row), self.images[stamp], node, self.crops, self.elapsed, policy=self.policy))
                 del self.pending[node]
 
     def close(self):
@@ -148,7 +166,7 @@ class OnlineSemanticCapture:
 
 
 def validate_semantic(connection, context, payload, elapsed):
-    if context.get('semantic_policy') != POLICY or 'semantic_encoder' not in context:
+    if context.get('semantic_policy') not in (POLICY, UNLOCALIZED_POLICY) or 'semantic_encoder' not in context:
         raise ValueError('Semantic events require the declared encoder and capture policy')
     mapping = connection.execute('SELECT available_elapsed_s,payload_json FROM events WHERE kind="mapping" AND '
         'json_extract(payload_json,"$.node_id")=?', (payload['node_id'],)).fetchone()
@@ -173,7 +191,8 @@ def validate_semantic(connection, context, payload, elapsed):
             or payload['requested_elapsed_s'] > payload['started_elapsed_s']
             or payload['source_rgb_pixels_sha256'] != row['rgb_pixels_sha256']):
         raise ValueError('Semantic availability or source pixels disagree')
-    detections = {d['detection_index']: d for d in row['detections'] if d['depth']['status'] == 'ACCEPTED'}
+    ordered = encoding_detections(row, context['semantic_policy'])
+    detections = {d['detection_index']: d for d in ordered}
     seen = set()
     if len(payload['samples']) > POLICY['max_crops_per_keyframe']:
         raise ValueError('Semantic crop budget exceeded')
@@ -183,6 +202,14 @@ def validate_semantic(connection, context, payload, elapsed):
                 or sample['node_id'] != payload['node_id']):
             raise ValueError('Semantic crop has conflicting source identity')
         seen.add(index)
+        rejected = detections[index]['depth']['status'] == 'REJECTED'
+        if rejected:
+            if (sample.get('localization_status') != 'UNLOCALIZED'
+                    or sample.get('depth_rejection_reason') != detections[index]['depth']['reason']
+                    or any(k in sample for k in ('map_point_m', 'camera_point_m', 'geometry', 'object_id'))):
+                raise ValueError('Unlocalized crop must retain its depth refusal and have no geometry')
+        elif 'localization_status' in sample or 'depth_rejection_reason' in sample:
+            raise ValueError('Localized crop cannot claim a depth rejection')
         vector = np.asarray(sample['vector'], dtype=np.float32)
         unit_vector(vector)
         if not np.isclose(np.linalg.norm(vector), 1., atol=1e-5, rtol=0):
@@ -207,10 +234,12 @@ def validate_semantic(connection, context, payload, elapsed):
         seen.add(index)
     if seen != set(detections):
         raise ValueError('Semantic result silently omits a source detection')
+    if context['semantic_policy'] == UNLOCALIZED_POLICY and [s['detection_index'] for s in payload['samples']] != [d['detection_index'] for d in ordered[:POLICY['max_crops_per_keyframe']]]:
+        raise ValueError('Semantic crops must preserve geometric priority within the crop budget')
 
 
 def rank_snapshot(connection, context, events, remembered, text_vector, encoder_identity):
-    if context.get('semantic_encoder') != encoder_identity or context.get('semantic_policy') != POLICY:
+    if context.get('semantic_encoder') != encoder_identity or context.get('semantic_policy') not in (POLICY, UNLOCALIZED_POLICY):
         raise ValueError('Online image/text encoder or policy mismatch')
     outcomes = {p['node_id']: (seq, p) for seq, p in events}
     samples, groups, missing = [], {}, []
@@ -235,10 +264,42 @@ def rank_snapshot(connection, context, events, remembered, text_vector, encoder_
         objects.append(({**obj, 'semantic_support_count': len(vectors)}, unit_vector(mean), float(np.linalg.norm(mean))))
     ranking = rank_objects(text_vector, objects, samples)
     ids = select_candidates(ranking)
-    return {'status': 'CANDIDATES_SELECTED' if ids else 'NO_CANDIDATE_ABOVE_THRESHOLD' if ranking else 'NO_SEMANTIC_SUPPORT',
+    result = {'status': 'CANDIDATES_SELECTED' if ids else 'NO_CANDIDATE_ABOVE_THRESHOLD' if ranking else 'NO_SEMANTIC_SUPPORT',
             'ranking': ranking, 'selected_object_ids': ids, 'selection_policy': SELECTION_POLICY,
             'missing_supports': missing, 'available_supports': len(samples),
             'semantic_event_count': len(events)}
+    if context['semantic_policy'] == UNLOCALIZED_POLICY:
+        views, missing_views = [], []
+        text_vector = unit_vector(text_vector)
+        for node, payload in connection.execute('SELECT node_id,evidence_json FROM frames ORDER BY node_id'):
+            frame = json.loads(payload)
+            seq, event = outcomes.get(node, (None, None))
+            encoded = {s['detection_index']: s for s in event['samples']} if event and event['status'] == 'ENCODED' else {}
+            for detection in frame['detections']:
+                if detection['depth']['status'] != 'REJECTED':
+                    continue
+                index = detection['detection_index']
+                key = f'{node}:{index}'
+                if index not in encoded:
+                    missing_views.append({'observation_id': key, 'node_id': node, 'detection_index': index,
+                        'reason': 'embedding_not_committed' if event is None else event.get('reason', 'crop_budget')})
+                    continue
+                sample = encoded[index]
+                if sample.get('localization_status') != 'UNLOCALIZED' or sample.get('depth_rejection_reason') != detection['depth']['reason']:
+                    raise ValueError('Unlocalized source and committed sample disagree')
+                views.append({'observation_id': key, 'detector_label': detection['label'],
+                    'localization_status': 'UNLOCALIZED', 'depth_rejection_reason': detection['depth']['reason'],
+                    'cosine_similarity': float(np.dot(unit_vector(sample['vector']), text_vector)),
+                    'best_view': {**{k: v for k, v in sample.items() if k != 'vector'},
+                        'observation_seq': frame['observation_seq'], 'mapping_seq': frame['mapping_seq'],
+                        'semantic_event_seq': seq, 'encoding_completed_elapsed_s': event['completed_elapsed_s']}})
+        views.sort(key=lambda r: (-r['cosine_similarity'], r['best_view']['node_id'], r['best_view']['detection_index']))
+        selected = select_candidates(views, id_key='observation_id')
+        result['unlocalized'] = {'status': 'UNLOCALIZED_CANDIDATES_SELECTED' if selected else 'NO_CANDIDATE_ABOVE_THRESHOLD' if views else 'NO_SEMANTIC_SUPPORT',
+            'ranking': views, 'selected_observation_ids': selected, 'selection_policy': SELECTION_POLICY,
+            'missing_supports': missing_views, 'available_views': len(views),
+            'limitation': 'Independent source views, not distinct objects. No map point or navigation target; scores do not establish identity.'}
+    return result
 
 
 def query_text(database, model, phrase, output, *, planning=False, merge_duplicates=False):
@@ -263,8 +324,13 @@ def query_text(database, model, phrase, output, *, planning=False, merge_duplica
                       encoder=encoder.identity, load_ms=encoder.load_ms)
         report['status'] = result['semantic']['status']
         report['limitation'] = 'Ranks only committed crops of current geometric supports. Partial coverage and uncalibrated cosine scores do not prove identity or presence/absence. No navigation decision.'
+        if 'unlocalized' in result['semantic']:
+            if not result['semantic']['selected_object_ids'] and result['semantic']['unlocalized']['selected_observation_ids']:
+                report['status'] = 'UNLOCALIZED_CANDIDATES_SELECTED'
+            report['limitation'] = 'Localized records and unlocalized source views are ranked separately. Unlocalized views have no 3D target. Scores do not establish identity or presence/absence. No navigation decision.'
         write_query_review([{'text': phrase, 'ranking': result['semantic']['ranking'],
-                             'selected_object_ids': result['semantic']['selected_object_ids']}],
+                             'selected_object_ids': result['semantic']['selected_object_ids'],
+                             **({'unlocalized': result['semantic']['unlocalized']} if 'unlocalized' in result['semantic'] else {})}],
                            database.parent, output/'queries.html', report['limitation'])
     except (ValueError, OSError, RuntimeError, sqlite3.Error) as error:
         report.update(status='INCOMPLETE', error={'type': type(error).__name__, 'message': str(error)})

@@ -70,6 +70,10 @@ def plan_snapshot(query, phrase, simulated_xy=None, *, now_ns=None):
     def refuse(reason):
         return {**result, 'reason': reason}
 
+    visual_ids = semantic.get('unlocalized', {}).get('selected_observation_ids', [])
+    if visual_ids:
+        result['unlocalized_selection'] = {'selected_observation_ids': visual_ids,
+            'planning_status': 'REFUSED', 'reason': 'unlocalized_visual_evidence'}
     graph, occupancy, mapping = (evidence[k] for k in ('graph', 'occupancy', 'mapping'))
     if evidence['session_id'] != snapshot['session_id'] or evidence['grid_policy'] != GRID_POLICY:
         return refuse('incompatible_snapshot_or_grid_policy')
@@ -119,6 +123,8 @@ def plan_snapshot(query, phrase, simulated_xy=None, *, now_ns=None):
     objects = [obj for obj in query['objects'] if obj['object_id'] in ids]
     if {obj['object_id'] for obj in objects} != set(ids):
         return refuse('semantic_object_missing_from_snapshot')
+    if not ids and visual_ids:
+        return refuse('unlocalized_visual_evidence')
     clearance = grid.clearance()
     chosen = []
     for obj in objects:

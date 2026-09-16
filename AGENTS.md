@@ -807,56 +807,69 @@ distance and stationary 3D localization remain unverified. No new recording is
 needed to continue the pipeline; the user explicitly prioritized progress over
 eliminating all depth holes. See `docs/fridge-depth-support.md` and the ledger.
 
+### 4.31 Unlocalized RGB Evidence In Text Queries
+
+Status: `VERIFIED` for two historical-source GPU experiments with an optional
+producer policy; concurrent SLAM/detection performance remains unverified.
+
+The existing bounded worker can encode depth-rejected crops after accepted
+proposals. Queries expose separate source views with timestamps, crop hashes,
+encoding availability and depth refusals, without object identity or 3D targets.
+On 103 existing keyframes, all 447 crops match source pixels, including 127 new
+unlocalized views; all 320 original vectors and localized rankings remain exact.
+Stationary `a fridge` selects 44 views of the confirmed region, highest 0.288479;
+the exact operator-confirmed source was originally dropped and remains excluded.
+The old incorrect localized fridge/trash selection remains a failure. All 148
+focused tests, 44 reopened new queries and 29 original-query regressions pass.
+Real GPU CLI review and planning refusal are verified; no camera or motion is
+used. See `docs/unlocalized-visual-evidence.md` and the Progress Ledger.
+
 ## 5. Current Next Task
 
-Milestone: **Expose unlocalized visual evidence in text queries**.
+Milestone: **Measure unlocalized retrieval during concurrent recorded playback**.
 
-Status: `PLANNED`. The bounded fridge-depth audit is verified and recorded in the
-Progress Ledger. The user authorized continued pipeline work without making hole
-removal a prerequisite. Safe saved-data work and GitHub pushes remain authorized.
-Keep the camera closed until new operator readiness; never issue navigation
-commands. Existing local recordings, encoder and weights are sufficient to start.
+Status: `PLANNED`. Optional unlocalized retrieval is verified on historical-source
+GPU experiments and recorded in the Progress Ledger. Its simultaneous SLAM,
+detection and query behavior has not been measured. Safe existing-data work and
+GitHub pushes remain authorized. Keep the camera closed until new operator
+readiness; never issue navigation commands. Local recordings/models are sufficient.
 
 Required observable result:
 
-1. Preserve original journals, rejected/confirmed operator feedback, crop/vector
-   identities and geometry/query results. Do not retroactively add later vectors
-   to old query prefixes or infer new human labels from existing feedback.
-2. Inspect existing keyframe encoding, journal validation, semantic ranking and
-   review rendering. Before editing, declare the smallest optional vertical slice
-   that retains source RGB crops for depth-rejected proposals and exposes them to
-   exact-phrase text queries with explicit unconfirmed localization. Reuse the
-   existing worker, encoder, crop provenance and bounded processing where possible;
-   do not create a second scene-memory architecture or speculative object fusion.
-3. A returned visual observation must identify its original source frame, proposal,
-   crop, encoding availability and depth-rejection reason. It must not invent a
-   map point, object center, permanent physical identity or navigation goal. Keep
-   localized 3D candidates and unlocalized image evidence distinguishable in the
-   query output and review page. Expose original detector labels without treating
-   them or similarity scores as confirmation.
-4. Run a bounded existing-data trial with the local model, using the confirmed
-   fridge region as a review reference. Measure whether `a fridge` retrieves that
-   crop and retain failure if it does not. Compare bowl, previously wrong fridge/
-   trash regions and existing motion/unknown queries; do not tune text thresholds
-   or manually force the reference crop to win. Report additional crop work,
-   memory and latency without claiming live throughput from replay.
-5. Verify source pixels, encoder identity, prefix-only availability and explicit
-   refusal to plan from unlocalized evidence. Preserve original depth/pose gates,
-   one-frame geometric voting, 0.25 / 0.02 text filters, map freshness, unknown-start
-   and clearance checks. Run focused behavior/refusal tests and independent query
-   checks, review the full diff, then update the ledger and publish the checkpoint.
+1. Preserve original journals, experiments, operator feedback and query artifacts.
+   Inspect existing replay supervisors and the optional producer path before
+   changing code. Declare a bounded comparison using the stationary recording,
+   original 0.25x replay/configuration and complete-crop 1280 detector settings;
+   compare the new flag enabled/disabled without changing thresholds or models.
+2. Reuse the actual concurrent observer, RTAB-Map nodes, typed-message playback
+   and existing resource/timeout supervision. Use fresh outputs and retain all
+   refusals, transport gaps, cache evictions, pose/depth failures and worker
+   outcomes. Stop safely on the existing resource guard; no new manager framework.
+3. Query exact `a fridge`, `a bowl`, `a trash can` and `an elephant` at predeclared
+   during-playback checkpoints and after closing. Check whether the fridge-region
+   visual evidence becomes available before playback ends. A missing or wrong
+   result remains a measured failure; do not import final poses or future vectors
+   into an earlier result or force the confirmed crop into the active graph.
+4. Measure received/processed/dropped frames, tracking outcomes, keyframe/crop
+   availability, queue/cache peaks, latency distributions, RAM/CUDA use and clean
+   resource shutdown. Distinguish added encoding work from unrelated scheduling
+   variability and single-trial comparisons from stable throughput guarantees.
+5. Independently verify source pixels, encoder identity, committed-prefix timing
+   and reopened queries. Keep unlocalized views separate from object geometry;
+   retain explicit planning refusal and original map/start/clearance gates.
+   Run checks affected by any fixes, review the complete diff, update only measured
+   ledger claims and publish the verified checkpoint. No new recording is required.
 
-Starting points: `docs/fridge-depth-support.md`, `docs/online-semantic-memory.md`,
-`scripts/online_semantic_memory.py` (`encode_keyframe` currently selects only
-depth-accepted detections), `scripts/online_scene_memory.py`,
-`scripts/semantic_memory.py`, `scripts/online_search_preview.py`,
-`data/outputs/candidate_audit/steady_20260916/operator_positive_review.json`,
-and the preserved stationary/motion recordings and journals. Original false
-fridge/trash matches remain failures; optional RGB evidence is not verified yet.
+Starting points: `docs/unlocalized-visual-evidence.md`, `docs/bowl-replay.md`,
+`docs/online-semantic-memory.md`, `tests/check_concurrent_perception.py`,
+`data/outputs/unlocalized/20260916/`, and the existing stationary replay
+supervisor under `data/outputs/stationary_memory/steady_20260916/`.
+Wrong localized fridge/trash identity, marginal bowl scores and missing depth
+remain known limitations; resolving all of them is not this acceptance gate.
 
-Learning checkpoint: seeing, recognizing and localizing an object are separate
-claims. Missing depth should remain explicit without erasing valid image evidence
-or making an unsupported 3D target available to the planner.
+Learning checkpoint: a source-valid query feature must also survive concurrent
+scheduling and delayed availability. Offline crop cost alone cannot establish
+that useful evidence reaches a query during playback.
 
 ## 6. Target System Architecture
 
@@ -4724,6 +4737,90 @@ remains unconfirmed; the pipeline should represent that state explicitly.
 
 Next action: expose depth-rejected RGB evidence in text queries with explicitly
 unconfirmed localization, preserving source provenance and all 3D planning gates.
+
+### 2026-09-16: Unlocalized RGB Views Retrieved Without Inventing 3D Targets
+
+Status: `VERIFIED` for the optional runtime path and two bounded historical-source
+GPU experiments. Simultaneous SLAM/detection performance remains unverified.
+
+Changed:
+
+- `online_semantic_memory.py` reuses the existing worker/cache/encoder with an
+  explicit optional policy: accepted depth proposals first, then rejected ones,
+  within the unchanged 16-crop limit. It validates depth-refusal metadata and
+  retains separate source-view rankings without object IDs, geometry or fusion.
+- `tests/check_concurrent_perception.py --semantic-include-unlocalized` declares
+  that policy. Existing defaults, model identity, source/pose/depth gates and
+  0.25 / 0.02 text filters remain unchanged. `semantic_memory.py` shares candidate
+  selection and HTML rendering; `online_search_preview.py` explicitly refuses
+  visual evidence as an object target or visual-only frontier trigger.
+
+Verified:
+
+- Predeclared selection covers all mapped processed observations with accepted
+  original poses: 44 stationary and 59 motion keyframes. Original bag decoding
+  verifies 103 RGB arrays against exact source timestamps/pixel hashes. New
+  experiment sessions import unchanged nonsemantic payloads/availability and
+  append actual current GPU encoding results; original journals/queries are not
+  backfilled. This is not concurrent replay, new capture or historical success.
+- Stationary encoding produces 156 crops (94 original, 62 new); motion produces
+  291 (226 original, 65 new). All 447 original-pixel PNG crops verify. All 320
+  old vectors, crop bounds and hashes reproduce bit-for-bit. Default and optional
+  merged geometry/localized rankings remain unchanged. Final graph eligibility
+  retains 44/20 frames and 62/26 unlocalized views, respectively.
+- Stationary exact `a fridge` selects 44 views, top source `58:0`, score 0.288479.
+  Selected boxes overlap the confirmed region by IoU 0.9041–1.0; inspected top
+  crops show the fridge door. The exact confirmed node-21 timestamp was dropped
+  by `pending_queue_full` in this source journal, so remains excluded. Other
+  frames are spatial comparisons, not new human annotations or object identities.
+- Motion `a fridge` / `a refrigerator` both select only unlocalized view `49:0`,
+  scoring 0.289817 / 0.290435. Neither recording selects extra visual candidates
+  for `a bowl`, `a trash can`, `an elephant` or `a bottle`. Original localized
+  results remain, including the wrong stationary fridge/trash region and the
+  marginal bowl results. Adding visual evidence does not resolve those failures.
+- Four encoding checkpoints per recording reproduce 44 text queries exactly
+  after reopening. Initial prefixes contain no later vectors. Independent scalar
+  cosine/selection checks differ by at most 4.79e-8. Pre-change and current code
+  reproduce 29 original-journal queries exactly, including seven actual historical
+  prefixes. All 31 declared original source, feedback and model hashes remain.
+- All 47 online-memory/semantic/search, 57 memory and 44 odometry/concurrency tests
+  pass (148 total). Six new cases cover delayed per-view evidence, pixels/metadata,
+  two independent views, graph exclusion, unknown/default behavior, invalid
+  localization/geometry, crop priority/omissions, worker stats, visual-only CLI
+  status and planning refusal. The initial planner fixture incorrectly compared
+  route timing; the logged failure is corrected to compare actual decisions.
+- New crop encoding sums 2.438 s stationary / 2.487 s motion; median/P95 costs
+  are 37.205/53.036 ms and 37.104/47.971 ms. Added PNG bytes are 1,532,379 and
+  2,606,946. Whole experiments take 44.368/52.637 s including import/query/load;
+  model load is 13.250/10.214 s. Peak RSS is 1,629,260/1,673,360 KiB; both peak
+  CUDA allocated/reserved values are 246,697,472/270,532,608 bytes. These include
+  experiment overhead, not a matched concurrent memory delta or throughput claim.
+- Workers/writers close cleanly, with no semantic refusal or crop omission;
+  cache peak is 32, pending peak one. API query ranges are 361–669 / 326–672 ms.
+  A fresh real GPU search CLI reproduces stationary text/vector/ranking exactly:
+  14.509 s total, 11.442 s load, 491.819 ms snapshot query, 1,373,716 KiB RSS,
+  228,483,584 bytes allocated CUDA. It refuses the stale map and records explicit
+  unlocalized-selection refusal. Motion retains its incompatible-grid refusal.
+  Fresh-grid tests separately verify visual-only refusal. No ROS publication,
+  camera, navigation command, new dependency or model download is used.
+
+Evidence: `data/outputs/unlocalized/20260916/`, including `acceptance.json`,
+archived pre-change code, exact `prepare.py` / `trial.py` / `verify.py` /
+`regression.py`, per-recording source arrays/journals/checkpoint queries,
+`verification.json`, `original_regression.json`, `cli_verification.json`,
+`gpu_cli/` and complete test logs. The inspected crops and self-contained HTML
+review require no WebGL. Room images and generated evidence remain private.
+See `docs/unlocalized-visual-evidence.md` for commands and limits.
+
+Decision: keep optional per-view evidence separate from localized records and
+leave defaults unchanged. A missing-depth image can support visual review, but
+neither that image nor its text score supplies a trusted 3D navigation target.
+
+Learning checkpoint: seeing a plausible match, identifying a physical object
+and localizing it are distinct claims that the query output must preserve.
+
+Next action: measure this optional path in a bounded concurrent recorded-data
+trial with SLAM, detection and text queries, retaining all evidence/goal gates.
 
 ## 16. End-Of-Session Handoff Template
 

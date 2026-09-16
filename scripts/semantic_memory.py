@@ -34,14 +34,14 @@ SELECTION_POLICY = {'min_cosine_similarity': .25, 'top_score_window': .02,
                     'limitation': 'Experimental retrieval filter; passing scores do not establish identity or presence. No passing candidate does not prove absence.'}
 
 
-def select_candidates(ranking):
+def select_candidates(ranking, *, id_key='object_id'):
     if not ranking:
         return []
     scores = [row['cosine_similarity'] for row in ranking]
     if any(not math.isfinite(s) or not -1.000001 <= s <= 1.000001 for s in scores):
         raise ValueError('Invalid cosine similarity')
     threshold = max(SELECTION_POLICY['min_cosine_similarity'], max(scores)-SELECTION_POLICY['top_score_window'])
-    return [row['object_id'] for row in ranking if row['cosine_similarity'] >= threshold]
+    return [row[id_key] for row in ranking if row['cosine_similarity'] >= threshold]
 
 
 def unit_vector(value):
@@ -268,6 +268,19 @@ def write_query_review(queries, crop_root, output, limitation):
                        [c for c in row['ranking'] if c['object_id'] in selected], False),
                       ('Not selected — diagnostic images only',
                        [c for c in row['ranking'] if c['object_id'] not in selected], True)]
+        visual = row.get('unlocalized')
+        if visual is not None:
+            groups[0] = ('Localized candidates — identity unconfirmed' if selected else 'No localized candidate selected',
+                         groups[0][1], False)
+            keys = visual['selected_observation_ids']
+            if not set(keys) <= {c['observation_id'] for c in visual['ranking']}:
+                raise ValueError('Visual review selection is absent from its ranking')
+            if any(c.get('localization_status') != 'UNLOCALIZED' or 'geometry' in c or 'object_id' in c for c in visual['ranking']):
+                raise ValueError('Visual review requires unlocalized observations without object geometry')
+            groups += [('Visual matches — 3D location unavailable' if keys else 'No unlocalized visual match selected',
+                        [c for c in visual['ranking'] if c['observation_id'] in keys], False),
+                       ('Unlocalized views not selected — diagnostic images only',
+                        [c for c in visual['ranking'] if c['observation_id'] not in keys], True)]
         parts = ['<h2>'+html.escape(row['text'])+'</h2>']
         for title, candidates, diagnostic in groups:
             if diagnostic and not candidates:
@@ -278,9 +291,14 @@ def write_query_review(queries, crop_root, output, limitation):
                 if file_hash(path) != candidate['best_view']['crop_sha256']:
                     raise ValueError('Query review crop changed since indexing')
                 encoded = base64.b64encode(path.read_bytes()).decode('ascii')
+                if 'observation_id' in candidate:
+                    identity = 'Source view '+html.escape(candidate['observation_id'])
+                    location = '<p>3D location unavailable: '+html.escape(candidate['depth_rejection_reason'])+'</p>'
+                else:
+                    identity, location = f'ID {candidate["object_id"]}', ''
                 cells.append(f'<td><img src="data:image/png;base64,{encoded}" alt="Recorded candidate crop">'
-                             f'<p>ID {candidate["object_id"]} | cosine {candidate["cosine_similarity"]:.3f}</p>'
-                             f'<p>Detector: {html.escape(candidate["detector_label"])}</p></td>')
+                             f'<p>{identity} | cosine {candidate["cosine_similarity"]:.3f}</p>'
+                             f'<p>Detector: {html.escape(candidate["detector_label"])}</p>{location}</td>')
             table = '<table><tr>'+''.join(cells)+'</tr></table>' if cells else ''
             parts.append('<details><summary>'+title+'</summary>'+table+'</details>' if diagnostic
                          else '<h3>'+title+'</h3>'+table)
