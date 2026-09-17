@@ -886,62 +886,70 @@ that localized A is wrong and unlocalized B is the correct target fridge. Only
 bag/sensor completeness remains false. All route refusals remain; the camera is
 closed and no navigation occurred. See `docs/live-warm-queries.md` and the ledger.
 
+### 4.36 Exact-Source Odometry Selection For Perception
+
+Status: `VERIFIED` for one matched nominal-1x saved-data replay per policy.
+
+The optional `--perception-selection odometry` retains at most 16 original RGB-D
+pairs for up to two seconds awaiting exact-source tracked odometry, then uses the
+existing bounded inference queue and source-time TF checks. Actual image counters
+are separate from CameraInfo counts. On the same explicit 973-pair complete-message
+subset, accepted poses increase from 104 to 223 and encoded keyframes from 21/57 to
+50/55. Four-topic synchronization still misses 25/29 groups despite full image
+delivery. All 242 crops, sixteen reopened queries and 103 focused tests pass;
+six selection tests also pass after final timing instrumentation. Wrong localized
+fridge identity, unlocalized depth and route refusals persist. Camera and navigation
+stay off; live and sustained performance are unverified. See
+`docs/coordinated-perception.md` and the ledger.
+
 ## 5. Current Next Task
 
-Milestone: **Coordinate source-frame selection for useful live object memory**.
+Milestone: **Validate identity refusal before localized object-target selection**.
 
-Status: `PLANNED`. The current pipeline has completed a bounded live warm-query
-measurement (Section 4.35 / Progress Ledger). Of 287 processed perception frames,
-209 lack their own odometry result and only 76 obtain source-time map poses.
-Thirty-four of 56 semantic keyframes refer to dropped observations. These are
-measured source-coverage limits, separate from the wrong localized fridge identity.
+Status: `PLANNED`. Section 4.36 / the Progress Ledger records the completed
+source-selection comparison. Exact-source coordination increases usable keyframes
+from 21 to 50, but both fridge queries still select the bin/cabinet as a localized
+fridge while separately retrieving the actual fridge without reliable depth.
+Better source coverage has not resolved the operator-confirmed identity failure.
 
 Existing authorization covers safe saved-data experiments, focused fixes and
-GitHub updates. Both live attempts are closed; do not open the camera without
-fresh operator readiness. No navigation or motor commands. No new recording is
-required for this task. The operator confirmed that A is an incorrect fridge
-candidate and B is the correct fridge; preserve these exact image/hash labels.
+GitHub updates. The operator is away; stop when new identity feedback or scene
+positioning is necessary. Keep camera and navigation off. Do not download a
+missing component without authorization. Original A/B labels and all old reports
+must remain intact.
 
 Required observable result:
 
-1. Inspect the actual source-stamp overlap among RGB-D arrivals, admitted/dropped
-   inference, odometry outputs, mapped keyframes and semantic refusals in
-   `data/outputs/live_warm/20260916/attempt_02/`. Reuse existing scheduling and
-   verification code. Keep the initial failed attempt, old queries and operator
-   feedback unchanged. Before editing, explain the smallest measured change,
-   files, fixed baseline/candidate settings and acceptance checks in Chinese.
-2. Reconcile CameraInfo-derived counters with actual image-pair counters before
-   claiming a processing rate. The original report has 979 metadata pairs but
-   975 received image pairs; there are 235 odometry outputs and 740 image pairs
-   without one. Preserve original reports and strict metadata-loss failures.
-3. Test one justified, bounded coordination change on saved data so inference
-   can contribute useful observations with the correct source-time pose. Do not
-   attach a nearby/latest pose to another image, substitute final map poses,
-   invent calibration deliveries or alter recognition thresholds. Any replay
-   handling of missing recorded metadata must be explicit and independently
-   checked; the original bag is not a lossless PASSED reference.
-4. Compare a declared baseline and candidate at the same source load. Report
-   exact admitted/processed/dropped stamps, accepted poses, mapped/encoded source
-   overlap, semantic coverage, queue/latency distributions, RAM/CUDA and cleanup.
-   Improvement requires more useful correctly paired source evidence, not merely
-   a lower drop count or faster model-only timing. Do not call replay live input.
-5. Run actual fixed text queries with fresh snapshots, verify original crop
-   pixels and reopened answers, and retain wrong localized fridge selection,
-   unlocalized-depth refusals and all invalid-start/no-route results. Improved
-   source coverage does not establish object identity or navigation safety.
-6. Run focused tests and independent source/geometry checks, review the entire
-   diff, update README/Progress Ledger only from evidence and publish a clean
-   checkpoint. If the candidate fails, keep its measured failure and narrow the
-   next bottleneck rather than increasing buffers or changing thresholds blindly.
+1. Inspect the exact query candidates, source crops, geometric associations and
+   planning handoff in the original live and new coordinated-frame trials. Explain
+   in Chinese why the localized bin/cabinet is selected alongside higher-scoring
+   unlocalized fridge imagery, and identify the smallest evidence-supported change.
+2. Reuse current query/feedback patterns. Explicitly separate exact operator labels
+   from assistant inspection and from unlabeled new views. Do not propagate identity
+   merely through box overlap, a nearby position or a shared detector class. Do not
+   hardcode room coordinates, turn retrieval scores into calibrated probabilities,
+   or lower depth/route acceptance to manufacture a successful target.
+3. Predeclare a bounded saved-data comparison of the proposed refusal behavior,
+   including the known wrong region, the correct unlocalized fridge and unrelated
+   queries. Preserve historical reports. If evidence cannot justify a general
+   refusal rule, retain the diagnosis and stop for the specific missing feedback.
+4. Verify that an explicitly rejected identity cannot silently become an actionable
+   localized target, while original crops, timestamps, refusal reasons and useful
+   visual-only evidence remain inspectable. No new 3D target may be invented for
+   the depth-rejected fridge. Keep all stale-map/unknown-start/no-route refusals.
+5. Run focused decision/reopening checks and inspect actual source views. Report
+   false acceptance and false refusal in the available labeled cases without
+   claiming general recognition accuracy. Review the complete diff, update measured
+   README/ledger progress and publish a clean checkpoint with one next action.
 
-Starting points: `docs/live-warm-queries.md`, `docs/live-rgbd-search.md`,
-`tests/check_concurrent_perception.py`, `tests/check_rtabmap_odometry.py`,
-`scripts/online_semantic_memory.py`, the immutable live artifacts and local
-verification code under `data/outputs/live_warm/20260916/`.
+Starting points: `docs/coordinated-perception.md`, `docs/live-warm-queries.md`,
+`scripts/online_scene_memory.py`, `scripts/semantic_memory.py`,
+`scripts/online_search_preview.py`, `data/outputs/live_warm/20260916/visual_review.json`
+and `data/outputs/coordinated_frames/20260916/`.
 
-Learning checkpoint: bounded components still need to agree on which source
-frames they process. More independent detections do not automatically produce
-more usable map-frame memory.
+Learning checkpoint: geometric support and semantic similarity are distinct
+contracts. More views of the wrong region must not be reported as stronger proof
+that the requested physical object was found.
 
 ## 6. Target System Architecture
 
@@ -5304,6 +5312,103 @@ correct object identity. Keep both failures separate from successful persistence
 Next action: use this saved live recording to measure and improve shared source-
 frame selection between perception and SLAM, retaining identity errors and every
 pose/drop refusal. No new capture is required for that experiment.
+
+### 2026-09-16: Exact-Source Coordination Increases Useful Map Memory
+
+Status: `VERIFIED` for one baseline/candidate saved-data comparison at nominal 1x.
+Live performance, identity accuracy, long-run resource behavior and navigation
+remain unverified.
+
+Changed: `tests/check_concurrent_perception.py` adds opt-in exact-stamp tracked
+odometry selection with a 16-pair, two-second original-image cache. Existing
+one-pending/one-worker inference, depth policy and source-time map TF remain.
+It records selection/drop times and OdomInfo receipts. The shared pairing helper
+can expose matched image stamps; odometry reports explicitly label the older
+CameraInfo-derived counts. Two focused test files, README and the measurement
+document accompany the implementation. No dependency/model/threshold changes.
+
+Verified:
+
+- Original live overlap: 975 received image pairs, 287 processed, 235 odometry
+  sources, 78 shared processed/odometry sources and 76 accepted poses. There are
+  209 processed sources with no odometry and 157 odometry sources dropped by
+  perception. The old 979-input count is metadata-based; actual images without
+  odometry number 740. Original source TF receipt has at most 14 newer image
+  arrivals, P95 nine, motivating the bounded cache (70.3 MiB image payload).
+- A native processed-RGBD topic probe exposes mono8 RGB, a stamp roundtrip
+  difference and empty depth CameraInfo; it cannot replace original RGB input.
+  The probe closes cleanly. The original strictly incomplete bag is preserved;
+  an explicit copy retains 973 complete groups, excluding two metadata-incomplete
+  image pairs and extra metadata. Retained content/stamps/calibration and independent
+  disk readback match. No synthesized calibration or neighboring poses.
+- Predeclared sequential baseline/candidate use identical source, nominal rate,
+  queries, most-recent odometry, retained nodes, YOLO1280, square padding and
+  unlocalized encoding. Only perception selection differs. Both retain the replay
+  writer's 16-event queue and single FULL transactions; no camera/recorder load.
+  OMP/OpenBLAS threads are one. RAM/disk/query/player/cleanup guards remain active.
+- Both receive all 973 image pairs. Synchronized groups are 948/944, leaving
+  25/29 explicitly recorded synchronization gaps. Processed/dropped groups are
+  292/656 versus 225/719. Tracked odometry outputs are 250/244, both zero lost.
+  Processed sources with odometry rise from 108 to 225; accepted map poses from
+  104 to 223. Missing-odometry/map-TF refusals are 184/4 versus 0/2. Candidate
+  selections total 237, with 12 pending-queue drops, 663 cache evictions and
+  44 timeouts. No inference failures or unfinished jobs occur.
+- Encoded keyframes increase from 21/57 mapped nodes to 50/55. Crops increase
+  69 to 173: localized 22 to 64, unlocalized 47 to 109. Semantic source-drop/
+  pose/absent-source refusals are 33/2/1 versus 2/1/2. Final prefixes/graphs are
+  1176/1162 and 1164/1144, retaining 2/3 provisional objects and 22/64 supports.
+- Candidate selection wait median/P95 is 196.765/249.403 ms. Arrival-to-result
+  median/P95 changes 2242.069/2411.682 to 383.400/688.680 ms; detection-plus-depth
+  changes 133.776/218.833 to 150.607/278.884 ms. More useful memory comes from
+  shared source selection, not faster detection. Independent pending/inference/
+  pose-wait peaks are 1/1/8 and 1/1/6, candidate source cache 16, writer 8/6,
+  semantic pending 2/2 and semantic RGB cache 32/32.
+- Publisher scheduling lag P95/max is 35.137/126.366 versus 56.491/190.881 ms;
+  playback including acknowledgements is 68.241/66.025 s for 65.165 s RGB source
+  coverage. Nominal offered rate does not imply identical actual delivery.
+- Four actual fridge/bowl/sink/elephant requests at 18/30/42/54 s after player
+  launch finish in 3.771/0.717/1.053/0.827 versus 3.946/0.813/1.206/0.881 s.
+  Separate query startup is 12.744/15.860 s. All use fresh prefixes before playback
+  ends; first-query usable frames increase five to twelve. Both first fridge
+  queries still select the same wrong bin/cabinet crop, scores 0.275998/0.274308.
+  Visual-only fridge scores are 0.298617/0.301901, with original insufficient-depth
+  refusal. New views are assistant-inspected; exact original operator A/B labels
+  remain unchanged. Bowl/sink/elephant remain unselected. Unknown-start/no-route
+  and stale closed-map refusals persist; nothing is published or executed.
+- Independent original pixels, causal TF, metric depth, graph/grid witnesses,
+  geometry and scalar rankings pass for sixteen during/closed reports. Sixteen
+  copied-prefix/closed reopening comparisons are exact. All 242 crops match source
+  pixels; 100 common processed frames have identical detection/depth results,
+  and 26 common encoded crops/vectors are exact. Maximum geometry/3D-score/visual
+  errors are 4.45e-16 m / 3.75e-8 / 6.17e-8 within declared numerical tolerances.
+  All six predeclared original hashes and both sets of runtime/input hashes match.
+- All 51 odometry/concurrency and 52 online-memory tests pass. Six selection
+  tests pass again after final cache timing instrumentation. A repeat command
+  initially overwrote ROS PYTHONPATH and failed before tests; corrected invocation
+  and initial log remain. Initial subset-preparation and checker all-groups
+  assumptions are also preserved with their corrections; runtime evidence is intact.
+- Peak RAM is 5213/5222 MB, minimum available 2292096/2220536 KiB. Observer CUDA
+  allocated peaks are 330952704 bytes, reserved 354418688/356515840. Query CUDA
+  allocated/reserved peaks are 228483584/243269632. GPU peaks at 55.093 C; existing
+  swap ranges 1668–1927/1793–2217 MB. Both trials close without forced termination;
+  final native inspection finds no runtime process and 5401524 KiB available RAM,
+  power still 25 W. Camera remains closed. Long-duration leaks are not measured.
+- The shared browser review contains sixteen query sections and 101 verified
+  embedded PNGs with no WebGL. Original confirmed A/B views remain visible.
+
+Evidence: `data/outputs/coordinated_frames/20260916/`, including predeclared
+acceptance, original overlap/receipt diagnostics, native probe, explicit subset
+and readback, both complete trials and immutable source snapshots, focused tests,
+independent verification, accounting corrections, `comparison.json`, `cleanup.json`
+and `review.html`. Public explanation: `docs/coordinated-perception.md`.
+Private room data remains outside Git.
+
+Learning checkpoint: fewer independent detections can produce more usable memory
+when SLAM and perception share original source frames. Coverage does not establish
+identity; a wrong localized candidate remains wrong with more geometric supports.
+
+Next action: use existing operator-confirmed A/B evidence to validate explicit
+identity refusal before a wrong localized candidate can become a search target.
 
 ## 16. End-Of-Session Handoff Template
 

@@ -61,23 +61,26 @@ def distribution(values):
             'p95': float(np.percentile(values, 95)), 'max': float(np.max(values))}
 
 
-def paired_timestamps(color, depth, tolerance_ns=5_000_000):
+def paired_timestamps(color, depth, tolerance_ns=5_000_000, *, include_stamps=False):
     """One-to-one nearest matching; report unmatched frames inside the shared time window."""
     start, end = max(color[0], depth[0]), min(color[-1], depth[-1])
     if start >= end:
         raise ValueError('Color and depth do not share a time interval')
-    used, deltas, unmatched = set(), [], []
+    used, deltas, unmatched, matched = set(), [], [], []
     for stamp in color:
         index = bisect_left(depth, stamp)
         choices = [i for i in (index - 1, index) if 0 <= i < len(depth) and i not in used]
         nearest = min(choices, key=lambda i: abs(depth[i] - stamp)) if choices else None
         if nearest is not None and abs(depth[nearest] - stamp) <= tolerance_ns:
             used.add(nearest)
+            if include_stamps:
+                matched.append(max(stamp, depth[nearest]))
             deltas.append((stamp - depth[nearest]) / 1000)
         elif start <= stamp <= end:
             unmatched.append(stamp)
     unmatched_depth = sum(start <= s <= end and i not in used for i, s in enumerate(depth))
     return {
+        **({'source_stamps_ns': matched} if include_stamps else {}),
         'pairs': len(deltas), 'absolute_skew_us': distribution(np.abs(deltas)),
         'unmatched_color_interior': len(unmatched),
         'unmatched_depth_interior': unmatched_depth,

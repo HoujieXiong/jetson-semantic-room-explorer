@@ -1,6 +1,7 @@
 """Bounded live/replay measurement: GPU RGB-D perception alongside online SLAM."""
 
 import argparse
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
@@ -21,7 +22,7 @@ from sensor_msgs.msg import Image
 from tf2_ros import TransformException
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
-from check_femto_rosbag import ContractCheck, TOPICS, comparison_key, distribution
+from check_femto_rosbag import ContractCheck, TOPICS, comparison_key, distribution, paired_timestamps
 from check_rtabmap_mapping import MappingCheck, pose_values
 from check_rtabmap_odometry import stamp_ns
 from observe_rgbd_objects import DEPTH_POLICY, INFERENCE, infer_rgbd, inference_config
@@ -32,10 +33,19 @@ from online_semantic_memory import OnlineSemanticCapture, POLICY as SEMANTIC_POL
 from online_search_preview import GRID_POLICY, occupancy_payload
 
 
+ODOMETRY_CACHE_PAIRS = 16
+ODOMETRY_WAIT_S = 2.0
+
+
 class ConcurrentCheck(MappingCheck):
     """One pending frame and one inference job; all ROS/TF access stays on the caller thread."""
-    def __init__(self, predict, executor):
+    def __init__(self, predict, executor, *, selection="all"):
         super().__init__()
+        if selection not in ('all', 'odometry'):
+            raise ValueError('Unsupported perception selection')
+        self.selection = selection
+        self.waiting_odometry = OrderedDict()
+        self.odometry_cache_peak = 0
         self.predict, self.executor = predict, executor
         self.begin = time.monotonic()
         self.sensor = ContractCheck('room-walk')
@@ -135,17 +145,52 @@ class ConcurrentCheck(MappingCheck):
                'rgb_pixels_sha256': hashlib.sha256(rgb.data).hexdigest(),
                'depth_pixels_sha256': hashlib.sha256(depth.data).hexdigest(), 'status': 'QUEUED'}
         self.rows.append(row)
-        if self.pending is not None:
-            row.update(status='DROPPED', reason='pending_queue_full')
-            if self.memory is not None:
-                self.memory.submit('observation', row, self.elapsed())
-            return
-        # NumPy views retain the ROS message data buffers until the job completes.
+        # NumPy views retain the original ROS buffers; no reconstructed RGB or timestamps.
         color = np.frombuffer(rgb.data, dtype=np.uint8).reshape(rgb.height, rgb.width, 3)
+        depth_mm = np.frombuffer(depth.data, dtype='<u2').reshape(depth.height, depth.width)
+        item = (row, color, depth_mm, k)
+        if self.selection == 'odometry':
+            if len(self.waiting_odometry) >= ODOMETRY_CACHE_PAIRS:
+                _, evicted = self.waiting_odometry.popitem(last=False)
+                self.drop(evicted[0], 'odometry_cache_evicted')
+            row['odometry_cached_elapsed_s'] = self.elapsed()
+            self.waiting_odometry[stamp] = item
+            self.odometry_cache_peak = max(self.odometry_cache_peak, len(self.waiting_odometry))
+        else:
+            self.enqueue(item)
+
+    def drop(self, row, reason):
+        row.update(status='DROPPED', reason=reason, dropped_elapsed_s=self.elapsed())
+        if self.memory is not None:
+            self.memory.submit('observation', row, self.elapsed())
+
+    def enqueue(self, item):
+        row, color, _, _ = item
+        if self.pending is not None:
+            self.drop(row, 'pending_queue_full')
+            return
         if self.semantic is not None:
             self.semantic.remember(row, color)
-        depth_mm = np.frombuffer(depth.data, dtype='<u2').reshape(depth.height, depth.width)
-        self.pending = (row, color, depth_mm, k)
+        self.pending = item
+
+    def select_odometry(self):
+        for stamp, item in list(self.waiting_odometry.items()):
+            row = item[0]
+            info = self.odom_by_stamp.get(stamp)
+            if self.elapsed()-row['arrived_elapsed_s'] >= ODOMETRY_WAIT_S:
+                self.drop(row, 'source_odometry_timeout')
+            elif info is not None:
+                if info['lost']:
+                    self.drop(row, 'source_odometry_lost')
+                else:
+                    row['selection'] = {'source_stamp_ns': stamp,
+                        'odom_info_received_elapsed_s': info['received_elapsed_s'],
+                        'selected_elapsed_s': self.elapsed()}
+                    row['selection_wait_ms'] = (row['selection']['selected_elapsed_s']-row['arrived_elapsed_s'])*1000
+                    self.enqueue(item)
+            else:
+                continue
+            del self.waiting_odometry[stamp]
 
     def associate(self, row):
         stamp = row['source_stamp_ns']
@@ -199,22 +244,27 @@ class ConcurrentCheck(MappingCheck):
                 self.memory.submit('observation', {**row, 'camera_info':
                     self.sensor.calibration['/camera/color/camera_info']}, self.elapsed())
             self.awaiting_pose.remove(row)
+        self.select_odometry()
         if self.semantic is not None:
             self.semantic.pump(self.rows)
         if self.pending is None or self.active is not None or len(self.awaiting_pose) >= 8:
             return
         row, rgb, depth, k = self.pending
         row.update(dispatched_elapsed_s=self.elapsed(), status='PROCESSING')
-        row['queue_wait_ms'] = (row['dispatched_elapsed_s']-row['arrived_elapsed_s'])*1000
+        row['queue_wait_ms'] = (row['dispatched_elapsed_s']-row.get('selection', {}).get('selected_elapsed_s', row['arrived_elapsed_s']))*1000
         self.active = (row, self.executor.submit(self.predict, rgb, depth, k, None))
         self.pending = None
 
     def evidence(self):
         return {'frames': self.rows, 'tf_events': self.tf_events,
+                'odometry_receipts': list(self.odom_by_stamp.values()),
                 'sensor_stamps_ns': dict(self.sensor.stamps),
                 'sensor_arrivals_monotonic_ns': dict(self.sensor.arrivals),
                 'callback_ms': distribution(self.callback_ms),
-                'queue_policy': {'selection': 'every synchronized RGB-D pair', 'pending_capacity': 1,
+                'queue_policy': {'selection': self.selection, 'pending_capacity': 1,
+                    'odometry_cache_capacity': ODOMETRY_CACHE_PAIRS if self.selection == 'odometry' else 0,
+                    'odometry_wait_s': ODOMETRY_WAIT_S if self.selection == 'odometry' else 0.0,
+                    'odometry_cache_peak': self.odometry_cache_peak,
                     'inference_workers': 1, 'overflow': 'drop_new', 'pose_result_capacity': 8,
                     'pose_wait_after_prediction_wall_s': 2.0,
                     'synchronizer_depth': 10, 'synchronizer_slop_s': 0.005},
@@ -225,7 +275,7 @@ class ConcurrentCheck(MappingCheck):
                            for status in ('QUEUED', 'PROCESSING', 'AWAITING_POSE', 'PROCESSED', 'DROPPED', 'FAILED')}}
 
     def finish(self, reference):
-        if self.pending is not None or self.active is not None or self.awaiting_pose:
+        if self.pending is not None or self.active is not None or self.awaiting_pose or self.waiting_odometry:
             raise RuntimeError('Pending perception work at the bounded measurement deadline')
         measured = super().finish(reference)
         sensor = self.sensor.finish(measure_message_loss=reference is None)
@@ -241,6 +291,14 @@ class ConcurrentCheck(MappingCheck):
         processed = [row for row in self.rows if row['status'] == 'PROCESSED']
         if not processed or not any(row['pose']['status'] == 'ACCEPTED' for row in processed):
             raise ValueError('No processed RGB-D frame has a valid online map pose')
+        image_stamps = set(paired_timestamps(self.sensor.stamps['/camera/color/image_raw'],
+            self.sensor.stamps['/camera/depth/image_raw'], include_stamps=True)['source_stamps_ns'])
+        odometry_stamps = {row['stamp_ns'] for row in measured['trajectory']}
+        measured['image_input_accounting'] = {
+            'received_image_pairs': len(image_stamps), 'synchronized_four_topic_groups': len(self.rows),
+            'pairs_with_odometry': len(image_stamps & odometry_stamps),
+            'pairs_without_odometry': len(image_stamps - odometry_stamps),
+            'odometry_without_received_image_pair': sorted(odometry_stamps - image_stamps)}
         measured['sensor'] = sensor
         measured['perception'] = {**self.evidence(), 'camera_info': self.sensor.calibration,
             'synchronized_pairs': len(self.rows), 'synchronizer_unmatched_stamps': unmatched,
@@ -264,6 +322,8 @@ def main():
     parser.add_argument('--semantic-square-pad', action='store_true', help='Keep complete image crops; requires --semantic-model')
     parser.add_argument('--semantic-include-unlocalized', action='store_true', help='Also encode depth-rejected source views without 3D targets; requires --semantic-model')
     parser.add_argument('--imgsz', type=int, default=INFERENCE['imgsz'], help='Detector input size: 640 (default) or 1280')
+    parser.add_argument('--perception-selection', choices=('all', 'odometry'), default='all',
+                        help='Admit every pair, or retain at most 16 original pairs for up to 2 s awaiting exact-source tracked odometry')
     parser.add_argument('--capture-occupancy', action='store_true', help='Journal received /map grids; requires --memory-db')
     args = parser.parse_args()
     if args.semantic_model is not None and args.memory_db is None:
@@ -291,7 +351,7 @@ def main():
     report = {'status': 'INCOMPLETE', source_key: file_hash(source_path),
               'input_mode': 'replay' if reference is not None else 'live', 'use_sim_time': reference is not None,
               'model_path': str(model_path), 'model_sha256': file_hash(model_path),
-              'inference': inference, 'depth_policy': DEPTH_POLICY,
+              'inference': inference, 'depth_policy': DEPTH_POLICY, 'perception_selection': args.perception_selection,
               'live_capture_executed': False, 'motion_executed': False}
     check = node = executor = memory = semantic = None
     initialized = False
@@ -323,10 +383,10 @@ def main():
         initialized = True
         node = rclpy.create_node('concurrent_rgbd_check', parameter_overrides=[Parameter('use_sim_time', value=reference is not None)])
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='rgbd_inference')
-        check = ConcurrentCheck(lambda *values: infer_rgbd(model, *values, imgsz=inference['imgsz']), executor)
+        check = ConcurrentCheck(lambda *values: infer_rgbd(model, *values, imgsz=inference['imgsz']), executor, selection=args.perception_selection)
         if args.memory_db is not None:
             context = {
-                **{key: report[key] for key in (source_key, 'input_mode', 'use_sim_time', 'model_sha256', 'inference', 'depth_policy', 'runtime')},
+                **{key: report[key] for key in (source_key, 'input_mode', 'use_sim_time', 'model_sha256', 'inference', 'depth_policy', 'runtime', 'perception_selection')},
                 'session_id': str(uuid.uuid4()), 'origin_monotonic_ns': int(check.begin*1e9),
                 'camera_frame': 'camera_color_optical_frame', 'map_frame': 'map', 'point_unit': 'meter'}
             if encoder is not None:

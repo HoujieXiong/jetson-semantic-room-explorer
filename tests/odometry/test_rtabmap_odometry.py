@@ -9,7 +9,7 @@ from sensor_msgs.msg import CameraInfo, Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from check_rtabmap_odometry import OdomCheck, check_pose, lost_intervals
-from check_femto_rosbag import comparison_key, message_content_bytes
+from check_femto_rosbag import comparison_key, message_content_bytes, paired_timestamps
 
 
 class MessageIdentityTests(unittest.TestCase):
@@ -110,6 +110,16 @@ class OdometryContractTests(unittest.TestCase):
         self.assertEqual(result['tracked_frames'], 0)
         self.assertEqual(result['lost_fraction_of_processed'], 1)
         self.assertIsNone(result['last_tracked_offset_s'])
+
+    def test_metadata_count_is_explicitly_distinct_from_received_images(self):
+        self.check.clock_stamps = []
+        result = self.check.finish(None)
+        self.assertEqual(result['received_pairs_basis'], 'CameraInfo stamp pairs, not image delivery')
+        pairs = paired_timestamps([100, 200, 300], [102, 201], tolerance_ns=5, include_stamps=True)
+        self.assertEqual(pairs['source_stamps_ns'], [102, 201])
+        self.assertEqual(pairs['pairs'], 2)
+        self.assertEqual(pairs['unmatched_color_boundaries'], 1)
+        self.assertNotIn('source_stamps_ns', paired_timestamps([100,200], [102,201], tolerance_ns=5))
 
     def test_output_must_use_later_input_stamp(self):
         self.check.info[0]['stamp_ns'] = 2_000_000_000

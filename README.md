@@ -158,6 +158,15 @@ losses and all route refusals remain explicit. See the
 This is measured live integration, not correct object navigation or sustained
 real-time acceptance.
 
+A matched nominal-1x replay now verifies **odometry-coordinated perception**.
+Waiting for exact-source tracked odometry increases accepted poses from 104 to
+223 and encoded keyframes from 21 to 50, while processing fewer frames. All 973
+image pairs arrive in both trials; 25/29 groups still miss four-topic
+synchronization. All 242 crops match source pixels, sixteen reopening comparisons
+are exact, and 103 focused tests pass. Incorrect localized fridge identity and
+all depth/route refusals remain. See the [comparison and limits](docs/coordinated-perception.md).
+This is saved-data replay; the new option has not yet been tested with live capture.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

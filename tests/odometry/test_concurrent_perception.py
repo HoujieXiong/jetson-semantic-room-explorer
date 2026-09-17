@@ -207,5 +207,88 @@ class ConcurrentPerceptionTests(unittest.TestCase):
             self.offer(60_000_000)
 
 
+class OdometrySelectionTests(unittest.TestCase):
+    messages = ConcurrentPerceptionTests.messages
+    offer = ConcurrentPerceptionTests.offer
+    finish_prediction = ConcurrentPerceptionTests.finish_prediction
+
+    def setUp(self):
+        ConcurrentPerceptionTests.setUp(self)
+        self.check.selection = 'odometry'
+
+    def test_requires_exact_source_before_inference(self):
+        info = self.check.odom_by_stamp.pop(self.stamp)
+        self.offer()
+        self.check.odom_by_stamp[self.stamp+1] = {**info, 'stamp_ns': self.stamp+1}
+        self.now = .1
+        self.check.pump()
+        self.assertEqual(self.executor.calls, [])
+        self.check.odom_by_stamp[self.stamp] = {**info, 'received_elapsed_s': .2}
+        self.now = .2
+        self.check.pump()
+        row = self.check.rows[0]
+        self.assertEqual(len(self.executor.calls), 1)
+        self.assertEqual(row['selection']['source_stamp_ns'], self.stamp)
+        self.assertEqual(row['selection_wait_ms'], 200.)
+        self.assertEqual(row['queue_wait_ms'], 0.)
+        np.testing.assert_array_equal(self.executor.calls[0][0][0], np.ones((720, 1280, 3), np.uint8))
+        self.finish_prediction()
+        self.assertEqual(row['pose']['source_stamp_ns'], self.stamp)
+        self.assertEqual(row['pose']['status'], 'ACCEPTED')
+
+    def test_cache_eviction_and_timeout_never_run_gpu(self):
+        self.check.odom_by_stamp.clear()
+        for index in range(17):
+            self.offer(index*50_000_000)
+        self.assertEqual(len(self.check.waiting_odometry), 16)
+        self.assertEqual(self.check.rows[0]['reason'], 'odometry_cache_evicted')
+        self.assertEqual(self.check.odometry_cache_peak, 16)
+        self.now = 2.001
+        self.check.pump()
+        self.assertEqual(self.check.waiting_odometry, {})
+        self.assertEqual(self.executor.calls, [])
+        self.assertTrue(all(row['reason'] == 'source_odometry_timeout' for row in self.check.rows[1:]))
+        self.assertEqual(self.check.evidence()['counts']['DROPPED'], 17)
+
+    def test_lost_odometry_and_late_results_do_not_admit(self):
+        info = self.check.odom_by_stamp[self.stamp]
+        info['lost'] = True
+        self.offer()
+        self.check.pump()
+        self.assertEqual(self.check.rows[0]['reason'], 'source_odometry_lost')
+        self.offer(60_000_000)
+        self.now = 2.01
+        self.check.odom_by_stamp[self.stamp+60_000_000] = {**info, 'lost': False, 'received_elapsed_s': self.now}
+        self.check.pump()
+        self.assertEqual(self.check.rows[1]['reason'], 'source_odometry_timeout')
+        self.assertEqual(self.executor.calls, [])
+
+    def test_selected_burst_keeps_one_worker_one_pending(self):
+        info = self.check.odom_by_stamp[self.stamp]
+        for index in range(3):
+            self.offer(index*60_000_000)
+            self.check.odom_by_stamp[self.stamp+index*60_000_000] = {**info, 'stamp_ns': self.stamp+index*60_000_000}
+        self.check.pump()
+        self.assertEqual(len(self.executor.calls), 1)
+        self.assertEqual([r['status'] for r in self.check.rows], ['PROCESSING','DROPPED','DROPPED'])
+        self.assertTrue(all(r['reason'] == 'pending_queue_full' for r in self.check.rows[1:]))
+
+    def test_finished_inference_still_requires_source_map_tf(self):
+        self.check.tf.clear()
+        self.offer()
+        self.check.pump()
+        self.finish_prediction()
+        self.assertEqual(self.check.rows[0]['status'], 'AWAITING_POSE')
+        self.now = 2.001
+        self.check.pump()
+        self.assertEqual(self.check.rows[0]['pose']['reason'], 'missing_source_map_tf')
+
+    def test_waiting_cache_is_pending_at_finish(self):
+        self.check.odom_by_stamp.clear()
+        self.offer()
+        with self.assertRaisesRegex(RuntimeError, 'Pending perception work'):
+            self.check.finish({})
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -179,6 +179,7 @@ class OdomCheck:
                 'unmatched_odometry_stamps': unmatched, 'received_odometry_messages': len(self.poses),
                 'received_odom_info_messages': len(self.info),
                 'reference_pairs': len(expected_stamps) if reference is not None else None,
+                'received_pairs_basis': 'CameraInfo stamp pairs, not image delivery',
                 'received_pairs': len(expected_stamps), 'processed_frames': len(paired),
                 'input_frames_without_result': len(expected_stamps)-len(paired),
                 'tracked_frames': len(valid), 'lost_frames': lost,
