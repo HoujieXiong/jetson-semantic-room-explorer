@@ -282,6 +282,12 @@ def write_query_review(queries, crop_root, output, limitation):
                        ('Unlocalized views not selected — diagnostic images only',
                         [c for c in visual['ranking'] if c['observation_id'] not in keys], True)]
         parts = ['<h2>'+html.escape(row['text'])+'</h2>']
+        if 'identity_review' in row:
+            review = row['identity_review']
+            parts.append('<p>Operator feedback: '+html.escape(review['status'])+
+                         '; localized target IDs blocked by rejected source evidence: '+
+                         html.escape(str(review['blocked_object_ids']))+
+                         '. Rankings below remain diagnostic; confirmation does not supply depth.</p>')
         for title, candidates, diagnostic in groups:
             if diagnostic and not candidates:
                 continue

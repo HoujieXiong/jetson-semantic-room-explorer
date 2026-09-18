@@ -16,7 +16,7 @@ import numpy as np
 
 from extract_mapped_rgbd import file_hash
 from rgbd_geometry import match_source_stamp
-from scene_memory import require_hash
+from scene_memory import canonical, require_hash
 from semantic_memory import (MobileClipEncoder, SELECTION_POLICY, crop_rgb, rank_objects,
                              select_candidates, unit_vector, write_query_review)
 
@@ -238,7 +238,62 @@ def validate_semantic(connection, context, payload, elapsed):
         raise ValueError('Semantic crops must preserve geometric priority within the crop budget')
 
 
-def rank_snapshot(connection, context, events, remembered, text_vector, encoder_identity):
+def review_identity(feedback, phrase, context, outcomes, samples, visual):
+    """Project exact operator-reviewed source views onto this snapshot, never onto nearby views."""
+    fields = {'schema_version', 'session_id', 'text', 'operator_statement', 'views'}
+    view_fields = {'node_id', 'detection_index', 'source_stamp_ns', 'semantic_event_seq', 'crop_sha256', 'verdict'}
+    if (not isinstance(feedback, dict) or set(feedback) != fields
+            or type(feedback['schema_version']) is not int or feedback['schema_version'] != 1
+            or any(not isinstance(feedback[k], str) or not feedback[k].strip()
+                   for k in ('session_id', 'text', 'operator_statement'))
+            or not isinstance(phrase, str) or not phrase.strip()
+            or not isinstance(feedback['views'], list) or not 1 <= len(feedback['views']) <= 128):
+        raise ValueError('Invalid identity feedback schema or query text')
+    seen = set()
+    for view in feedback['views']:
+        if (not isinstance(view, dict) or set(view) != view_fields
+                or any(type(view[k]) is not int or view[k] < (0 if k == 'detection_index' else 1)
+                       for k in ('node_id', 'detection_index', 'source_stamp_ns', 'semantic_event_seq'))
+                or view['verdict'] not in ('confirmed', 'rejected')):
+            raise ValueError('Invalid identity feedback source view')
+        require_hash(view['crop_sha256'])
+        key = (view['node_id'], view['detection_index'])
+        if key in seen:
+            raise ValueError('Duplicate or conflicting identity feedback source view')
+        seen.add(key)
+    if feedback['session_id'] != context['session_id']:
+        raise ValueError('Identity feedback belongs to another journal session')
+    result = {'status': 'NOT_APPLICABLE_TEXT', 'feedback_sha256': hashlib.sha256(canonical(feedback).encode()).hexdigest(),
+              'session_id': context['session_id'], 'query_text': phrase, 'reviewed_text': feedback['text'],
+              'operator_statement': feedback['operator_statement'], 'views': [], 'blocked_object_ids': [],
+              'scope': 'Exact phrase, session and source crop. Rejected support vetoes its current candidate; confirmation supplies no geometry or label for other views.'}
+    if phrase != feedback['text']:
+        return result
+    blocked = set()
+    for view in feedback['views']:
+        seq, event = outcomes.get(view['node_id'], (None, None))
+        if event is None:
+            result['views'].append({**view, 'status': 'NOT_AVAILABLE_IN_PREFIX'})
+            continue
+        sample = next((s for s in event.get('samples', []) if s['detection_index'] == view['detection_index']), None)
+        if (seq != view['semantic_event_seq'] or sample is None
+                or any(sample[k] != view[k] for k in ('node_id', 'source_stamp_ns', 'crop_sha256'))):
+            raise ValueError('Identity feedback disagrees with committed source evidence')
+        ids = sorted({oid for oid, evidence, _ in samples
+                      if evidence['node_id'] == view['node_id'] and evidence['detection_index'] == view['detection_index']})
+        visual_ids = [r['observation_id'] for r in visual
+                      if r['best_view']['node_id'] == view['node_id'] and r['best_view']['detection_index'] == view['detection_index']]
+        result['views'].append({**view, 'status': 'MATCHED' if ids or visual_ids else 'NOT_IN_CURRENT_SUPPORT',
+                                'localized_object_ids': ids, 'unlocalized_observation_ids': visual_ids})
+        if view['verdict'] == 'rejected':
+            blocked.update(ids)
+    result.update(status='APPLIED' if any(v['status'] == 'MATCHED' for v in result['views']) else 'NO_CURRENT_SOURCE_MATCH',
+                  blocked_object_ids=sorted(blocked))
+    return result
+
+
+def rank_snapshot(connection, context, events, remembered, text_vector, encoder_identity, *,
+                  identity_feedback=None, text=None):
     if context.get('semantic_encoder') != encoder_identity or context.get('semantic_policy') not in (POLICY, UNLOCALIZED_POLICY):
         raise ValueError('Online image/text encoder or policy mismatch')
     outcomes = {p['node_id']: (seq, p) for seq, p in events}
@@ -299,6 +354,9 @@ def rank_snapshot(connection, context, events, remembered, text_vector, encoder_
             'ranking': views, 'selected_observation_ids': selected, 'selection_policy': SELECTION_POLICY,
             'missing_supports': missing_views, 'available_views': len(views),
             'limitation': 'Independent source views, not distinct objects. No map point or navigation target; scores do not establish identity.'}
+    if identity_feedback is not None:
+        result['identity_review'] = review_identity(identity_feedback, text, context, outcomes, samples,
+                                                   result.get('unlocalized', {}).get('ranking', []))
     return result
 
 
@@ -320,7 +378,8 @@ def load_text_encoder(database, model):
     return encoder
 
 
-def query_text(database, model, phrase, output, *, planning=False, merge_duplicates=False, encoder=None):
+def query_text(database, model, phrase, output, *, planning=False, merge_duplicates=False, encoder=None,
+               identity_feedback=None):
     """A supplied encoder is caller-owned; every request still validates and reads the journal."""
     from online_scene_memory import query_online
     if not isinstance(phrase, str) or not phrase.strip():
@@ -336,7 +395,8 @@ def query_text(database, model, phrase, output, *, planning=False, merge_duplica
             raise ValueError('Journal semantic encoder or policy mismatch')
         vector, elapsed_ms = encoder.encode(phrase)
         result = query_online(database, text_vector=vector, encoder_identity=encoder.identity,
-                              planning=planning, merge_duplicates=merge_duplicates)
+                              planning=planning, merge_duplicates=merge_duplicates,
+                              identity_feedback=identity_feedback, text=phrase)
         report.update(result, text=phrase, text_vector=vector.tolist(), text_encode_ms=elapsed_ms,
                       encoder=encoder.identity, load_ms=0. if reused else encoder.load_ms,
                       encoder_reused=reused)
@@ -348,6 +408,7 @@ def query_text(database, model, phrase, output, *, planning=False, merge_duplica
             report['limitation'] = 'Localized records and unlocalized source views are ranked separately. Unlocalized views have no 3D target. Scores do not establish identity or presence/absence. No navigation decision.'
         write_query_review([{'text': phrase, 'ranking': result['semantic']['ranking'],
                              'selected_object_ids': result['semantic']['selected_object_ids'],
+                             **({'identity_review': result['semantic']['identity_review']} if 'identity_review' in result['semantic'] else {}),
                              **({'unlocalized': result['semantic']['unlocalized']} if 'unlocalized' in result['semantic'] else {})}],
                            database.parent, output/'queries.html', report['limitation'])
     except (ValueError, OSError, RuntimeError, sqlite3.Error) as error:

@@ -2,8 +2,10 @@
 
 import copy
 import hashlib
+import json
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import time
 import unittest
@@ -191,6 +193,42 @@ class OnlineSearchTests(unittest.TestCase):
         for key in ('snapshot', 'semantic', 'objects', 'planning_evidence'):
             self.assertEqual(original[key], reopened[key])
         self.assertEqual(query_online(self.db)['objects'], original['objects'])
+
+    def test_rejected_identity_blocks_an_otherwise_reachable_target(self):
+        self.send('occupancy', occupancy())
+        original = self.query()
+        view = original['semantic']['ranking'][0]['best_view']
+        feedback = {'schema_version': 1, 'session_id': original['snapshot']['session_id'], 'text': 'a bottle',
+                    'operator_statement': 'This crop is not the requested bottle.',
+                    'views': [{**{k: view[k] for k in ('node_id', 'detection_index', 'source_stamp_ns', 'semantic_event_seq', 'crop_sha256')},
+                               'verdict': 'rejected'}]}
+        self.assertEqual(plan_snapshot(original, 'a bottle')['search_status'], 'ROUTE_READY')
+        reviewed = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY, planning=True,
+                                identity_feedback=feedback, text='a bottle')
+        result = plan_snapshot(reviewed, 'a bottle')
+        self.assertEqual(result['reason'], 'selected_identity_rejected')
+        self.assertEqual(result['search_status'], 'REFUSED')
+        self.assertIsNone(result['selection'])
+        self.assertIsNone(result['branch'])
+        self.assertEqual(result['outcomes'], [])
+        self.assertEqual(plan_snapshot(reviewed, 'a cup')['reason'], 'identity_feedback_scope_mismatch')
+        old = plan_snapshot(reviewed, 'a bottle', now_ns=reviewed['read_started_monotonic_ns']+11*10**9)
+        self.assertEqual(old['reason'], 'stale_or_future_map_evidence')
+        self.assertEqual(old['identity_review']['blocked_object_ids'], [1])
+        other = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY, planning=True,
+                             identity_feedback=feedback, text='a cup')
+        self.assertEqual(plan_snapshot(other, 'a cup')['search_status'], 'ROUTE_READY')
+
+    def test_explicit_null_feedback_file_does_not_disable_the_veto(self):
+        feedback = self.root/'feedback.json'
+        feedback.write_text(json.dumps(None))
+        output = self.root/'must_not_run'
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[2]/'scripts/online_search_preview.py'),
+            '--db', str(self.db), '--model', str(self.root/'unused_model'), '--text', 'a bottle',
+            '--output', str(output), '--identity-feedback', str(feedback)], capture_output=True, text=True, timeout=15)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Identity feedback must be a JSON object', result.stderr)
+        self.assertFalse(output.exists())
 
 
 if __name__ == '__main__':

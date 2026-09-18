@@ -1,6 +1,6 @@
 # Jetson Semantic Room Explorer: Codex Project Playbook
 
-Last updated: 2026-09-16
+Last updated: 2026-09-18
 
 This file is the canonical execution plan, living handoff, and operating contract
 for Codex sessions working in this repository. It is intentionally kept at the
@@ -902,54 +902,67 @@ fridge identity, unlocalized depth and route refusals persist. Camera and naviga
 stay off; live and sustained performance are unverified. See
 `docs/coordinated-perception.md` and the ledger.
 
+### 4.37 Exact Operator Feedback Can Veto Localized Targets
+
+Status: `VERIFIED` for scoped saved-data refusal and two real GPU query sessions.
+
+The optional `--identity-feedback` file binds an exact phrase, journal session and
+source crop. An explicitly rejected supporting view vetoes selected localized
+targets, including when that view is no longer best-ranked. Original rankings and
+geometry remain intact; positive visual feedback creates no 3D position. All 24
+original live/coordinated reports reproduce, 24 feedback reopenings match,
+16 incorrect cross-session applications are refused and six real GPU requests
+preserve original vectors/ranks and stale/future-map refusal. All 59 online and
+15 semantic tests pass. The operator confirmed A/C are wrong and B/D/E are the
+fridge; exact per-session files retain these labels. Confirmed views remain
+visual-only; no general recognition improvement is claimed.
+Camera and navigation remain off. See `docs/identity-feedback.md` and the ledger.
+
 ## 5. Current Next Task
 
-Milestone: **Validate identity refusal before localized object-target selection**.
+Milestone: **Bounded live validation of coordinated perception and reviewed targets**.
 
-Status: `PLANNED`. Section 4.36 / the Progress Ledger records the completed
-source-selection comparison. Exact-source coordination increases usable keyframes
-from 21 to 50, but both fridge queries still select the bin/cabinet as a localized
-fridge while separately retrieving the actual fridge without reliable depth.
-Better source coverage has not resolved the operator-confirmed identity failure.
+Status: `PLANNED`. Sections 4.36–4.37 and the ledger record saved-data source
+coordination and an optional exact-source identity veto. The operator confirmed
+A/C are not the fridge and B/D/E are the fridge; those five exact labels are now
+verified. The correct fridge views still lack usable depth. No fresh camera
+readiness has been supplied for a new capture.
 
-Existing authorization covers safe saved-data experiments, focused fixes and
-GitHub updates. The operator is away; stop when new identity feedback or scene
-positioning is necessary. Keep camera and navigation off. Do not download a
-missing component without authorization. Original A/B labels and all old reports
-must remain intact.
+Keep the camera closed until the operator confirms current placement/readiness.
+No navigation or motor commands. Existing authorization covers safe preparation,
+saved-data tests and GitHub updates. Reuse installed components; ask before
+obtaining a missing component. Do not transfer old session feedback to new images.
 
 Required observable result:
 
-1. Inspect the exact query candidates, source crops, geometric associations and
-   planning handoff in the original live and new coordinated-frame trials. Explain
-   in Chinese why the localized bin/cabinet is selected alongside higher-scoring
-   unlocalized fridge imagery, and identify the smallest evidence-supported change.
-2. Reuse current query/feedback patterns. Explicitly separate exact operator labels
-   from assistant inspection and from unlabeled new views. Do not propagate identity
-   merely through box overlap, a nearby position or a shared detector class. Do not
-   hardcode room coordinates, turn retrieval scores into calibrated probabilities,
-   or lower depth/route acceptance to manufacture a successful target.
-3. Predeclare a bounded saved-data comparison of the proposed refusal behavior,
-   including the known wrong region, the correct unlocalized fridge and unrelated
-   queries. Preserve historical reports. If evidence cannot justify a general
-   refusal rule, retain the diagnosis and stop for the specific missing feedback.
-4. Verify that an explicitly rejected identity cannot silently become an actionable
-   localized target, while original crops, timestamps, refusal reasons and useful
-   visual-only evidence remain inspectable. No new 3D target may be invented for
-   the depth-rejected fridge. Keep all stale-map/unknown-start/no-route refusals.
-5. Run focused decision/reopening checks and inspect actual source views. Report
-   false acceptance and false refusal in the available labeled cases without
-   claiming general recognition accuracy. Review the complete diff, update measured
-   README/ledger progress and publish a clean checkpoint with one next action.
+1. Inspect the existing live supervisor/configuration and current camera state
+   without starting capture. Prepare one bounded stationary trial using the
+   verified odometry-selection option, existing 1280 RGB-D contract and recorded
+   failure/resource guards. Explain the smallest plan, files and measurements in
+   Chinese. Obtain fresh operator readiness before opening the camera.
+2. Show an inspectable current RGB/depth view and establish whether the target
+   fridge is visible. If the view needs adjustment, wait for the operator rather
+   than moving equipment or assuming old crop coordinates. Record actual camera
+   placement and avoid claims of physical accuracy without a measured reference.
+3. Run the declared bounded acquisition/query trial, recording actual image versus
+   metadata delivery, source/odometry/map overlap, useful encoded frames, exact
+   proposals and depth refusals. Do not hide synchronization loss, attach nearby
+   poses or change recognition/depth thresholds to produce a target.
+4. Bind any new operator identity judgments only to the displayed exact sources in
+   that new session. Verify the existing feedback veto and visual-only evidence
+   on its saved snapshots; do not manufacture a 3D position for confirmed imagery
+   with invalid depth. Preserve stale-map/invalid-start/no-route refusals.
+5. Close camera and all owned processes, verify source provenance/reopening and
+   resource cleanup, review the full diff, update README/ledger only from measured
+   results and publish a clean checkpoint. Stop for missing operator help rather
+   than performing further captures or inventing labels.
 
-Starting points: `docs/coordinated-perception.md`, `docs/live-warm-queries.md`,
-`scripts/online_scene_memory.py`, `scripts/semantic_memory.py`,
-`scripts/online_search_preview.py`, `data/outputs/live_warm/20260916/visual_review.json`
-and `data/outputs/coordinated_frames/20260916/`.
+Starting points: `docs/coordinated-perception.md`, `docs/identity-feedback.md`,
+`docs/live-warm-queries.md`, the verified measurement scripts and local evidence
+under `data/outputs/identity_refusal/20260918/` and `live_warm/20260916/`.
 
-Learning checkpoint: geometric support and semantic similarity are distinct
-contracts. More views of the wrong region must not be reported as stronger proof
-that the requested physical object was found.
+Learning checkpoint: correct identity, usable depth, source-time pose and a valid
+route are distinct requirements. A reviewed image alone cannot provide all four.
 
 ## 6. Target System Architecture
 
@@ -5409,6 +5422,112 @@ identity; a wrong localized candidate remains wrong with more geometric supports
 
 Next action: use existing operator-confirmed A/B evidence to validate explicit
 identity refusal before a wrong localized candidate can become a search target.
+
+### 2026-09-18: Exact Operator Feedback Vetoes Rejected Localized Evidence
+
+Status: `VERIFIED` for an optional scoped feedback path, saved-data counterfactual
+decisions and two real Jetson GPU query sessions. Identity beyond the five exact
+reviewed views, generalized recognition, live operation and navigation are not verified.
+
+Changed: `online_semantic_memory.py` validates exact phrase/session/source-view
+feedback and projects it onto current representative supports. `online_scene_memory.py`
+passes the query/feedback contract through the consistent snapshot. The existing
+`online_search_preview.py` CLI/session accepts `--identity-feedback`; selected
+localized evidence with rejected support returns `selected_identity_rejected`
+before goal/frontier planning, retaining structural/freshness checks. The existing
+review renderer displays blocked IDs with original crops. Two focused test files,
+README and `docs/identity-feedback.md` document the behavior. No model, dependency,
+score threshold, depth policy, journal schema or observation data changes.
+
+Verified:
+
+- Inspection identifies independent localized/unlocalized ranking groups and no
+  previous runtime consumer of operator labels. Original live fridge scores are
+  0.272432 localized (wrong bin/cabinet) and 0.298652 visual-only (actual fridge).
+  The original unknown-start route refusal already prevented navigation. The
+  exact A/B source hashes are absent from both later coordinated-frame journals.
+- Before editing, the comparison records base commit `2b46a10`, 33 input hashes,
+  exact-phrase/session/source scope, fixed cases and equality criteria. A minimal
+  sidecar transcribes only the existing operator statement and exact A/B references.
+  The original feedback, old queries and journals remain unchanged.
+- Feedback validates schema, 1–128 views, exact node/index/stamp/event/PNG hash,
+  session and query phrase, with explicit duplicate/conflict/malformed-input errors.
+  It records unavailable-prefix/excluded-current-support cases and unrelated text.
+  Current object IDs are recomputed from actual supports. No box/class/location
+  label propagation or recognition-threshold rule is introduced. Confirmation
+  provides no geometry and does not approve other candidate supports.
+- All 24 original reports across live/baseline/coordinated journals reproduce
+  exact rankings, geometry, source associations and decisions, excluding only
+  recomputed planning/selection durations. The initial private checker omitted
+  frontier `selection_ms` from that duration exclusion and failed; initial source,
+  log and partial copies remain with the correction note. Runtime reports are intact.
+- Eight original live prefixes/closed snapshots reopen exactly with feedback.
+  A vetoes localized candidate 1; B remains `8:0` visual evidence with
+  `insufficient_valid_depth`, without a map point or new object ID. The six
+  bowl/sink/elephant prefix/closed decisions remain unchanged. Applying original
+  feedback to 16 later-session snapshots fails explicitly rather than reusing labels.
+- At the original fridge decision time, explicit post-feedback counterfactual
+  planning returns `selected_identity_rejected`, replacing its original unknown-
+  start route refusal. Historical times are labelled as such; current-time queries
+  keep `stale_or_future_map_evidence`. A real SQLite/free-grid test changes an
+  otherwise reachable target into a refusal, proving the veto is not merely masked
+  by existing map/start failures. No historical timestamp is refreshed for action.
+- All 59 online tests and 15 semantic regression tests pass. New cases cover a
+  rejected non-best support, graph removal, exact text, wrong session/hash/stamp/
+  event, duplicates, missing source, confirmed unlocalized evidence, reopening,
+  scope mismatch, stale-map priority and saved JSON/HTML. A final CLI guard rejects
+  explicit JSON null before it can silently disable feedback; it is tested after
+  the valid-file GPU run, with both source versions recorded.
+- Four actual GPU CLI/session requests use the verified feedback file. Separate
+  model initialization takes 21.756 s; full responses for fridge/bowl/sink/elephant
+  take 2.952/0.270/0.281/0.279 s. Text vectors, ranks, geometry and source snapshots
+  exactly match the previous closed queries. Fridge records blocked ID 1; the other
+  phrases record `NOT_APPLICABLE_TEXT`. All four refuse the old map's time evidence.
+  These closed-journal calls have no concurrent SLAM or live-throughput implication.
+- Minimum sampled available RAM is 4119768 KiB, peak query RSS 1438192 KiB;
+  CUDA allocated/reserved peaks are 228483584/243269632 bytes. The 28.646 s bounded
+  supervisor exits its child with code zero and no forced termination. Native
+  initial cleanup finds no runtime process and 4920028 KiB available RAM. Camera,
+  query ROS publication and navigation remain off. Long-duration resource behavior
+  is untested.
+- All 56 original ranked crop files match their committed hashes and all 33
+  predeclared input hashes remain unchanged. The initial review has 22 verified
+  PNGs without WebGL, displaying confirmed A/B and then-unlabelled C/D/E. C is
+  one identical source crop shared by both later runs; D/E are distinct views.
+  The user explicitly replied: "D and E are fridge and c is not".
+  `operator_review_cde.json` records that reply and the reviewed page/reference
+  hashes. The original pending page remains unchanged; no other label is inferred.
+- After C/D/E feedback, separate baseline/odometry files bind the two sessions.
+  Sixteen further prefix/closed comparisons and reopenings are exact; C vetoes
+  candidate 1 in both later fridge queries, and D/E retain insufficient-depth
+  refusal without geometry. Twelve unrelated query decisions are unchanged.
+  There are now 24 exact feedback reopenings across all three journals. The two
+  negative source views A/C are vetoed and all three positive views B/D/E remain
+  inspectable; no general false-acceptance/refusal rate is inferred.
+- Two additional actual GPU fridge queries use the final implementation and new
+  files. Separate initialization is 11.002 s; responses are 0.645/0.398 s, with
+  exact original vectors/ranks/geometry and blocked ID 1 in each. Both keep the
+  stale/future-map refusal. The 14.569 s supervisor exits cleanly, minimum sampled
+  available RAM is 3648880 KiB, peak RSS 1426968 KiB and CUDA peaks match the first
+  session. Final native cleanup finds no runtime process and 4439432 KiB available
+  RAM. All 33 original hashes still match. `confirmed_review.html` has 22 verified
+  PNGs with all five explicit labels; no new capture or motion occurred.
+
+Evidence: `data/outputs/identity_refusal/20260918/`, including `acceptance.json`,
+`feedback.json`, initial/corrected checks, `checked/` immutable-prefix copies and
+reports, original/extension verification, both GPU runs, test logs, runtime
+snapshots, cleanup, original pending review, exact `operator_review_cde.json`,
+per-session feedback files and `confirmed_review.html`.
+Private room images and feedback files remain outside Git.
+
+Learning checkpoint: explicit identity feedback can block a target without rewriting
+scores or inventing depth. A single rejected source does not justify labels for
+different views or a general classifier accuracy claim. The optional feedback file
+must accompany the query; the prior behavior remains when it is omitted.
+
+Next action: prepare a bounded stationary live validation of coordinated source
+selection and reviewed target refusal, opening the camera only after fresh
+operator readiness and checking whether the target fridge view has usable depth.
 
 ## 16. End-Of-Session Handoff Template
 

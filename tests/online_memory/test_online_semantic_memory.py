@@ -110,6 +110,112 @@ class OnlineSemanticTests(unittest.TestCase):
         self.writer = OnlineMemoryWriter(self.db, {**context(), 'semantic_encoder': IDENTITY,
                                                   'semantic_policy': UNLOCALIZED_POLICY})
 
+    def feedback(self, encoded, verdict='rejected'):
+        sample = encoded['samples'][0]
+        return {'schema_version': 1, 'session_id': self.writer.context['session_id'],
+                'text': 'a bottle', 'operator_statement': 'This displayed view is not the target.',
+                'views': [{**{k: sample[k] for k in ('node_id', 'detection_index', 'source_stamp_ns', 'crop_sha256')},
+                           'semantic_event_seq': self.seq, 'verdict': verdict}]}
+
+    def test_identity_rejection_checks_all_supports_and_survives_reopen(self):
+        row = self.source()
+        vector = axis(0)*.8+axis(1)*.6
+        encoded = self.encoded(row, vector=vector)
+        self.send('semantic', encoded)
+        feedback = self.feedback(encoded)
+        row2 = self.source(node=2)
+        self.send('semantic', self.encoded(row2, node=2))
+        self.send('graph', graph({1: [0, 0, 0], 2: [0, 0, 0]}))
+        original = self.query()
+        self.assertEqual(original['semantic']['ranking'][0]['best_view']['node_id'], 2)
+        self.assertEqual(original['semantic']['ranking'][0]['geometry']['semantic_support_count'], 2)
+        reviewed = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY,
+                                identity_feedback=feedback, text='a bottle')
+        review = reviewed['semantic'].pop('identity_review')
+        self.assertEqual(review['blocked_object_ids'], [1])
+        self.assertEqual(review['views'][0]['node_id'], 1)
+        self.assertEqual(reviewed['semantic'], original['semantic'])
+        self.assertEqual(reviewed['objects'], original['objects'])
+        self.writer.close()
+        reopened = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY,
+                                identity_feedback=feedback, text='a bottle')
+        self.assertEqual(reopened['semantic']['identity_review'], review)
+        self.assertEqual(reopened['snapshot'], original['snapshot'])
+
+    def test_feedback_is_exact_text_and_unavailable_source_is_explicit(self):
+        row = self.source()
+        encoded = self.encoded(row)
+        feedback = self.feedback(encoded)
+        feedback['views'][0]['semantic_event_seq'] = self.seq+1
+        before = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY,
+                              identity_feedback=feedback, text='a bottle')
+        self.assertEqual(before['semantic']['identity_review']['status'], 'NO_CURRENT_SOURCE_MATCH')
+        self.assertEqual(before['semantic']['identity_review']['views'][0]['status'], 'NOT_AVAILABLE_IN_PREFIX')
+        self.send('semantic', encoded)
+        self.send('graph', graph({1: [0, 0, 0]}))
+        for phrase in ('a cup', 'a Bottle', ' a bottle '):
+            other = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY,
+                                 identity_feedback=feedback, text=phrase)
+            self.assertEqual(other['semantic']['identity_review']['status'], 'NOT_APPLICABLE_TEXT')
+            self.assertEqual(other['semantic']['identity_review']['blocked_object_ids'], [])
+        # Removing the node from the active graph does not move its rejection to another candidate.
+        row2 = self.source(node=2)
+        self.send('semantic', self.encoded(row2, node=2))
+        self.send('graph', graph({2: [0, 0, 0]}))
+        changed = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY,
+                               identity_feedback=feedback, text='a bottle')
+        self.assertEqual(changed['semantic']['identity_review']['blocked_object_ids'], [])
+        self.assertEqual(changed['semantic']['identity_review']['views'][0]['status'], 'NOT_IN_CURRENT_SUPPORT')
+
+    def test_confirmed_visual_only_view_keeps_depth_refusal(self):
+        self.enable_unlocalized()
+        row = self.source(unlocalized=True)
+        encoded = self.encoded(row)
+        self.send('semantic', encoded)
+        feedback = self.feedback(encoded, verdict='confirmed')
+        self.send('graph', graph({1: [0, 0, 0]}))
+        original = self.query()
+        reviewed = query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY,
+                                identity_feedback=feedback, text='a bottle')
+        review = reviewed['semantic'].pop('identity_review')
+        self.assertEqual(review['blocked_object_ids'], [])
+        self.assertEqual(review['views'][0]['unlocalized_observation_ids'], ['1:0'])
+        self.assertEqual(reviewed['semantic'], original['semantic'])
+        self.assertEqual(reviewed['objects'], [])
+        self.assertEqual(reviewed['semantic']['unlocalized']['ranking'][0]['depth_rejection_reason'], 'insufficient_valid_depth')
+
+    def test_feedback_tampering_and_wrong_session_fail_explicitly(self):
+        row = self.source()
+        encoded = self.encoded(row)
+        self.send('semantic', encoded)
+        feedback = self.feedback(encoded)
+        cases = []
+        for key, value in [('crop_sha256', '0'*64), ('source_stamp_ns', STAMP+1),
+                           ('semantic_event_seq', self.seq+1), ('verdict', 'maybe'), ('detection_index', True)]:
+            changed = copy.deepcopy(feedback); changed['views'][0][key] = value; cases.append(changed)
+        for key, value in [('session_id', 'another'), ('schema_version', True), ('views', [])]:
+            cases.append({**feedback, key: value})
+        cases.append({**feedback, 'views': feedback['views']*2})
+        for changed in cases:
+            with self.subTest(feedback=changed), self.assertRaises(ValueError):
+                query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY,
+                             identity_feedback=changed, text='a bottle')
+        with self.assertRaisesRegex(ValueError, 'exact query text'):
+            query_online(self.db, text_vector=axis(0), encoder_identity=IDENTITY, identity_feedback=feedback)
+
+    def test_query_text_carries_feedback_into_saved_json_and_review(self):
+        row = self.source()
+        encoded = self.encoded(row)
+        self.send('semantic', encoded)
+        feedback = self.feedback(encoded)
+        self.send('graph', graph({1: [0, 0, 0]}))
+        output = self.root/'identity_query'
+        result = query_text(self.db, None, 'a bottle', output, encoder=self.text_encoder(),
+                            identity_feedback=feedback)
+        self.assertEqual(result['semantic']['identity_review']['blocked_object_ids'], [1])
+        self.assertEqual(json.loads((output/'query.json').read_text())['semantic'], result['semantic'])
+        self.assertIn('localized target IDs blocked by rejected source evidence: [1]', (output/'queries.html').read_text())
+
     def test_unlocalized_views_keep_pixels_provenance_and_causal_availability_without_geometry(self):
         self.enable_unlocalized()
         row = self.source(unlocalized=True)

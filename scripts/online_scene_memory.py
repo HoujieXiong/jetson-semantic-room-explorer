@@ -240,11 +240,13 @@ class OnlineMemoryWriter:
 
 
 def query_online(database, command='list', label=None, *, text_vector=None, encoder_identity=None,
-                 planning=False, merge_duplicates=False):
+                 planning=False, merge_duplicates=False, identity_feedback=None, text=None):
     """Read one committed event prefix, then derive associations in a private SQLite snapshot."""
     started = time.monotonic_ns()
     if type(merge_duplicates) is not bool or (merge_duplicates and (command != 'list' or label is not None)):
         raise ValueError('Duplicate merging requires a boolean mode and a complete list/text query')
+    if identity_feedback is not None and (text_vector is None or not isinstance(text, str) or not text.strip()):
+        raise ValueError('Identity feedback requires a text vector and its exact query text')
     with closing(sqlite3.connect(Path(database).resolve().as_uri()+'?mode=ro', uri=True,
                                 timeout=POLICY['sqlite_timeout_s'])) as connection:
         connection.execute('BEGIN')
@@ -331,7 +333,8 @@ def query_online(database, command='list', label=None, *, text_vector=None, enco
         if text_vector is not None:
             if command != 'list' or label is not None:
                 raise ValueError('Text retrieval requires the complete geometric snapshot')
-            result['semantic'] = rank_snapshot(derived, context, semantic, result, text_vector, encoder_identity)
+            result['semantic'] = rank_snapshot(derived, context, semantic, result, text_vector, encoder_identity,
+                                               identity_feedback=identity_feedback, text=text)
     if graph is None:
         result['status'] = 'NO_GRAPH'
     result.update(snapshot=snapshot, included_frames=included, excluded_nodes=excluded,

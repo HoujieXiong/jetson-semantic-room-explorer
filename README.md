@@ -167,6 +167,13 @@ are exact, and 103 focused tests pass. Incorrect localized fridge identity and
 all depth/route refusals remain. See the [comparison and limits](docs/coordinated-perception.md).
 This is saved-data replay; the new option has not yet been tested with live capture.
 
+An optional [operator-feedback veto](docs/identity-feedback.md) now prevents a
+localized target from using an explicitly rejected source view. The operator's
+A/B and C/D/E labels pass 24 snapshot reopening checks and six actual GPU queries;
+59 online tests and 15 semantic regressions pass. Rankings stay inspectable, and
+the confirmed fridge views still lack usable 3D positions. This consumes scoped
+human feedback; general recognition improvement remains unverified.
+
 ## Goal
 
 Build a robot-facing system that can explore an indoor environment, estimate camera pose with RGB-D SLAM, detect objects with an edge-optimized YOLO pipeline, localize objects in 3D, and maintain persistent object memory.

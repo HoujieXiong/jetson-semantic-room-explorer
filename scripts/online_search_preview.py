@@ -78,6 +78,11 @@ def plan_snapshot(query, phrase, simulated_xy=None, *, now_ns=None):
     if visual_ids:
         result['unlocalized_selection'] = {'selected_observation_ids': visual_ids,
             'planning_status': 'REFUSED', 'reason': 'unlocalized_visual_evidence'}
+    review = semantic.get('identity_review')
+    if review is not None:
+        result['identity_review'] = review
+        if review['session_id'] != snapshot['session_id'] or review['query_text'] != phrase:
+            return refuse('identity_feedback_scope_mismatch')
     graph, occupancy, mapping = (evidence[k] for k in ('graph', 'occupancy', 'mapping'))
     if evidence['session_id'] != snapshot['session_id'] or evidence['grid_policy'] != GRID_POLICY:
         return refuse('incompatible_snapshot_or_grid_policy')
@@ -106,6 +111,8 @@ def plan_snapshot(query, phrase, simulated_xy=None, *, now_ns=None):
     if (max(available_ns) > query['read_started_monotonic_ns'] or now_ns < query['read_started_monotonic_ns']
             or age < 0 or age > POLICY['max_evidence_age_s'] or source_age > POLICY['max_evidence_age_s']):
         return refuse('stale_or_future_map_evidence')
+    if review is not None and set(review['blocked_object_ids']) & set(semantic['selected_object_ids']):
+        return refuse('selected_identity_rejected')
     grid = grid_from_event(occupancy['payload'])
     result['occupancy'] = {k: v for k, v in occupancy.items() if k != 'payload'}
     result['occupancy'].update({k: v for k, v in occupancy['payload'].items() if k != 'cells'})
@@ -152,14 +159,15 @@ def plan_snapshot(query, phrase, simulated_xy=None, *, now_ns=None):
     return result
 
 
-def run(database, model, phrase, output, simulated_xy=None, ros_preview=False, *, merge_duplicates=False, encoder=None):
+def run(database, model, phrase, output, simulated_xy=None, ros_preview=False, *, merge_duplicates=False,
+        encoder=None, identity_feedback=None):
     from online_semantic_memory import query_text
     output.mkdir(parents=True, exist_ok=False)
     report = {'status': 'INCOMPLETE', 'motion_executed': False}
     started = time.monotonic()
     try:
         query = query_text(database, model, phrase, output/'query', planning=True,
-                           merge_duplicates=merge_duplicates, encoder=encoder)
+                           merge_duplicates=merge_duplicates, encoder=encoder, identity_feedback=identity_feedback)
         decision = plan_snapshot(query, phrase, simulated_xy)
         report['decision'] = decision
         if ros_preview:
@@ -191,7 +199,8 @@ SESSION_LIMITS = {'requests': 32, 'request_bytes': 4096, 'initialization_s': 60,
                   'idle_s': 60, 'response_s': 45}
 
 
-def run_session(database, model, output, max_requests, *, request_stream=None, merge_duplicates=False):
+def run_session(database, model, output, max_requests, *, request_stream=None, merge_duplicates=False,
+                identity_feedback=None):
     """Bounded main-thread JSON-lines caller; owns one encoder and never publishes ROS commands."""
     from online_semantic_memory import load_text_encoder
     if type(max_requests) is not int or not 1 <= max_requests <= SESSION_LIMITS['requests']:
@@ -231,7 +240,7 @@ def run_session(database, model, output, max_requests, *, request_stream=None, m
             before = time.monotonic_ns()
             with redirect_stdout(sys.stderr):
                 result = run(database, model, request['text'], output/name,
-                             merge_duplicates=merge_duplicates, encoder=encoder)
+                             merge_duplicates=merge_duplicates, encoder=encoder, identity_feedback=identity_feedback)
             entry = {'text': request['text'], 'output': name,
                      'before_monotonic_ns': before, 'after_monotonic_ns': time.monotonic_ns(),
                      'status': result['status'], 'search_status': result['decision']['search_status'],
@@ -266,13 +275,18 @@ if __name__ == '__main__':
     parser.add_argument('--simulated-start-xy', type=float, nargs=2, metavar=('X_M', 'Y_M'))
     parser.add_argument('--publish-preview', action='store_true')
     parser.add_argument('--merge-duplicate-tracks', action='store_true', help='Require repeated shared-frame RGB-D evidence before merging tracks')
+    parser.add_argument('--identity-feedback', type=Path, help='Exact-phrase/session/source-crop operator feedback JSON; rejected supports veto selected localized targets')
     args = parser.parse_args()
+    feedback = json.loads(args.identity_feedback.read_text()) if args.identity_feedback is not None else None
+    if args.identity_feedback is not None and not isinstance(feedback, dict):
+        parser.error('Identity feedback must be a JSON object')
     if args.session_requests is not None:
         if args.publish_preview or args.simulated_start_xy is not None:
             parser.error('Session mode uses recorded starts and does not publish ROS previews')
         run_session(args.db.resolve(), args.model.resolve(), args.output.resolve(), args.session_requests,
-                    merge_duplicates=args.merge_duplicate_tracks)
+                    merge_duplicates=args.merge_duplicate_tracks, identity_feedback=feedback)
         sys.exit(0)
     report = run(args.db.resolve(), args.model.resolve(), args.text, args.output.resolve(),
-                 args.simulated_start_xy, args.publish_preview, merge_duplicates=args.merge_duplicate_tracks)
+                 args.simulated_start_xy, args.publish_preview, merge_duplicates=args.merge_duplicate_tracks,
+                 identity_feedback=feedback)
     print(json.dumps({'status': report['status'], 'decision': report['decision']['search_status']}))
