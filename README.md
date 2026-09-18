@@ -165,7 +165,7 @@ image pairs arrive in both trials; 25/29 groups still miss four-topic
 synchronization. All 242 crops match source pixels, sixteen reopening comparisons
 are exact, and 103 focused tests pass. Incorrect localized fridge identity and
 all depth/route refusals remain. See the [comparison and limits](docs/coordinated-perception.md).
-This is saved-data replay; the new option has not yet been tested with live capture.
+This comparison uses saved-data replay; live measurements are reported below.
 
 An optional [operator-feedback veto](docs/identity-feedback.md) now prevents a
 localized target from using an explicitly rejected source view. The operator's
@@ -173,6 +173,14 @@ A/B and C/D/E labels pass 24 snapshot reopening checks and six actual GPU querie
 59 online tests and 15 semantic regressions pass. Rankings stay inspectable, and
 the confirmed fridge views still lack usable 3D positions. This consumes scoped
 human feedback; general recognition improvement remains unverified.
+
+Coordinated perception now also passes a [bounded stationary live measurement](docs/coordinated-live-perception.md):
+203 processed frames have their own odometry, 198 receive map poses, and 50
+keyframes produce 177 source-verified crops. Four live queries take 1.456–4.490 s;
+110 focused tests and sixteen reopening checks pass, including eight with new
+operator feedback rejecting F and confirming G. Recording gaps, wrong automatic
+identity and insufficient fridge depth remain explicit. The camera is closed and
+no navigation occurred.
 
 ## Goal
 

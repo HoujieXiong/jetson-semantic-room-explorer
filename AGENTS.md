@@ -918,51 +918,67 @@ fridge; exact per-session files retain these labels. Confirmed views remain
 visual-only; no general recognition improvement is claimed.
 Camera and navigation remain off. See `docs/identity-feedback.md` and the ledger.
 
+### 4.38 Coordinated Perception Reaches Live Queries
+
+Status: `VERIFIED` for one bounded stationary live measurement and exact new F/G
+operator feedback applied to saved snapshots.
+
+After fresh readiness and preview confirmation, a 70.109-second camera interval
+receives 963 RGB-D image pairs and synchronizes 961 groups. All 203 processed
+frames have their own tracked odometry; 198 receive map poses. Fifty of 55 map
+keyframes produce 177 source-verified crops. Four actual queries take
+3.836/2.132/4.490/1.456 s after separate 13.105-second encoder startup. All 110
+focused tests and sixteen reopenings (eight with feedback) pass. The recording
+remains strictly incomplete: one dropped RGB source is unavailable, while all processed sources
+and encoded crops are verified. Wrong localized identity and insufficient fridge
+depth persist. The operator rejects F and confirms G; scoped feedback vetoes F
+without supplying depth for G. Camera/SLAM processes close cleanly; no navigation
+occurs.
+See `docs/coordinated-live-perception.md` and the ledger.
+
 ## 5. Current Next Task
 
-Milestone: **Bounded live validation of coordinated perception and reviewed targets**.
+Milestone: **Check target depth from an adjusted stationary fridge view**.
 
-Status: `PLANNED`. Sections 4.36–4.37 and the ledger record saved-data source
-coordination and an optional exact-source identity veto. The operator confirmed
-A/C are not the fridge and B/D/E are the fridge; those five exact labels are now
-verified. The correct fridge views still lack usable depth. No fresh camera
-readiness has been supplied for a new capture.
+Status: `PLANNED`. Section 4.38 and the ledger record the completed live coordinated
+trial and exact F/G feedback check. All 203 processed sources have odometry, but
+202 of 203 assistant-inspected central-fridge-region proposals fail depth. The
+single accepted source is not a semantic keyframe. F is explicitly rejected;
+confirmed G still supplies no 3D target. All camera/SLAM processes are closed.
 
-Keep the camera closed until the operator confirms current placement/readiness.
-No navigation or motor commands. Existing authorization covers safe preparation,
-saved-data tests and GitHub updates. Reuse installed components; ask before
-obtaining a missing component. Do not transfer old session feedback to new images.
+The completed capture's readiness does not authorize another capture after moving
+equipment. Wait for the operator to place the camera closer to the fridge or at a
+modest oblique angle and confirm it is stationary and ready. No navigation/motor
+commands. Reuse installed tools and existing RGB-D/depth acceptance contracts;
+ask before obtaining a missing component. Old labels stay bound to their sources.
 
 Required observable result:
 
-1. Inspect the existing live supervisor/configuration and current camera state
-   without starting capture. Prepare one bounded stationary trial using the
-   verified odometry-selection option, existing 1280 RGB-D contract and recorded
-   failure/resource guards. Explain the smallest plan, files and measurements in
-   Chinese. Obtain fresh operator readiness before opening the camera.
-2. Show an inspectable current RGB/depth view and establish whether the target
-   fridge is visible. If the view needs adjustment, wait for the operator rather
-   than moving equipment or assuming old crop coordinates. Record actual camera
-   placement and avoid claims of physical accuracy without a measured reference.
-3. Run the declared bounded acquisition/query trial, recording actual image versus
-   metadata delivery, source/odometry/map overlap, useful encoded frames, exact
-   proposals and depth refusals. Do not hide synchronization loss, attach nearby
-   poses or change recognition/depth thresholds to produce a target.
-4. Bind any new operator identity judgments only to the displayed exact sources in
-   that new session. Verify the existing feedback veto and visual-only evidence
-   on its saved snapshots; do not manufacture a 3D position for confirmed imagery
-   with invalid depth. Preserve stale-map/invalid-start/no-route refusals.
-5. Close camera and all owned processes, verify source provenance/reopening and
-   resource cleanup, review the full diff, update README/ledger only from measured
-   results and publish a clean checkpoint. Stop for missing operator help rather
-   than performing further captures or inventing labels.
+1. Inspect the verified current source views, calibration and target-depth
+   diagnostic. Explain the smallest test and expected files in Chinese. Keep the
+   present recording, strict completeness failure and original feedback intact.
+2. After fresh operator placement/readiness, use existing capture tools for a
+   short bounded stationary depth check. Show the current target view, record
+   actual profiles/alignment/scale/timestamps, and distinguish SDK preview from
+   the ROS contract. Do not launch another full SLAM/query trial merely to inspect
+   a single target's depth.
+3. Evaluate unchanged target inner-ROI depth acceptance on exact source frames;
+   retain invalid/out-of-range pixels, valid fractions and spread. New identity
+   feedback must refer to displayed new views. No hole filling, nearby-object
+   position, reduced threshold or assumed physical distance may supply a target.
+4. Close the camera and verify saved image readback, provenance and cleanup. If
+   usable depth remains absent, report that boundary and stop for operator help;
+   do not repeatedly capture or claim a cause from one angle. Update measured
+   README/ledger evidence, review the diff and publish one next action.
 
-Starting points: `docs/coordinated-perception.md`, `docs/identity-feedback.md`,
-`docs/live-warm-queries.md`, the verified measurement scripts and local evidence
-under `data/outputs/identity_refusal/20260918/` and `live_warm/20260916/`.
+Starting points: `docs/coordinated-live-perception.md`,
+`docs/fridge-depth-support.md`, `scripts/femto_mega_capture_once.py`,
+`scripts/observe_rgbd_objects.py`, `config/femto_rgbd.yaml` and
+`data/outputs/coordinated_live/20260918/central_depth_diagnostic.json`.
 
-Learning checkpoint: correct identity, usable depth, source-time pose and a valid
-route are distinct requirements. A reviewed image alone cannot provide all four.
+Learning checkpoint: moving closer or changing view is a measurement hypothesis,
+not a guaranteed repair. A usable RGB crop, valid source pose and target depth
+must all exist before claiming a localized object.
 
 ## 6. Target System Architecture
 
@@ -5528,6 +5544,110 @@ must accompany the query; the prior behavior remains when it is omitted.
 Next action: prepare a bounded stationary live validation of coordinated source
 selection and reviewed target refusal, opening the camera only after fresh
 operator readiness and checking whether the target fridge view has usable depth.
+
+### 2026-09-18: Coordinated Source Selection Runs With Live Capture
+
+Status: `VERIFIED` for one bounded stationary live measurement, saved-source checks
+and exact F/G operator feedback on saved snapshots. Reliable fridge localization,
+lossless recording, sustained performance and physical navigation remain unverified.
+
+Changed: no runtime code, model, dependency or threshold. The private measured
+live supervisor adds the existing `--perception-selection odometry` flag and the
+one-thread OMP/OpenBLAS settings used in the verified replay. README and
+`docs/coordinated-live-perception.md` record the measured boundary. All camera,
+query, memory and failure policies otherwise remain unchanged.
+
+Verified:
+
+- The operator says "camera is ready", then confirms the preview's silver fridge
+  and stationary placement. One existing SDK still closes normally, preserving
+  RGB, native/aligned depth, scale and calibration. Its 30 FPS software-alignment
+  preview is separate from the 15 FPS ROS capture. No physical distance is measured.
+- Predeclared base `05190dd`, configuration/source hashes, 70-second camera and
+  150-second observer limits, fixed four-query schedule, resource/deadline guards
+  and numerical tolerances are retained. Models/subscribers are ready before the
+  camera opens. Camera interval is 70.109 s; recorded RGB covers 64.547 s; total
+  startup, observation and cleanup is 183.638 s. No motion is requested or commanded.
+- The observer receives 964 RGB and 964 depth images, making 963 image pairs and
+  961 synchronized four-topic groups. All 203 processed frames have exact-source
+  tracked odometry; 198 acquire map poses and five refuse missing source map TF.
+  All 213 odometry outputs are tracked, zero reported lost. There are 758 explicit
+  drops: 723 cache evictions, 25 odometry timeouts and ten pending queue overflows.
+  No failed or unfinished jobs remain. Independent cache/pending/inference/pose
+  peaks are 16/1/1/7. Source selection works live; this is not a matched speed trial.
+- The final journal contains 1,181 events and 55 map nodes. Fifty keyframes encode
+  177 crops: 125 localized and 52 unlocalized. Three semantic sources are dropped
+  and two have refused poses. Arrival-to-result median/P95 is 418.367/1106.473 ms;
+  detection-plus-depth is 172.816/287.743 ms. Writer queue peak is 69/512, semantic
+  pending/cache 2/32. Missing source-time transforms remain explicit.
+- Four real GPU text requests complete at prefixes 228/398/638/878 and graphs
+  199/395/632/857. Responses take 3.836/2.132/4.490/1.456 s after separate
+  13.105 s encoder startup (11.289 s load). Fridge selects localized object 1 at
+  0.279700 plus eight unlocalized views, best 0.298919. Assistant inspection sees
+  bin/cabinet in F (`8:1`) and fridge in G (`7:0`). After viewing the new page, the
+  operator explicitly confirms F is not the target fridge and G is the target.
+  G retains `insufficient_valid_depth`. Bowl/sink/elephant are unselected;
+  bowl/sink visibility is not established. Unknown-start/no-route refusals remain.
+  No goal/path is published or executed, and old A–E labels are not transferred.
+- Four closed queries reuse original GPU text vectors. Fridge still selects
+  object 1 at 0.279131 plus 50 unlocalized views; other phrases remain unselected.
+  All closed decisions refuse stale maps. Eight copied-prefix/closed reopenings
+  are exact. All 51 odometry/concurrency and 59 online-memory tests pass.
+- Exact F/G feedback is recorded with the reviewed page/query hashes and bound
+  only to this session's source stamps, nodes, events and PNG hashes. Eight further
+  prefix/closed feedback reopenings are exact; F vetoes object 1 and G remains
+  visual-only without geometry. Six unrelated decisions are unchanged. At the
+  original fridge decision time the post-feedback counterfactual returns
+  `selected_identity_rejected`; current-time queries retain stale-map refusal.
+  Original reports/journal/page stay unchanged. There are sixteen reopening
+  checks in total. This consumes explicit feedback, not a trained recognition fix.
+- The bag has 964 RGB images, 965 depth images and 965 metadata messages per
+  stream. Strict completeness is `INCOMPLETE`: one interior RGB is absent.
+  Observer completeness also fails. Equal recorded/received RGB counts conceal
+  one different missing stamp on each side; two recorded metadata pairs and one
+  recorded depth image are not received. Driver CSV has 981 entries per stream,
+  no SDK index gaps, sixteen trailing entries each and one additional interior
+  unrecorded RGB. RGB/depth header rates are 14.919/14.935 Hz; skew median/max is
+  4.107/4.854 ms. CSV logging is not proof of delivery.
+- Inherited source-presence checks fail on that recorder gap; original scripts
+  and failed logs are preserved. Explicit accounting identifies a dropped
+  `odometry_cache_evicted` RGB frame. Its pixels remain unverifiable. Every
+  processed frame has original RGB/depth in the bag; all 177 crops match original
+  pixels. Causal TF, scalar geometry/ranks and all 55 committed graph/grid pairs
+  pass independent checks. Maximum scalar geometry/3D-score/visual-score errors
+  are 6.66e-16 m / 4.57e-8 / 6.02e-8. No missing image is reconstructed.
+- Nonzero depth median is 64.97%, center median 5.074 m, without a measured
+  physical reference. An explicitly assistant-defined central-region diagnostic
+  finds 202/203 proposals fail depth, median valid inner-ROI fraction 20.82%.
+  One passes at 26.73%, selecting 4.108 m with an accepted pose, but is not a
+  semantic map keyframe. This does not establish stable fridge localization or
+  transfer operator identity to those views. Depth policy remains unchanged.
+- Peak system RAM is 5873 MB, available minimum 1630908 KiB, query RSS peak
+  1406216 KiB. Observer CUDA allocated/reserved peaks are 330952704/356515840 bytes;
+  query peaks are 228483584/243269632 bytes. GPU peaks at 54.093 C. All owned
+  processes exit without forced termination, telemetry with expected SIGINT.
+  Native cleanup finds no runtime process and 4507132 KiB available RAM. Camera
+  remains closed; long-duration leak behavior is untested.
+- The initial review contains eight query sections and 55 verified embedded PNGs
+  without WebGL. A separate F/G page displays the exact new query crops and source
+  hashes. The user's subsequent explicit judgments are recorded; visibility is
+  not inferred from desktop-open success. The final confirmed review contains
+  57 verified PNGs and preserves the initial pages unchanged.
+
+Evidence: `data/outputs/coordinated_live/20260918/`, including `acceptance.json`,
+preview/confirmation, `attempt_01/` with bag/journals/source snapshots, original
+and corrected checker outputs, independent admission/geometry/semantic/search
+checks, `summary.json`, `central_depth_diagnostic.json`, `cleanup.json`, tests,
+original review pages, `operator_target_review.json`, exact `feedback.json`,
+`feedback_verification.json` and `confirmed_review.html`.
+Private room data stays outside Git.
+
+Learning checkpoint: exact-source selection works with the live camera, while
+identity, useful target depth and a route remain separate requirements. Equal
+message counts do not prove identical source data; provenance gaps must stay visible.
+
+Next action: after fresh operator placement/readiness, check a closer or oblique
+stationary fridge view for usable target depth before another full live trial.
 
 ## 16. End-Of-Session Handoff Template
 
